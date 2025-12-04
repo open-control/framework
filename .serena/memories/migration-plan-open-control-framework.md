@@ -8,7 +8,7 @@
 | **1** | ✅ TERMINÉE | 2025-12-04 | Structure + HAL Interfaces |
 | **2** | ✅ TERMINÉE | 2025-12-04 | Core Logic (EventBus .hpp/.cpp, InputBinding) |
 | **3** | ✅ TERMINÉE | 2025-12-04 | Context System (IContext, ContextManager, Context Events) |
-| 4 | 🔴 À faire | - | ControlAPI |
+| **4** | ✅ TERMINÉE | 2025-12-04 | ControlAPI |
 | 5 | 🔴 À faire | - | OpenControlApp + AppBuilder |
 | 6 | 🔴 À faire | - | Drivers Teensy |
 | 7 | 🔴 À faire | - | UI Optionnel |
@@ -741,10 +741,71 @@ private:
 } // namespace oc
 ```
 
-### 4.2 Validation Phase 4
+### 4.2 Validation Phase 4 ✅
 
-- ControlAPI compile
-- Toutes les méthodes délèguent correctement
+- ControlAPI compile ✅
+- Toutes les méthodes délèguent correctement ✅
+
+## Fichiers Créés Phase 4
+
+| Fichier | Rôle |
+|---------|------|
+| `src/oc/api/ControlAPI.hpp` | Façade API pour les contextes |
+| `src/oc/api/ControlAPI.cpp` | Implémentation avec délégation |
+
+## Ajustements Phase 4
+
+1. **View Management supprimé** : getParentContainer(), showPluginView(), hidePluginView() sont LVGL-spécifiques → dans le consommateur
+2. **MIDI étendu** : Ajout de sendProgramChange() et sendPitchBend() (plus complet que l'original)
+3. **eventBus() getter** : Accès direct pour usage avancé
+4. **setEncoderDelta() ajouté** : Initialement omis, corrigé - ajouté à IEncoderController + ControlAPI
+5. **Logging omis** : Optionnel, peut être ajouté si nécessaire
+
+---
+
+## Écarts et Corrections - Phases 3-4
+
+### Include Order Fixes (conformité guidelines)
+| Fichier | Correction |
+|---------|------------|
+| `ContextManager.hpp` | `"IContext.hpp"` déplacé après STL includes |
+| `Events.hpp` | `"Event.hpp"`, `"EventTypes.hpp"` déplacés après `<cstdint>` |
+| `InputBinding.hpp` | Corrigé en Phase 3 |
+| `Binding.hpp` | Corrigé en Phase 3 |
+
+### Conformité au Plan - Corrigé
+
+| Aspect | Plan Original | Implémentation | Statut |
+|--------|---------------|----------------|--------|
+| **ContextManager deps** | `ContextManager(ControlAPI&)` | `ContextManager(oc::api::ControlAPI&)` | ✅ Conforme |
+| **ControlAPI namespace** | `oc::api::ControlAPI` | `oc::api::ControlAPI` | ✅ Conforme |
+| **Context events** | Non spécifiés | 4 events ajoutés | ✅ Extension |
+| **IEncoderController** | Sans setDelta | Avec `setDelta(float)` | ✅ Extension |
+
+### Notes pour Phase 5 (OpenControlApp)
+
+1. **OpenControlApp doit créer** :
+   - EventBus (owned)
+   - InputBinding (owned, dépend de EventBus)
+   - ControlAPI (owned, dépend de InputBinding, EventBus, IMidiTransport, IEncoderController)
+   - ContextManager (owned, dépend de ControlAPI uniquement - accède EventBus via api.eventBus())
+
+2. **Ordre d'initialisation** :
+   ```
+   EventBus → InputBinding → ControlAPI → ContextManager
+   ```
+
+3. **HAL drivers injectés** via AppBuilder :
+   - IDisplayDriver
+   - IMidiTransport
+   - IEncoderController
+   - IButtonController
+
+4. **Namespaces utilisés** :
+   - `oc::api::ControlAPI`
+   - `oc::context::ContextManager`, `oc::context::IContext`
+   - `oc::core::event::EventBus`, `oc::core::input::InputBinding`
+   - `oc::app::OpenControlApp`, `oc::app::AppBuilder`
 
 ---
 

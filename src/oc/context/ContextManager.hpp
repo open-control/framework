@@ -1,18 +1,14 @@
 #pragma once
 
-#include "IContext.hpp"
-
 #include <memory>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
 
-namespace oc {
-class ControlAPI;
-}
+#include "IContext.hpp"
 
-namespace oc::core::event {
-class IEventBus;
+namespace oc::api {
+class ControlAPI;
 }
 
 namespace oc::context {
@@ -34,7 +30,7 @@ struct has_load_resources<T, std::void_t<decltype(T::loadResources())>> : std::t
  * for other systems to react.
  *
  * @code
- * ContextManager mgr(api, eventBus);
+ * ContextManager mgr(api);
  * mgr.registerContext<BitwigContext>("bitwig");
  * mgr.registerContext<StandaloneContext>("standalone");
  * mgr.setDefault("standalone");
@@ -43,7 +39,7 @@ struct has_load_resources<T, std::void_t<decltype(T::loadResources())>> : std::t
  */
 class ContextManager {
 public:
-    ContextManager(ControlAPI& api, core::event::IEventBus& eventBus);
+    explicit ContextManager(oc::api::ControlAPI& api);
     ~ContextManager();
 
     ContextManager(const ContextManager&) = delete;
@@ -132,8 +128,7 @@ private:
     void emitDeactivated(const IContext& ctx);
     void emitError(const IContext& ctx);
 
-    ControlAPI& api_;
-    core::event::IEventBus& eventBus_;
+    oc::api::ControlAPI& api_;
     std::unordered_map<std::string, std::unique_ptr<IContext>> contexts_;
     IContext* active_ = nullptr;
     std::string default_id_;

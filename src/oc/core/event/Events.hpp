@@ -1,9 +1,9 @@
 #pragma once
 
+#include <cstdint>
+
 #include "Event.hpp"
 #include "EventTypes.hpp"
-
-#include <cstdint>
 
 #include <oc/hal/Types.hpp>
 

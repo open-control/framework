@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Event.hpp"
-
 #include <cstdint>
 #include <functional>
+
+#include "Event.hpp"
 
 namespace oc::core::event {
 

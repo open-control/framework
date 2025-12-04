@@ -25,6 +25,7 @@ public:
 
     virtual void setMode(EncoderID id, EncoderMode mode) = 0;
     virtual void setBounds(EncoderID id, int32_t min, int32_t max) = 0;
+    virtual void setDelta(EncoderID id, float delta) = 0;  ///< Set delta per detent (relative mode)
     virtual void setDiscreteSteps(EncoderID id, uint8_t steps) = 0;
     virtual void setContinuous(EncoderID id) = 0;
 

@@ -1,7 +1,7 @@
 #pragma once
 
-namespace oc {
-class ControlAPI;  // Forward declaration (defined in Phase 4)
+namespace oc::api {
+class ControlAPI;
 }
 
 namespace oc::context {
@@ -40,7 +40,7 @@ public:
      * @param api Reference to ControlAPI for hardware/input binding
      * @return true if initialization succeeded
      */
-    virtual bool initialize(ControlAPI& api) = 0;
+    virtual bool initialize(oc::api::ControlAPI& api) = 0;
 
     /// Called every frame while context is active
     virtual void update() = 0;

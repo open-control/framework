@@ -1,10 +1,10 @@
 #pragma once
 
-#include "IEventBus.hpp"
-
 #include <cstddef>
 #include <map>
 #include <vector>
+
+#include "IEventBus.hpp"
 
 namespace oc::core::event {
 

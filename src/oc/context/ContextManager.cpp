@@ -1,12 +1,12 @@
 #include "ContextManager.hpp"
 
+#include <oc/api/ControlAPI.hpp>
 #include <oc/core/event/Events.hpp>
 #include <oc/core/event/IEventBus.hpp>
 
 namespace oc::context {
 
-ContextManager::ContextManager(ControlAPI& api, core::event::IEventBus& eventBus)
-    : api_(api), eventBus_(eventBus) {}
+ContextManager::ContextManager(oc::api::ControlAPI& api) : api_(api) {}
 
 ContextManager::~ContextManager() {
     if (active_) {
@@ -58,19 +58,19 @@ void ContextManager::update() {
 }
 
 void ContextManager::emitRegistered(const IContext& ctx) {
-    eventBus_.emit(core::event::ContextRegisteredEvent(ctx.getId()));
+    api_.eventBus().emit(core::event::ContextRegisteredEvent(ctx.getId()));
 }
 
 void ContextManager::emitActivated(const IContext& ctx) {
-    eventBus_.emit(core::event::ContextActivatedEvent(ctx.getId()));
+    api_.eventBus().emit(core::event::ContextActivatedEvent(ctx.getId()));
 }
 
 void ContextManager::emitDeactivated(const IContext& ctx) {
-    eventBus_.emit(core::event::ContextDeactivatedEvent(ctx.getId()));
+    api_.eventBus().emit(core::event::ContextDeactivatedEvent(ctx.getId()));
 }
 
 void ContextManager::emitError(const IContext& ctx) {
-    eventBus_.emit(core::event::ContextErrorEvent(ctx.getId()));
+    api_.eventBus().emit(core::event::ContextErrorEvent(ctx.getId()));
 }
 
 }  // namespace oc::context

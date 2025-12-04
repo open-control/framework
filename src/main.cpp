@@ -23,5 +23,12 @@
 #include <oc/core/input/InputConfig.hpp>
 #include <oc/core/input/InputBinding.hpp>
 
+// Context system
+#include <oc/context/IContext.hpp>
+#include <oc/context/ContextManager.hpp>
+
+// API
+#include <oc/api/ControlAPI.hpp>
+
 void setup() {}
 void loop() {}
