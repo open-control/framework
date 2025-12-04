@@ -6,8 +6,8 @@
 |-------|--------|------|-------|
 | **0** | ✅ TERMINÉE | 2025-12-04 | Nettoyage repo, mise à jour config |
 | **1** | ✅ TERMINÉE | 2025-12-04 | Structure + HAL Interfaces |
-| **2** | ✅ TERMINÉE | 2025-12-04 | Core Logic (EventBus, InputBinding) |
-| 3 | 🔴 À faire | - | Context System |
+| **2** | ✅ TERMINÉE | 2025-12-04 | Core Logic (EventBus .hpp/.cpp, InputBinding) |
+| **3** | ✅ TERMINÉE | 2025-12-04 | Context System (IContext, ContextManager, Context Events) |
 | 4 | 🔴 À faire | - | ControlAPI |
 | 5 | 🔴 À faire | - | OpenControlApp + AppBuilder |
 | 6 | 🔴 À faire | - | Drivers Teensy |
@@ -327,17 +327,17 @@ Migrer la logique métier sans dépendances hardware.
 
 | Source (core) | Destination (framework) | Adaptations |
 |---------------|------------------------|-------------|
-| `core/event/Event.hpp` | `src/oc/core/event/Event.hpp` | Namespace `oc::core::event` |
-| `core/event/IEventBus.hpp` | `src/oc/core/event/IEventBus.hpp` | Namespace |
-| `core/event/EventBus.hpp` | `src/oc/core/event/EventBus.hpp` | Namespace |
-| `core/event/Events.hpp` | `src/oc/core/event/Events.hpp` | Namespace |
-| `core/event/UnifiedEventTypes.hpp` | `src/oc/core/event/EventTypes.hpp` | Namespace, renommer |
-| `core/struct/Binding.hpp` | `src/oc/core/struct/Binding.hpp` | Supprimer `lv_obj_t*`, utiliser `VisibilityPredicate` |
-| `core/struct/Button.hpp` | `src/oc/core/struct/Button.hpp` | Namespace |
-| `core/struct/Encoder.hpp` | `src/oc/core/struct/Encoder.hpp` | Namespace |
-| `core/struct/MidiCCMapping.hpp` | `src/oc/core/struct/MidiMapping.hpp` | Namespace |
-| `core/input/InputBinding.hpp` | `src/oc/core/input/InputBinding.hpp` | Supprimer LVGL, utiliser `VisibilityPredicate` |
-| `core/input/InputBinding.cpp` | `src/oc/core/input/InputBinding.cpp` | Supprimer `lv_obj_has_flag` |
+| `core/event/Event.hpp` | `src/oc/core/event/Event.hpp` | ✅ Namespace `oc::core::event` |
+| `core/event/IEventBus.hpp` | `src/oc/core/event/IEventBus.hpp` | ✅ Namespace |
+| `core/event/EventBus.hpp` | `src/oc/core/event/EventBus.hpp/.cpp` | ✅ Séparé .hpp/.cpp (pas header-only) |
+| `core/event/Events.hpp` | `src/oc/core/event/Events.hpp` | ✅ Namespace |
+| `core/event/UnifiedEventTypes.hpp` | `src/oc/core/event/EventTypes.hpp` | ✅ Namespace, renommé |
+| `core/struct/Binding.hpp` | `src/oc/core/struct/Binding.hpp` | ✅ Supprimer `lv_obj_t*`, utiliser `VisibilityPredicate` |
+| `core/struct/Button.hpp` | → Phase 6 (drivers) | Config hardware, pas core |
+| `core/struct/Encoder.hpp` | → Phase 6 (drivers) | Config hardware, pas core |
+| `core/struct/MidiCCMapping.hpp` | → Quand nécessaire | Optionnel pour framework de base |
+| `core/input/InputBinding.hpp` | `src/oc/core/input/InputBinding.hpp` | ✅ Sans LVGL, avec `VisibilityPredicate` |
+| `core/input/InputBinding.cpp` | `src/oc/core/input/InputBinding.cpp` | ✅ Sans `lv_obj_has_flag` |
 
 ### 2.2 Nouveau Fichier : InputConfig
 
@@ -414,15 +414,59 @@ struct EncoderBinding {
 } // namespace oc::core
 ```
 
-### 2.4 Validation Phase 2
+### 2.4 Notes d'implémentation
 
-- EventBus doit compiler
-- InputBinding doit compiler SANS `#include <lvgl.h>`
-- Test unitaire EventBus (subscribe/emit) si possible
+**Décision architecturale** : EventBus séparé en .hpp/.cpp (pas header-only)
+- Raison : STL includes lourds (`<map>`, `<vector>`, `<functional>`), fonctions non-triviales
+- Cohérent avec InputBinding qui a aussi .hpp/.cpp
+
+**Fichiers reportés** : Button.hpp, Encoder.hpp, MidiMapping.hpp → Phase 6 (config hardware)
+
+### 2.5 Validation Phase 2 ✅
+
+- EventBus compile ✅
+- InputBinding compile SANS `#include <lvgl.h>` ✅
+- `pio run -e teensy41` passe ✅
 
 ---
 
-# PHASE 3 : Context System
+# PHASE 3 : Context System (TERMINÉE)
+
+## Fichiers Créés
+
+| Fichier | Rôle |
+|---------|------|
+| `src/oc/context/IContext.hpp` | Interface contextes avec lifecycle, identity, connection state |
+| `src/oc/context/ContextManager.hpp` | Template `registerContext<T>` avec SFINAE `loadResources()` |
+| `src/oc/context/ContextManager.cpp` | Switching, events emission |
+
+## Events Ajoutés à Events.hpp
+
+```cpp
+ContextRegisteredEvent   // CONTEXT_REGISTERED
+ContextActivatedEvent    // CONTEXT_ACTIVATED
+ContextDeactivatedEvent  // CONTEXT_DEACTIVATED
+ContextErrorEvent        // CONTEXT_ERROR
+```
+
+## Ajustements Phase 3
+
+1. **const char* lifetime fix** : `emit*(const IContext&)` au lieu de `emit*(const char*)` pour garantir stabilité du pointeur via `ctx.getId()`
+
+2. **Include order fix** : `InputBinding.hpp` corrigé (C std avant framework headers)
+
+3. **Documentation ajoutée** : `InputConfig.hpp` documenté avec Doxygen
+
+## Validation Phase 3 ✅
+
+- IContext et ContextManager compilent ✅
+- Template `registerContext<T>` fonctionne ✅
+- Events context émis correctement ✅
+- Conformité guidelines 100% ✅
+
+---
+
+# PHASE 3 (Plan Original - Référence)
 
 ## Objectif
 Créer le système de contextes (IContext, ContextManager).

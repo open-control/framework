@@ -1,10 +1,10 @@
 #pragma once
 
-#include <oc/hal/Types.hpp>
-
 #include <cstdint>
 #include <functional>
 #include <optional>
+
+#include <oc/hal/Types.hpp>
 
 namespace oc::core {
 
@@ -63,8 +63,8 @@ struct EncoderBinding {
     std::optional<hal::ButtonID> requiredButton;  ///< For TURN_WHILE_PRESSED
     EncoderActionCallback action;
     bool enabled = true;
-    VisibilityPredicate isVisible = []() { return true; };
-    ScopeId scopeId = 0;  ///< 0 = global
+    VisibilityPredicate isVisible = []() { return true; };  ///< Visibility predicate for scope
+    ScopeId scopeId = 0;                                    ///< 0 = global
 };
 
 }  // namespace oc::core

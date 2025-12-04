@@ -1,13 +1,13 @@
 #pragma once
 
-#include <oc/hal/Types.hpp>
-#include <oc/core/event/IEventBus.hpp>
-#include <oc/core/struct/Binding.hpp>
-#include <oc/core/input/InputConfig.hpp>
-
 #include <cstdint>
 #include <unordered_map>
 #include <vector>
+
+#include <oc/core/event/IEventBus.hpp>
+#include <oc/core/input/InputConfig.hpp>
+#include <oc/core/struct/Binding.hpp>
+#include <oc/hal/Types.hpp>
 
 namespace oc::core::input {
 

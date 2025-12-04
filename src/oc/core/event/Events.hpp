@@ -100,4 +100,44 @@ public:
     SystemBootCompleteEvent() : Event(EventCategory::SYSTEM, SystemEvent::BOOT_COMPLETE) {}
 };
 
+// ═══════════════════════════════════════════════════════════════════
+// Context Events
+// ═══════════════════════════════════════════════════════════════════
+
+/// Context was successfully registered
+class ContextRegisteredEvent : public Event {
+public:
+    explicit ContextRegisteredEvent(const char* ctxId)
+        : Event(EventCategory::CONTEXT, SystemEvent::CONTEXT_REGISTERED), contextId(ctxId) {}
+
+    const char* contextId;
+};
+
+/// Context was activated (switched to)
+class ContextActivatedEvent : public Event {
+public:
+    explicit ContextActivatedEvent(const char* ctxId)
+        : Event(EventCategory::CONTEXT, SystemEvent::CONTEXT_ACTIVATED), contextId(ctxId) {}
+
+    const char* contextId;
+};
+
+/// Context was deactivated (switched away from)
+class ContextDeactivatedEvent : public Event {
+public:
+    explicit ContextDeactivatedEvent(const char* ctxId)
+        : Event(EventCategory::CONTEXT, SystemEvent::CONTEXT_DEACTIVATED), contextId(ctxId) {}
+
+    const char* contextId;
+};
+
+/// Context initialization failed
+class ContextErrorEvent : public Event {
+public:
+    explicit ContextErrorEvent(const char* ctxId)
+        : Event(EventCategory::CONTEXT, SystemEvent::CONTEXT_ERROR), contextId(ctxId) {}
+
+    const char* contextId;
+};
+
 }  // namespace oc::core::event
