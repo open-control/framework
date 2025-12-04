@@ -1,0 +1,41 @@
+{
+  "name": "open-control",
+  "version": "0.1.0",
+  "description": "Open Control Framework - Hardware abstraction for MIDI controllers with optional LVGL UI",
+  "keywords": [
+    "midi",
+    "controller",
+    "embedded",
+    "lvgl",
+    "hal",
+    "teensy",
+    "framework"
+  ],
+  "authors": [
+    {
+      "name": "petitechose.audio",
+      "url": "https://github.com/open-control"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/open-control/framework.git"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/open-control",
+  "frameworks": ["arduino"],
+  "platforms": ["teensy"],
+  "export": {
+    "include": ["src"],
+    "exclude": ["examples", ".git", ".gitignore", "script", "asset"]
+  },
+  "build": {
+    "includeDir": "src",
+    "flags": ["-std=gnu++17"],
+    "srcFilter": [
+      "+<*.cpp>",
+      "+<**/*.cpp>",
+      "-<main.cpp>"
+    ]
+  }
+}

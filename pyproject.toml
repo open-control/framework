@@ -1,0 +1,16 @@
+[project]
+name = "open-control-framework"
+version = "0.1.0"
+description = "Open Control Framework - Hardware abstraction for MIDI controllers"
+requires-python = ">=3.11"
+
+[dependency-groups]
+dev = [
+    "pillow>=10.0.0",  # For LVGL image conversion
+]
+
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+venvPath = "."
+venv = ".venv"
