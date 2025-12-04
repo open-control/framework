@@ -30,5 +30,9 @@
 // API
 #include <oc/api/ControlAPI.hpp>
 
+// App
+#include <oc/app/AppBuilder.hpp>
+#include <oc/app/OpenControlApp.hpp>
+
 void setup() {}
 void loop() {}

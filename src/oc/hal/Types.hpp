@@ -48,7 +48,7 @@ struct GpioPin {
 
     uint8_t pin;
     Source source = Source::MCU;
-    bool active_low = true;
+    bool activeLow = true;
 };
 
 /**
@@ -64,5 +64,15 @@ using ButtonCallback = std::function<void(ButtonID, ButtonEvent)>;
  * @param delta Change since last callback
  */
 using EncoderCallback = std::function<void(EncoderID, int32_t position, int32_t delta)>;
+
+/**
+ * @brief Function pointer for time source (milliseconds)
+ *
+ * Allows framework to be platform-agnostic. Default implementations:
+ * - Arduino: millis()
+ * - FreeRTOS: xTaskGetTickCount() * portTICK_PERIOD_MS
+ * - Bare metal: custom SysTick handler
+ */
+using TimeProvider = uint32_t (*)();
 
 }  // namespace oc::hal
