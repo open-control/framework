@@ -5,8 +5,8 @@
 | Phase | Statut | Date | Notes |
 |-------|--------|------|-------|
 | **0** | ✅ TERMINÉE | 2025-12-04 | Nettoyage repo, mise à jour config |
-| 1 | 🔴 À faire | - | Structure + HAL Interfaces |
-| 2 | 🔴 À faire | - | Core Logic |
+| **1** | ✅ TERMINÉE | 2025-12-04 | Structure + HAL Interfaces |
+| **2** | ✅ TERMINÉE | 2025-12-04 | Core Logic (EventBus, InputBinding) |
 | 3 | 🔴 À faire | - | Context System |
 | 4 | 🔴 À faire | - | ControlAPI |
 | 5 | 🔴 À faire | - | OpenControlApp + AppBuilder |
