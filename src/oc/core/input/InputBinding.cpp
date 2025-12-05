@@ -38,8 +38,10 @@ void InputBinding::onLongPress(hal::ButtonID id, ActionCallback cb, uint32_t ms)
         {.type = ButtonBindingType::LONG_PRESS, .buttonId = id, .longPressMs = duration, .action = std::move(cb)});
 }
 
-void InputBinding::onDoubleTap(hal::ButtonID id, ActionCallback cb) {
-    button_bindings_.push_back({.type = ButtonBindingType::DOUBLE_TAP, .buttonId = id, .action = std::move(cb)});
+void InputBinding::onDoubleTap(hal::ButtonID id, ActionCallback cb, uint32_t ms) {
+    uint32_t window = ms > 0 ? ms : config_.doubleTapWindowMs;
+    button_bindings_.push_back(
+        {.type = ButtonBindingType::DOUBLE_TAP, .buttonId = id, .doubleTapWindowMs = window, .action = std::move(cb)});
 }
 
 void InputBinding::onCombo(hal::ButtonID btn1, hal::ButtonID btn2, ActionCallback cb) {
@@ -56,72 +58,71 @@ void InputBinding::onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn, E
         {.type = EncoderBindingType::TURN_WHILE_PRESSED, .encoderId = enc, .requiredButton = btn, .action = std::move(cb)});
 }
 
-void InputBinding::onPressed(hal::ButtonID id, ActionCallback cb, VisibilityPredicate isVisible, ScopeId scope,
-                             bool latch) {
+void InputBinding::onPressed(hal::ButtonID id, ActionCallback cb, ScopeID scope, bool latch, IsActiveFn isActive) {
     button_bindings_.push_back({.type = ButtonBindingType::PRESS,
                                 .buttonId = id,
                                 .action = std::move(cb),
                                 .latch = latch,
-                                .isVisible = std::move(isVisible),
+                                .isActive = std::move(isActive),
                                 .scopeId = scope});
 }
 
-void InputBinding::onReleased(hal::ButtonID id, ActionCallback cb, VisibilityPredicate isVisible, ScopeId scope) {
+void InputBinding::onReleased(hal::ButtonID id, ActionCallback cb, ScopeID scope, IsActiveFn isActive) {
     button_bindings_.push_back({.type = ButtonBindingType::RELEASE,
                                 .buttonId = id,
                                 .action = std::move(cb),
-                                .isVisible = std::move(isVisible),
+                                .isActive = std::move(isActive),
                                 .scopeId = scope});
 }
 
-void InputBinding::onLongPress(hal::ButtonID id, ActionCallback cb, uint32_t ms, VisibilityPredicate isVisible,
-                               ScopeId scope) {
+void InputBinding::onLongPress(hal::ButtonID id, ActionCallback cb, uint32_t ms, ScopeID scope, IsActiveFn isActive) {
     button_bindings_.push_back({.type = ButtonBindingType::LONG_PRESS,
                                 .buttonId = id,
                                 .longPressMs = ms,
                                 .action = std::move(cb),
-                                .isVisible = std::move(isVisible),
+                                .isActive = std::move(isActive),
                                 .scopeId = scope});
 }
 
-void InputBinding::onDoubleTap(hal::ButtonID id, ActionCallback cb, VisibilityPredicate isVisible, ScopeId scope) {
+void InputBinding::onDoubleTap(hal::ButtonID id, ActionCallback cb, uint32_t ms, ScopeID scope, IsActiveFn isActive) {
+    uint32_t window = ms > 0 ? ms : config_.doubleTapWindowMs;
     button_bindings_.push_back({.type = ButtonBindingType::DOUBLE_TAP,
                                 .buttonId = id,
+                                .doubleTapWindowMs = window,
                                 .action = std::move(cb),
-                                .isVisible = std::move(isVisible),
+                                .isActive = std::move(isActive),
                                 .scopeId = scope});
 }
 
-void InputBinding::onCombo(hal::ButtonID btn1, hal::ButtonID btn2, ActionCallback cb, VisibilityPredicate isVisible,
-                           ScopeId scope) {
+void InputBinding::onCombo(hal::ButtonID btn1, hal::ButtonID btn2, ActionCallback cb, ScopeID scope,
+                           IsActiveFn isActive) {
     button_bindings_.push_back({.type = ButtonBindingType::COMBO,
                                 .buttonId = btn1,
                                 .secondaryButton = btn2,
                                 .action = std::move(cb),
-                                .isVisible = std::move(isVisible),
+                                .isActive = std::move(isActive),
                                 .scopeId = scope});
 }
 
-void InputBinding::onTurned(hal::EncoderID id, EncoderActionCallback cb, VisibilityPredicate isVisible,
-                            ScopeId scope) {
+void InputBinding::onTurned(hal::EncoderID id, EncoderActionCallback cb, ScopeID scope, IsActiveFn isActive) {
     encoder_bindings_.push_back({.type = EncoderBindingType::TURN,
                                  .encoderId = id,
                                  .action = std::move(cb),
-                                 .isVisible = std::move(isVisible),
+                                 .isActive = std::move(isActive),
                                  .scopeId = scope});
 }
 
 void InputBinding::onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn, EncoderActionCallback cb,
-                                        VisibilityPredicate isVisible, ScopeId scope) {
+                                        ScopeID scope, IsActiveFn isActive) {
     encoder_bindings_.push_back({.type = EncoderBindingType::TURN_WHILE_PRESSED,
                                  .encoderId = enc,
                                  .requiredButton = btn,
                                  .action = std::move(cb),
-                                 .isVisible = std::move(isVisible),
+                                 .isActive = std::move(isActive),
                                  .scopeId = scope});
 }
 
-void InputBinding::clearScope(ScopeId scope) {
+void InputBinding::clearScope(ScopeID scope) {
     auto buttonIt = button_bindings_.begin();
     while (buttonIt != button_bindings_.end()) {
         if (buttonIt->scopeId == scope) {
@@ -337,8 +338,42 @@ void InputBinding::checkAndTriggerDoubleTap(hal::ButtonID buttonId, uint32_t now
     auto releaseIt = button_release_time_.find(buttonId);
     if (releaseIt == button_release_time_.end()) return;
 
-    if ((now - releaseIt->second) < config_.doubleTapWindowMs) {
-        triggerMatchingButtonBindings(buttonId, ButtonBindingType::DOUBLE_TAP);
+    bool anyTriggered = false;
+    bool scopedTriggered = false;
+
+    // Check scoped bindings first
+    for (auto& binding : button_bindings_) {
+        if (!binding.enabled || binding.type != ButtonBindingType::DOUBLE_TAP) continue;
+        if (binding.buttonId != buttonId || binding.scopeId == 0) continue;
+        if (!isBindingActive(binding)) continue;
+
+        const uint32_t window = binding.doubleTapWindowMs > 0 ? binding.doubleTapWindowMs : config_.doubleTapWindowMs;
+        if ((now - releaseIt->second) < window) {
+            if (binding.action) {
+                binding.action();
+                scopedTriggered = true;
+                anyTriggered = true;
+            }
+        }
+    }
+
+    if (!scopedTriggered) {
+        // Check global bindings
+        for (auto& binding : button_bindings_) {
+            if (!binding.enabled || binding.type != ButtonBindingType::DOUBLE_TAP) continue;
+            if (binding.buttonId != buttonId || binding.scopeId != 0) continue;
+
+            const uint32_t window = binding.doubleTapWindowMs > 0 ? binding.doubleTapWindowMs : config_.doubleTapWindowMs;
+            if ((now - releaseIt->second) < window) {
+                if (binding.action) {
+                    binding.action();
+                    anyTriggered = true;
+                }
+            }
+        }
+    }
+
+    if (anyTriggered) {
         button_tap_count_[buttonId] = 0;
     }
 }
@@ -399,12 +434,14 @@ void InputBinding::setBindingsEnabled(bool enabled) { bindings_enabled_ = enable
 
 bool InputBinding::isBindingActive(const ButtonBinding& binding) const {
     if (binding.scopeId == 0) return true;
-    return binding.isVisible();
+    if (!binding.isActive) return true;  // nullptr = always active
+    return binding.isActive();
 }
 
 bool InputBinding::isBindingActive(const EncoderBinding& binding) const {
     if (binding.scopeId == 0) return true;
-    return binding.isVisible();
+    if (!binding.isActive) return true;  // nullptr = always active
+    return binding.isActive();
 }
 
 }  // namespace oc::core::input

@@ -8,11 +8,34 @@
 
 namespace oc::core {
 
-/// Predicate to check if a scoped binding should be active
-using VisibilityPredicate = std::function<bool()>;
+/**
+ * @brief Predicate for conditional binding activation
+ *
+ * Called each time an input event matches this binding.
+ * Return true to trigger the action, false to skip.
+ *
+ * Use cases:
+ * - UI frameworks: only trigger when a widget/view is visible
+ * - State machines: only trigger in certain application states
+ * - Modal dialogs: disable background bindings while modal is open
+ *
+ * If nullptr, binding is always active when in scope.
+ */
+using IsActiveFn = std::function<bool()>;
 
-/// Unique identifier for a scope (0 = global)
-using ScopeId = uintptr_t;
+/**
+ * @brief Unique scope identifier for binding grouping
+ *
+ * Purposes:
+ * 1. Batch removal: clearScope(id) removes all bindings with this scope
+ * 2. Priority: scoped bindings trigger before global (scope=0) bindings
+ *
+ * Typical values:
+ * - 0: Global binding (no scope, lowest priority)
+ * - Pointer cast to uintptr_t (e.g., view/screen instance)
+ * - Enum value for application modes
+ */
+using ScopeID = uintptr_t;
 
 using ActionCallback = std::function<void()>;
 using EncoderActionCallback = std::function<void(float)>;
@@ -40,18 +63,19 @@ enum class EncoderBindingType : uint8_t {
  * @brief Button input binding definition
  *
  * Scoped bindings (scopeId != 0) have priority over global bindings.
- * The isVisible predicate determines if a scoped binding is active.
+ * The isActive predicate determines if the binding should trigger.
  */
 struct ButtonBinding {
     ButtonBindingType type;
     hal::ButtonID buttonId;
     std::optional<hal::ButtonID> secondaryButton;  ///< For COMBO
-    uint32_t longPressMs = 0;                      ///< For LONG_PRESS (0 = default)
+    uint32_t longPressMs = 0;                      ///< For LONG_PRESS (0 = use config default)
+    uint32_t doubleTapWindowMs = 0;                ///< For DOUBLE_TAP (0 = use config default)
     ActionCallback action;
     bool enabled = true;
     bool latch = false;  ///< Enable latch/momentary behavior
-    VisibilityPredicate isVisible = []() { return true; };
-    ScopeId scopeId = 0;  ///< 0 = global
+    IsActiveFn isActive = nullptr;  ///< Activation predicate (nullptr = always active)
+    ScopeID scopeId = 0;             ///< 0 = global
 };
 
 /**
@@ -63,8 +87,8 @@ struct EncoderBinding {
     std::optional<hal::ButtonID> requiredButton;  ///< For TURN_WHILE_PRESSED
     EncoderActionCallback action;
     bool enabled = true;
-    VisibilityPredicate isVisible = []() { return true; };  ///< Visibility predicate for scope
-    ScopeId scopeId = 0;                                    ///< 0 = global
+    IsActiveFn isActive = nullptr;  ///< Activation predicate (nullptr = always active)
+    ScopeID scopeId = 0;            ///< 0 = global
 };
 
 }  // namespace oc::core

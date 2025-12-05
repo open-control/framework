@@ -6,14 +6,32 @@ namespace oc::hal {
 
 /**
  * @brief Interface for multiplexer hardware abstraction
+ *
+ * Supports both digital (buttons) and analog (pots/faders) reads.
  */
 class IMultiplexer {
 public:
     virtual ~IMultiplexer() = default;
 
-    virtual void init() = 0;
+    /**
+     * @brief Initialize multiplexer hardware
+     * @return true if initialization succeeded, false on failure
+     */
+    virtual bool init() = 0;
+
+    /// Select a channel (for advanced batch reading)
     virtual void select(uint8_t channel) = 0;
-    virtual bool readChannel(uint8_t channel) = 0;
+
+    /// Read channel as digital (select + read)
+    virtual bool readDigital(uint8_t channel) = 0;
+
+    /// Read channel as analog (optional, returns 0 if not supported)
+    virtual uint16_t readAnalog(uint8_t channel) { return 0; }
+
+    /// Does this mux support analog reading?
+    virtual bool supportsAnalog() const { return false; }
+
+    /// Get total number of channels
     virtual uint8_t channelCount() const = 0;
 };
 

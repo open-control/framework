@@ -39,30 +39,32 @@ public:
     void onPressed(hal::ButtonID id, ActionCallback cb);
     void onReleased(hal::ButtonID id, ActionCallback cb);
     void onLongPress(hal::ButtonID id, ActionCallback cb, uint32_t ms = 0);
-    void onDoubleTap(hal::ButtonID id, ActionCallback cb);
+    void onDoubleTap(hal::ButtonID id, ActionCallback cb, uint32_t ms = 0);
     void onCombo(hal::ButtonID btn1, hal::ButtonID btn2, ActionCallback cb);
     void onTurned(hal::EncoderID id, EncoderActionCallback cb);
     void onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn, EncoderActionCallback cb);
 
     // ═══════════════════════════════════════════════════
-    // Scoped bindings (active when scope visible)
+    // Scoped bindings (grouped for clearScope, optional activation condition)
     // ═══════════════════════════════════════════════════
 
-    void onPressed(hal::ButtonID id, ActionCallback cb, VisibilityPredicate isVisible, ScopeId scope,
-                   bool latch = false);
-    void onReleased(hal::ButtonID id, ActionCallback cb, VisibilityPredicate isVisible, ScopeId scope);
-    void onLongPress(hal::ButtonID id, ActionCallback cb, uint32_t ms, VisibilityPredicate isVisible,
-                     ScopeId scope);
-    void onDoubleTap(hal::ButtonID id, ActionCallback cb, VisibilityPredicate isVisible, ScopeId scope);
-    void onCombo(hal::ButtonID btn1, hal::ButtonID btn2, ActionCallback cb,
-                 VisibilityPredicate isVisible, ScopeId scope);
-    void onTurned(hal::EncoderID id, EncoderActionCallback cb, VisibilityPredicate isVisible,
-                  ScopeId scope);
+    void onPressed(hal::ButtonID id, ActionCallback cb, ScopeID scope,
+                   bool latch = false, IsActiveFn isActive = nullptr);
+    void onReleased(hal::ButtonID id, ActionCallback cb, ScopeID scope,
+                    IsActiveFn isActive = nullptr);
+    void onLongPress(hal::ButtonID id, ActionCallback cb, uint32_t ms, ScopeID scope,
+                     IsActiveFn isActive = nullptr);
+    void onDoubleTap(hal::ButtonID id, ActionCallback cb, uint32_t ms, ScopeID scope,
+                     IsActiveFn isActive = nullptr);
+    void onCombo(hal::ButtonID btn1, hal::ButtonID btn2, ActionCallback cb, ScopeID scope,
+                 IsActiveFn isActive = nullptr);
+    void onTurned(hal::EncoderID id, EncoderActionCallback cb, ScopeID scope,
+                  IsActiveFn isActive = nullptr);
     void onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn, EncoderActionCallback cb,
-                              VisibilityPredicate isVisible, ScopeId scope);
+                              ScopeID scope, IsActiveFn isActive = nullptr);
 
     /// Remove all bindings associated with a scope
-    void clearScope(ScopeId scope);
+    void clearScope(ScopeID scope);
 
     /// Check if a button is in latched state
     bool isLatched(hal::ButtonID btn) const;
@@ -105,9 +107,9 @@ private:
     std::unordered_map<hal::ButtonID, bool> latch_states_;
 
     event::IEventBus& event_bus_;
-    event::SubscriptionId encoder_sub_;
-    event::SubscriptionId button_press_sub_;
-    event::SubscriptionId button_release_sub_;
+    event::SubscriptionID encoder_sub_;
+    event::SubscriptionID button_press_sub_;
+    event::SubscriptionID button_release_sub_;
 
     InputConfig config_;
     bool bindings_enabled_ = true;

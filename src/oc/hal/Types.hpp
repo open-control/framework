@@ -48,7 +48,6 @@ struct GpioPin {
 
     uint8_t pin;
     Source source = Source::MCU;
-    bool activeLow = true;
 };
 
 /**
@@ -60,10 +59,12 @@ using ButtonCallback = std::function<void(ButtonID, ButtonEvent)>;
  * @brief Callback for encoder events
  *
  * @param id Encoder identifier
- * @param position Current absolute position
- * @param delta Change since last callback
+ * @param value Value depends on EncoderMode:
+ *              - NORMALIZED: position [0.0-1.0] based on bounds
+ *              - RAW: hardware ticks (as float)
+ *              - RELATIVE: delta per detent (e.g., +1.0 or -1.0)
  */
-using EncoderCallback = std::function<void(EncoderID, int32_t position, int32_t delta)>;
+using EncoderCallback = std::function<void(EncoderID id, float value)>;
 
 /**
  * @brief Function pointer for time source (milliseconds)

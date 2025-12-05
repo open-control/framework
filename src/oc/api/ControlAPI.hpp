@@ -64,8 +64,8 @@ public:
     /// Register callback for long press (0 ms = use config default)
     void onLongPress(hal::ButtonID id, core::ActionCallback cb, uint32_t ms = 0);
 
-    /// Register callback for double tap
-    void onDoubleTap(hal::ButtonID id, core::ActionCallback cb);
+    /// Register callback for double tap (0 ms = use config default)
+    void onDoubleTap(hal::ButtonID id, core::ActionCallback cb, uint32_t ms = 0);
 
     /// Register callback for two-button combo
     void onCombo(hal::ButtonID btn1, hal::ButtonID btn2, core::ActionCallback cb);
@@ -77,39 +77,39 @@ public:
     void onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn, core::EncoderActionCallback cb);
 
     // ═══════════════════════════════════════════════════
-    // Input Binding - Scoped (active when scope visible)
+    // Input Binding - Scoped (grouped for clearScope, optional activation condition)
     // ═══════════════════════════════════════════════════
 
     /// Register scoped button press callback
-    void onPressed(hal::ButtonID id, core::ActionCallback cb, core::VisibilityPredicate isVisible,
-                   core::ScopeId scope, bool latch = false);
+    void onPressed(hal::ButtonID id, core::ActionCallback cb, core::ScopeID scope,
+                   bool latch = false, core::IsActiveFn isActive = nullptr);
 
     /// Register scoped button release callback
-    void onReleased(hal::ButtonID id, core::ActionCallback cb, core::VisibilityPredicate isVisible,
-                    core::ScopeId scope);
+    void onReleased(hal::ButtonID id, core::ActionCallback cb, core::ScopeID scope,
+                    core::IsActiveFn isActive = nullptr);
 
     /// Register scoped long press callback
-    void onLongPress(hal::ButtonID id, core::ActionCallback cb, uint32_t ms,
-                     core::VisibilityPredicate isVisible, core::ScopeId scope);
+    void onLongPress(hal::ButtonID id, core::ActionCallback cb, uint32_t ms, core::ScopeID scope,
+                     core::IsActiveFn isActive = nullptr);
 
     /// Register scoped double tap callback
-    void onDoubleTap(hal::ButtonID id, core::ActionCallback cb, core::VisibilityPredicate isVisible,
-                     core::ScopeId scope);
+    void onDoubleTap(hal::ButtonID id, core::ActionCallback cb, uint32_t ms, core::ScopeID scope,
+                     core::IsActiveFn isActive = nullptr);
 
     /// Register scoped two-button combo callback
-    void onCombo(hal::ButtonID btn1, hal::ButtonID btn2, core::ActionCallback cb,
-                 core::VisibilityPredicate isVisible, core::ScopeId scope);
+    void onCombo(hal::ButtonID btn1, hal::ButtonID btn2, core::ActionCallback cb, core::ScopeID scope,
+                 core::IsActiveFn isActive = nullptr);
 
     /// Register scoped encoder rotation callback
-    void onTurned(hal::EncoderID id, core::EncoderActionCallback cb,
-                  core::VisibilityPredicate isVisible, core::ScopeId scope);
+    void onTurned(hal::EncoderID id, core::EncoderActionCallback cb, core::ScopeID scope,
+                  core::IsActiveFn isActive = nullptr);
 
     /// Register scoped encoder rotation while button held callback
     void onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn, core::EncoderActionCallback cb,
-                              core::VisibilityPredicate isVisible, core::ScopeId scope);
+                              core::ScopeID scope, core::IsActiveFn isActive = nullptr);
 
     /// Remove all bindings for a scope
-    void clearScope(core::ScopeId scope);
+    void clearScope(core::ScopeID scope);
 
     // ═══════════════════════════════════════════════════
     // Latch State
@@ -125,17 +125,17 @@ public:
     // Encoder Control
     // ═══════════════════════════════════════════════════
 
-    /// Get current encoder position
-    int32_t getEncoderPosition(hal::EncoderID id) const;
+    /// Get current encoder value (depends on mode: NORMALIZED/RAW/RELATIVE)
+    float getEncoderPosition(hal::EncoderID id) const;
 
-    /// Set encoder position
-    void setEncoderPosition(hal::EncoderID id, int32_t position);
+    /// Set encoder value (depends on mode)
+    void setEncoderPosition(hal::EncoderID id, float value);
 
     /// Set encoder operating mode
     void setEncoderMode(hal::EncoderID id, hal::EncoderMode mode);
 
     /// Set encoder bounds for absolute mode
-    void setEncoderBounds(hal::EncoderID id, int32_t min, int32_t max);
+    void setEncoderBounds(hal::EncoderID id, float min, float max);
 
     /// Set delta per detent for relative mode
     void setEncoderDelta(hal::EncoderID id, float delta);

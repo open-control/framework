@@ -7,7 +7,7 @@
 
 namespace oc::core::event {
 
-using SubscriptionId = uint8_t;
+using SubscriptionID = uint8_t;
 using EventCallback = std::function<void(const Event&)>;
 
 /**
@@ -21,7 +21,7 @@ public:
      * @brief Subscribe to events of a specific category and type
      * @return Subscription ID for later unsubscription
      */
-    virtual SubscriptionId on(EventCategoryType category, EventType type, EventCallback callback) = 0;
+    virtual SubscriptionID on(EventCategoryType category, EventType type, EventCallback callback) = 0;
 
     /**
      * @brief Emit an event to all subscribers
@@ -31,7 +31,7 @@ public:
     /**
      * @brief Unsubscribe using the subscription ID
      */
-    virtual void off(SubscriptionId id) = 0;
+    virtual void off(SubscriptionID id) = 0;
 };
 
 }  // namespace oc::core::event

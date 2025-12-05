@@ -24,8 +24,8 @@ void ControlAPI::onLongPress(hal::ButtonID id, core::ActionCallback cb, uint32_t
     binding_.onLongPress(id, std::move(cb), ms);
 }
 
-void ControlAPI::onDoubleTap(hal::ButtonID id, core::ActionCallback cb) {
-    binding_.onDoubleTap(id, std::move(cb));
+void ControlAPI::onDoubleTap(hal::ButtonID id, core::ActionCallback cb, uint32_t ms) {
+    binding_.onDoubleTap(id, std::move(cb), ms);
 }
 
 void ControlAPI::onCombo(hal::ButtonID btn1, hal::ButtonID btn2, core::ActionCallback cb) {
@@ -45,43 +45,43 @@ void ControlAPI::onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn,
 // Input Binding - Scoped
 // ═══════════════════════════════════════════════════
 
-void ControlAPI::onPressed(hal::ButtonID id, core::ActionCallback cb,
-                           core::VisibilityPredicate isVisible, core::ScopeId scope, bool latch) {
-    binding_.onPressed(id, std::move(cb), std::move(isVisible), scope, latch);
+void ControlAPI::onPressed(hal::ButtonID id, core::ActionCallback cb, core::ScopeID scope,
+                           bool latch, core::IsActiveFn isActive) {
+    binding_.onPressed(id, std::move(cb), scope, latch, std::move(isActive));
 }
 
-void ControlAPI::onReleased(hal::ButtonID id, core::ActionCallback cb,
-                            core::VisibilityPredicate isVisible, core::ScopeId scope) {
-    binding_.onReleased(id, std::move(cb), std::move(isVisible), scope);
+void ControlAPI::onReleased(hal::ButtonID id, core::ActionCallback cb, core::ScopeID scope,
+                            core::IsActiveFn isActive) {
+    binding_.onReleased(id, std::move(cb), scope, std::move(isActive));
 }
 
 void ControlAPI::onLongPress(hal::ButtonID id, core::ActionCallback cb, uint32_t ms,
-                             core::VisibilityPredicate isVisible, core::ScopeId scope) {
-    binding_.onLongPress(id, std::move(cb), ms, std::move(isVisible), scope);
+                             core::ScopeID scope, core::IsActiveFn isActive) {
+    binding_.onLongPress(id, std::move(cb), ms, scope, std::move(isActive));
 }
 
-void ControlAPI::onDoubleTap(hal::ButtonID id, core::ActionCallback cb,
-                             core::VisibilityPredicate isVisible, core::ScopeId scope) {
-    binding_.onDoubleTap(id, std::move(cb), std::move(isVisible), scope);
+void ControlAPI::onDoubleTap(hal::ButtonID id, core::ActionCallback cb, uint32_t ms,
+                             core::ScopeID scope, core::IsActiveFn isActive) {
+    binding_.onDoubleTap(id, std::move(cb), ms, scope, std::move(isActive));
 }
 
 void ControlAPI::onCombo(hal::ButtonID btn1, hal::ButtonID btn2, core::ActionCallback cb,
-                         core::VisibilityPredicate isVisible, core::ScopeId scope) {
-    binding_.onCombo(btn1, btn2, std::move(cb), std::move(isVisible), scope);
+                         core::ScopeID scope, core::IsActiveFn isActive) {
+    binding_.onCombo(btn1, btn2, std::move(cb), scope, std::move(isActive));
 }
 
-void ControlAPI::onTurned(hal::EncoderID id, core::EncoderActionCallback cb,
-                          core::VisibilityPredicate isVisible, core::ScopeId scope) {
-    binding_.onTurned(id, std::move(cb), std::move(isVisible), scope);
+void ControlAPI::onTurned(hal::EncoderID id, core::EncoderActionCallback cb, core::ScopeID scope,
+                          core::IsActiveFn isActive) {
+    binding_.onTurned(id, std::move(cb), scope, std::move(isActive));
 }
 
 void ControlAPI::onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn,
-                                      core::EncoderActionCallback cb,
-                                      core::VisibilityPredicate isVisible, core::ScopeId scope) {
-    binding_.onTurnedWhilePressed(enc, btn, std::move(cb), std::move(isVisible), scope);
+                                      core::EncoderActionCallback cb, core::ScopeID scope,
+                                      core::IsActiveFn isActive) {
+    binding_.onTurnedWhilePressed(enc, btn, std::move(cb), scope, std::move(isActive));
 }
 
-void ControlAPI::clearScope(core::ScopeId scope) {
+void ControlAPI::clearScope(core::ScopeID scope) {
     binding_.clearScope(scope);
 }
 
@@ -101,19 +101,19 @@ void ControlAPI::setLatch(hal::ButtonID btn, bool latched) {
 // Encoder Control
 // ═══════════════════════════════════════════════════
 
-int32_t ControlAPI::getEncoderPosition(hal::EncoderID id) const {
+float ControlAPI::getEncoderPosition(hal::EncoderID id) const {
     return encoders_.getPosition(id);
 }
 
-void ControlAPI::setEncoderPosition(hal::EncoderID id, int32_t position) {
-    encoders_.setPosition(id, position);
+void ControlAPI::setEncoderPosition(hal::EncoderID id, float value) {
+    encoders_.setPosition(id, value);
 }
 
 void ControlAPI::setEncoderMode(hal::EncoderID id, hal::EncoderMode mode) {
     encoders_.setMode(id, mode);
 }
 
-void ControlAPI::setEncoderBounds(hal::EncoderID id, int32_t min, int32_t max) {
+void ControlAPI::setEncoderBounds(hal::EncoderID id, float min, float max) {
     encoders_.setBounds(id, min, max);
 }
 

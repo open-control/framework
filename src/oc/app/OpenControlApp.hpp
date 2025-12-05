@@ -51,8 +51,9 @@ public:
     /**
      * @brief Initialize all hardware and services
      * Must be called once in setup() before update()
+     * @return true if all hardware initialized successfully
      */
-    void begin();
+    bool begin();
 
     /**
      * @brief Main application loop

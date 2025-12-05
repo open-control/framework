@@ -4,1004 +4,691 @@
 
 | Phase | Statut | Date | Notes |
 |-------|--------|------|-------|
-| **0** | ✅ TERMINÉE | 2025-12-04 | Nettoyage repo, mise à jour config |
-| **1** | ✅ TERMINÉE | 2025-12-04 | Structure + HAL Interfaces |
-| **2** | ✅ TERMINÉE | 2025-12-04 | Core Logic (EventBus .hpp/.cpp, InputBinding) |
-| **3** | ✅ TERMINÉE | 2025-12-04 | Context System (IContext, ContextManager, Context Events) |
-| **4** | ✅ TERMINÉE | 2025-12-04 | ControlAPI |
-| 5 | 🔴 À faire | - | OpenControlApp + AppBuilder |
-| 6 | 🔴 À faire | - | Drivers Teensy |
-| 7 | 🔴 À faire | - | UI Optionnel |
-| 8 | 🔴 À faire | - | Example Minimal |
-| 9 | ⏸️ Futur | - | Adapter midi-studio/core |
-| 10 | ⏸️ Futur | - | Adapter context-bitwig |
+| **0** | ✅ | 2025-12-04 | Nettoyage repo, Apache 2.0 |
+| **1** | ✅ | 2025-12-04 | Structure + HAL Interfaces |
+| **2** | ✅ | 2025-12-04 | Core Logic (EventBus, InputBinding) |
+| **3** | ✅ | 2025-12-04 | Context System |
+| **4** | ✅ | 2025-12-04 | ControlAPI |
+| **5** | ✅ | 2025-12-04 | OpenControlApp + AppBuilder |
+| **5.1** | ✅ | 2025-12-05 | Audit naming + IsActiveFn refactor |
+| **5.2** | ✅ | 2025-12-05 | doubleTapWindowMs, EncoderMode 3 valeurs |
+| **6.1** | ✅ | 2025-12-05 | Modifications HAL (prérequis Phase 6) |
+| 6.2 | 🔴 | - | Câblage HAL → EventBus |
+| 6.3 | 🔴 | - | Drivers Arduino |
+| 6.4 | 🔴 | - | Drivers Teensy |
+| 7 | 🔴 | - | UI Optionnel |
+| 8 | 🔴 | - | Example Minimal |
+| 9 | ⏸️ | - | Adapter midi-studio/core |
+| 10 | ⏸️ | - | Adapter context-bitwig |
 
 ---
 
-## Phase 0 : Nettoyage (TERMINÉE)
+# PHASES ACCOMPLIES (Synthèse)
 
-### Fichiers Supprimés
-- `asset/font/` - Fonts spécifiques midi-studio
-- `docs/` - Docs spécifiques (référentiel dans Serena)
-- `script/midi/` - SysEx patch spécifique
-- `script/pio/sysex_patch.py`
-- `script/pio/pre_build.py`
-- `script/pio/lib_pre_build.py`
-- `script/pio/__pycache__/`
+## Phase 0 : Nettoyage ✅
 
-### Fichiers Mis à Jour
-- `library.json` → open-control 0.1.0, Apache 2.0
-- `platformio.ini` → minimal framework config
-- `LICENSE` → Apache 2.0 (changé depuis CC-BY-NC-SA)
-- `README.md` → Open Control Framework
-- `pyproject.toml` → open-control-framework
+- Supprimé : `asset/font/`, `docs/`, `script/midi/`, scripts PIO spécifiques
+- Mis à jour : `library.json` (open-control 0.1.0), `LICENSE` (Apache 2.0)
+- Conservé : `.clang-format`, `.clangd`, `.vscode/`, scripts LVGL génériques
 
-### Fichiers Conservés
-- `.clang-format`, `.clangd` - Config IDE
-- `.vscode/` - IDE setup
-- `script/lvgl/font/` - Font generation (générique)
-- `script/lvgl/img/` - Image conversion (générique)
-- `script/dev/` - Dev helpers
-- `script/pio/compiledb_utils.py` - clangd support
+## Phases 1-5 : Framework Core ✅
 
-### Note License
-Plan original indiquait MIT, changé en **Apache 2.0** sur demande utilisateur.
+**Fichiers créés :**
 
----
+| Catégorie | Fichiers |
+|-----------|----------|
+| **HAL** | `Types.hpp`, `IDisplayDriver.hpp`, `IMidiTransport.hpp`, `IEncoderController.hpp`, `IButtonController.hpp`, `IMultiplexer.hpp` |
+| **Core** | `Event.hpp`, `IEventBus.hpp`, `EventBus.hpp/.cpp`, `Events.hpp`, `EventTypes.hpp`, `Binding.hpp`, `InputBinding.hpp/.cpp`, `InputConfig.hpp` |
+| **Context** | `IContext.hpp`, `ContextManager.hpp/.cpp` |
+| **API** | `ControlAPI.hpp/.cpp` |
+| **App** | `OpenControlApp.hpp/.cpp`, `AppBuilder.hpp/.cpp` |
 
-## Chemins des Repositories
+**Décisions architecturales clés :**
+- EventBus séparé .hpp/.cpp (pas header-only)
+- `IsActiveFn` au lieu de `lv_obj_t*` (découplage LVGL)
+- `TimeProvider` injecté (portabilité bare-metal/FreeRTOS)
+- `assert()` au lieu de `throw` (embedded)
+- Namespaces : `oc::hal`, `oc::core`, `oc::context`, `oc::api`, `oc::app`
 
-| Repo | Chemin Absolu | Rôle |
-|------|---------------|------|
-| **Framework (cible)** | `C:\Users\miu-lab\Documents\PlatformIO\Projects\petitechose.audio\open-control\framework` | Nouveau framework générique |
-| **Core (source)** | `C:\Users\miu-lab\Documents\PlatformIO\Projects\petitechose.audio\midi-studio\core` | Code à migrer (NE PAS MODIFIER) |
-| **Plugin Bitwig (source)** | `C:\Users\miu-lab\Documents\PlatformIO\Projects\petitechose.audio\midi-studio\plugin-bitwig` | Référence pour Context (NE PAS MODIFIER) |
+## Phase 5.1-5.2 : Refinements ✅
 
----
+- Ordre params scoped : `(scope, latch = false, isActive = nullptr)`
+- `doubleTapWindowMs` per-binding (comme `longPressMs`)
+- EncoderMode : `NORMALIZED` | `RAW` | `RELATIVE`
+- Encoder API en `float` [0.0-1.0]
 
-## Principes de Migration
+## Phase 6.1 : Modifications HAL ✅
 
-1. **COPIER, NE PAS MODIFIER** les sources originales
-2. **Tester au plus tôt** via `examples/minimal-teensy41/`
-3. **Ordre incrémental** : Framework → Example → Core adaptation → Context adaptation
-4. **Chaque phase doit compiler** avant de passer à la suivante
+| Interface | Modifications |
+|-----------|---------------|
+| **Toutes** | `init()` → retourne `bool` |
+| `Types.hpp` | Supprimé `activeLow` de `GpioPin` (→ driver's `ButtonDef`) |
+| `IMultiplexer` | Renommé `readDigital()`, ajouté `readAnalog()`, `supportsAnalog()` |
+| `IMidiTransport` | Ajouté `sendChannelPressure()`, `allNotesOff()` |
+| `OpenControlApp` | `begin()` → retourne `bool`, gère échecs init |
 
 ---
 
-## Architecture Cible Rappel
+# PHASES À VENIR (Détail complet)
+
+## Principes Architecturaux
+
+### Framework = Lib unopinionated
+- OpenControl fournit des **outils**, pas une app complète
+- Supporte plusieurs plateformes (Teensy, ESP32, STM32...)
+- Consumer décide comment assembler les outils
+
+### Flux EventBus (Design B - ACTÉ)
 
 ```
-Namespace: oc::
-├── hal/          # Interfaces hardware
-├── core/         # EventBus, InputBinding, structs
-├── context/      # IContext, ContextManager
-├── api/          # ControlAPI
-├── app/          # OpenControlApp, AppBuilder
-├── ui/           # IView, LVGLManager (optionnel)
-└── util/         # Log
-
-drivers/teensy/   # Implémentations Teensy (hors namespace oc::)
+HAL Drivers (callbacks)
+        ↓
+OpenControlApp::begin() (wire callbacks → EventBus)
+        ↓
+EventBus (pub/sub interne)
+        ↓
+InputBinding (subscribes, détecte gestures)
+        ↓
+User callbacks (via api.onPressed(), api.onTurned()...)
 ```
+
+**User ne touche jamais EventBus** - il utilise `api.onPressed()`, le framework gère le reste.
+
+### Responsabilités
+
+| Composant | Responsabilité |
+|-----------|----------------|
+| HAL interfaces | Contrats abstraits + callbacks |
+| EventBus | Pub/sub découplé (interne) |
+| InputBinding | Détection gestures, déclenche callbacks user |
+| ControlAPI | Façade unifiée pour les Contexts |
+| ContextManager | Lifecycle des contextes |
+| Drivers | Implémentations HAL spécifiques plateforme |
+| **OpenControlApp** | Orchestration + câblage HAL→EventBus |
 
 ---
 
-# PHASE 1 : Structure + HAL Interfaces
+## Phase 6.2 : Câblage HAL → EventBus
 
-## Objectif
-Créer le squelette du framework et les interfaces abstraites HAL.
+### Objectif
+Wirer les callbacks HAL vers EventBus dans `OpenControlApp::begin()`.
 
-## Fichiers à Créer
+### Implémentation
 
-### 1.1 Configuration Build
+**Modifier `OpenControlApp.cpp`** - ajouter dans `begin()` après les `init()` :
 
-**`library.json`**
-```json
-{
-  "name": "open-control",
-  "version": "0.1.0",
-  "description": "Open Control Framework for MIDI Controllers",
-  "keywords": ["midi", "controller", "embedded", "lvgl"],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/petitechose/open-control-framework"
-  },
-  "authors": [{"name": "petitechose.audio"}],
-  "license": "MIT",
-  "frameworks": ["arduino"],
-  "platforms": ["teensy"]
+```cpp
+bool OpenControlApp::begin() {
+    // ... existing init code ...
+
+    // ═══════════════════════════════════════════════════
+    // Wire HAL callbacks to EventBus
+    // ═══════════════════════════════════════════════════
+    
+    if (buttons_) {
+        buttons_->setCallback([this](hal::ButtonID id, hal::ButtonEvent evt) {
+            if (evt == hal::ButtonEvent::Pressed) {
+                event_bus_.emit(core::event::ButtonPressEvent(id, true));
+            } else {
+                event_bus_.emit(core::event::ButtonReleaseEvent(id));
+            }
+        });
+    }
+    
+    if (encoders_) {
+        encoders_->setCallback([this](hal::EncoderID id, float value) {
+            event_bus_.emit(core::event::EncoderChangedEvent(id, value));
+        });
+    }
+
+    contexts_->switchToDefault();
+    return true;
 }
 ```
 
-**`platformio.ini`** (pour compilation lib)
-```ini
-[env:teensy41]
-platform = teensy
-board = teensy41
-framework = arduino
-build_flags = 
-    -std=c++17
-    -I src
-```
-
-### 1.2 Types de Base
-
-**`src/oc/hal/Types.hpp`**
-```cpp
-#pragma once
-#include <cstdint>
-#include <functional>
-
-namespace oc::hal {
-
-// IDs génériques - le consommateur définit ses propres enums
-using ButtonID = uint16_t;
-using EncoderID = uint16_t;
-
-// Événements bouton
-enum class ButtonEvent : uint8_t { Pressed, Released };
-
-// Rectangle pour display
-struct Rect {
-    int16_t x1, y1, x2, y2;
-};
-
-// Configuration GPIO
-struct GpioPin {
-    enum class Source : uint8_t { MCU, MUX };
-    uint8_t pin;
-    Source source = Source::MCU;
-    bool activeLow = true;
-};
-
-// Callbacks
-using ButtonCallback = std::function<void(ButtonID, ButtonEvent)>;
-using EncoderCallback = std::function<void(EncoderID, int32_t position, int32_t delta)>;
-
-} // namespace oc::hal
-```
-
-### 1.3 Interfaces HAL
-
-**`src/oc/hal/IDisplayDriver.hpp`**
-```cpp
-#pragma once
-#include "Types.hpp"
-
-namespace oc::hal {
-
-class IDisplayDriver {
-public:
-    virtual ~IDisplayDriver() = default;
-    
-    virtual void init() = 0;
-    virtual void flush(const void* buffer, const Rect& area) = 0;
-    virtual uint16_t width() const = 0;
-    virtual uint16_t height() const = 0;
-    
-    // Callback quand flush terminé (pour LVGL)
-    using FlushCallback = void(*)(IDisplayDriver*);
-    virtual void setFlushCallback(FlushCallback cb) { flush_cb_ = cb; }
-    
-protected:
-    FlushCallback flush_cb_ = nullptr;
-};
-
-} // namespace oc::hal
-```
-
-**`src/oc/hal/IMidiTransport.hpp`**
-```cpp
-#pragma once
-#include <cstdint>
-#include <cstddef>
-#include <functional>
-
-namespace oc::hal {
-
-class IMidiTransport {
-public:
-    virtual ~IMidiTransport() = default;
-    
-    // Lifecycle
-    virtual void init() = 0;
-    virtual void update() = 0;  // Process incoming messages
-    
-    // Output
-    virtual void sendCC(uint8_t channel, uint8_t cc, uint8_t value) = 0;
-    virtual void sendNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) = 0;
-    virtual void sendNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) = 0;
-    virtual void sendSysEx(const uint8_t* data, size_t length) = 0;
-    virtual void sendProgramChange(uint8_t channel, uint8_t program) = 0;
-    virtual void sendPitchBend(uint8_t channel, int16_t value) = 0;
-    
-    // Input callbacks
-    using CCCallback = std::function<void(uint8_t ch, uint8_t cc, uint8_t val)>;
-    using NoteCallback = std::function<void(uint8_t ch, uint8_t note, uint8_t vel)>;
-    using SysExCallback = std::function<void(const uint8_t* data, size_t len)>;
-    
-    virtual void setOnCC(CCCallback cb) = 0;
-    virtual void setOnNoteOn(NoteCallback cb) = 0;
-    virtual void setOnNoteOff(NoteCallback cb) = 0;
-    virtual void setOnSysEx(SysExCallback cb) = 0;
-};
-
-} // namespace oc::hal
-```
-
-**`src/oc/hal/IEncoderController.hpp`**
-```cpp
-#pragma once
-#include "Types.hpp"
-
-namespace oc::hal {
-
-enum class EncoderMode : uint8_t { 
-    ABSOLUTE,   // Position 0-max
-    RELATIVE    // Delta seulement
-};
-
-class IEncoderController {
-public:
-    virtual ~IEncoderController() = default;
-    
-    virtual void init() = 0;
-    virtual void update() = 0;
-    
-    // State
-    virtual int32_t getPosition(EncoderID id) const = 0;
-    virtual void setPosition(EncoderID id, int32_t position) = 0;
-    
-    // Configuration
-    virtual void setMode(EncoderID id, EncoderMode mode) = 0;
-    virtual void setBounds(EncoderID id, int32_t min, int32_t max) = 0;
-    virtual void setDiscreteSteps(EncoderID id, uint8_t steps) = 0;
-    virtual void setContinuous(EncoderID id) = 0;
-    
-    // Callback
-    virtual void setCallback(EncoderCallback cb) = 0;
-};
-
-} // namespace oc::hal
-```
-
-**`src/oc/hal/IButtonController.hpp`**
-```cpp
-#pragma once
-#include "Types.hpp"
-
-namespace oc::hal {
-
-class IButtonController {
-public:
-    virtual ~IButtonController() = default;
-    
-    virtual void init() = 0;
-    virtual void update() = 0;
-    
-    virtual bool isPressed(ButtonID id) const = 0;
-    virtual void setCallback(ButtonCallback cb) = 0;
-};
-
-} // namespace oc::hal
-```
-
-**`src/oc/hal/IMultiplexer.hpp`**
-```cpp
-#pragma once
-#include <cstdint>
-
-namespace oc::hal {
-
-class IMultiplexer {
-public:
-    virtual ~IMultiplexer() = default;
-    
-    virtual void init() = 0;
-    virtual void select(uint8_t channel) = 0;
-    virtual bool readChannel(uint8_t channel) = 0;
-    virtual uint8_t channelCount() const = 0;
-};
-
-} // namespace oc::hal
-```
-
-### 1.4 Validation Phase 1
-
-```bash
-cd C:\Users\miu-lab\Documents\PlatformIO\Projects\petitechose.audio\open-control\framework
-pio run -e teensy41
-```
-
-**Critère** : Compilation sans erreur (lib vide avec headers only)
+### Validation
+- [ ] Compiler
+- [ ] InputBinding reçoit bien les events quand un driver déclenche le callback
 
 ---
 
-# PHASE 2 : Core Logic (EventBus, InputBinding, Structs)
+## Phase 6.3 : Drivers Arduino (génériques)
 
-## Objectif
-Migrer la logique métier sans dépendances hardware.
+### Structure
 
-## Fichiers à Copier et Adapter
-
-### 2.1 Source → Destination
-
-| Source (core) | Destination (framework) | Adaptations |
-|---------------|------------------------|-------------|
-| `core/event/Event.hpp` | `src/oc/core/event/Event.hpp` | ✅ Namespace `oc::core::event` |
-| `core/event/IEventBus.hpp` | `src/oc/core/event/IEventBus.hpp` | ✅ Namespace |
-| `core/event/EventBus.hpp` | `src/oc/core/event/EventBus.hpp/.cpp` | ✅ Séparé .hpp/.cpp (pas header-only) |
-| `core/event/Events.hpp` | `src/oc/core/event/Events.hpp` | ✅ Namespace |
-| `core/event/UnifiedEventTypes.hpp` | `src/oc/core/event/EventTypes.hpp` | ✅ Namespace, renommé |
-| `core/struct/Binding.hpp` | `src/oc/core/struct/Binding.hpp` | ✅ Supprimer `lv_obj_t*`, utiliser `VisibilityPredicate` |
-| `core/struct/Button.hpp` | → Phase 6 (drivers) | Config hardware, pas core |
-| `core/struct/Encoder.hpp` | → Phase 6 (drivers) | Config hardware, pas core |
-| `core/struct/MidiCCMapping.hpp` | → Quand nécessaire | Optionnel pour framework de base |
-| `core/input/InputBinding.hpp` | `src/oc/core/input/InputBinding.hpp` | ✅ Sans LVGL, avec `VisibilityPredicate` |
-| `core/input/InputBinding.cpp` | `src/oc/core/input/InputBinding.cpp` | ✅ Sans `lv_obj_has_flag` |
-
-### 2.2 Nouveau Fichier : InputConfig
-
-**`src/oc/core/input/InputConfig.hpp`**
-```cpp
-#pragma once
-#include <cstdint>
-
-namespace oc::core {
-
-struct InputConfig {
-    uint32_t longPressMs = 500;
-    uint32_t doubleTapWindowMs = 300;
-    uint32_t latchThresholdMs = 300;
-    uint32_t debounceMs = 5;
-};
-
-// Default global instance
-inline InputConfig defaultInputConfig;
-
-} // namespace oc::core
+```
+src/drivers/arduino/
+├── mux/
+│   └── GenericMux.hpp         # Template + aliases
+└── input/
+    ├── ButtonController.hpp   # Template, gère MCU + MUX
+    └── EncoderController.hpp  # Lib Encoder (PJRC)
 ```
 
-### 2.3 Binding.hpp Adapté (sans LVGL)
+**Namespace** : `oc::drivers::arduino`
 
-**`src/oc/core/struct/Binding.hpp`**
-```cpp
-#pragma once
-#include <cstdint>
-#include <functional>
-#include <optional>
-#include <oc/hal/Types.hpp>
+### 6.3.1 - GenericMux.hpp
 
-namespace oc::core {
-
-using VisibilityPredicate = std::function<bool()>;
-using ScopeId = uintptr_t;
-using ActionCallback = std::function<void()>;
-using EncoderActionCallback = std::function<void(float)>;
-
-enum class ButtonBindingType : uint8_t { 
-    PRESS, RELEASE, LONG_PRESS, DOUBLE_TAP, COMBO 
-};
-
-enum class EncoderBindingType : uint8_t { 
-    TURN, TURN_WHILE_PRESSED 
-};
-
-struct ButtonBinding {
-    ButtonBindingType type;
-    hal::ButtonID buttonId;
-    std::optional<hal::ButtonID> secondaryButton;  // Pour COMBO
-    uint32_t longPressMs = 0;  // 0 = use default
-    ActionCallback action;
-    bool enabled = true;
-    bool latch = false;
-    
-    // Scope abstrait (sans LVGL)
-    VisibilityPredicate isVisible = []() { return true; };
-    ScopeId scopeId = 0;  // 0 = global
-};
-
-struct EncoderBinding {
-    EncoderBindingType type;
-    hal::EncoderID encoderId;
-    std::optional<hal::ButtonID> requiredButton;  // Pour TURN_WHILE_PRESSED
-    EncoderActionCallback action;
-    bool enabled = true;
-    
-    VisibilityPredicate isVisible = []() { return true; };
-    ScopeId scopeId = 0;
-};
-
-} // namespace oc::core
-```
-
-### 2.4 Notes d'implémentation
-
-**Décision architecturale** : EventBus séparé en .hpp/.cpp (pas header-only)
-- Raison : STL includes lourds (`<map>`, `<vector>`, `<functional>`), fonctions non-triviales
-- Cohérent avec InputBinding qui a aussi .hpp/.cpp
-
-**Fichiers reportés** : Button.hpp, Encoder.hpp, MidiMapping.hpp → Phase 6 (config hardware)
-
-### 2.5 Validation Phase 2 ✅
-
-- EventBus compile ✅
-- InputBinding compile SANS `#include <lvgl.h>` ✅
-- `pio run -e teensy41` passe ✅
-
----
-
-# PHASE 3 : Context System (TERMINÉE)
-
-## Fichiers Créés
-
-| Fichier | Rôle |
-|---------|------|
-| `src/oc/context/IContext.hpp` | Interface contextes avec lifecycle, identity, connection state |
-| `src/oc/context/ContextManager.hpp` | Template `registerContext<T>` avec SFINAE `loadResources()` |
-| `src/oc/context/ContextManager.cpp` | Switching, events emission |
-
-## Events Ajoutés à Events.hpp
-
-```cpp
-ContextRegisteredEvent   // CONTEXT_REGISTERED
-ContextActivatedEvent    // CONTEXT_ACTIVATED
-ContextDeactivatedEvent  // CONTEXT_DEACTIVATED
-ContextErrorEvent        // CONTEXT_ERROR
-```
-
-## Ajustements Phase 3
-
-1. **const char* lifetime fix** : `emit*(const IContext&)` au lieu de `emit*(const char*)` pour garantir stabilité du pointeur via `ctx.getId()`
-
-2. **Include order fix** : `InputBinding.hpp` corrigé (C std avant framework headers)
-
-3. **Documentation ajoutée** : `InputConfig.hpp` documenté avec Doxygen
-
-## Validation Phase 3 ✅
-
-- IContext et ContextManager compilent ✅
-- Template `registerContext<T>` fonctionne ✅
-- Events context émis correctement ✅
-- Conformité guidelines 100% ✅
-
----
-
-# PHASE 3 (Plan Original - Référence)
-
-## Objectif
-Créer le système de contextes (IContext, ContextManager).
-
-### 3.1 Fichiers à Créer
-
-**`src/oc/context/IContext.hpp`**
 ```cpp
 #pragma once
 
-namespace oc {
-class ControlAPI;  // Forward
-}
+#include <Arduino.h>
+#include <array>
+#include <oc/hal/IMultiplexer.hpp>
 
-namespace oc::context {
+namespace oc::drivers::arduino {
 
-class IContext {
+template<uint8_t NumPins>
+class GenericMux : public hal::IMultiplexer {
+    static_assert(NumPins >= 1 && NumPins <= 4, "Mux supports 1-4 select pins");
+
 public:
-    virtual ~IContext() = default;
-    
-    // Lifecycle
-    virtual bool initialize(ControlAPI& api) = 0;
-    virtual void update() = 0;
-    virtual void cleanup() = 0;
-    
-    // Identity
-    virtual const char* getName() const = 0;
-    virtual const char* getId() const = 0;
-    
-    // Connection state (for DAW integrations)
-    virtual bool isConnected() const { return true; }
-    virtual void onConnected() {}
-    virtual void onDisconnected() {}
-    
-    // Resource loading (optionnel, appelé avant initialize)
-    // Implémenté via SFINAE dans ContextManager
-};
+    struct Config {
+        std::array<uint8_t, NumPins> selectPins;
+        uint8_t signalPin;
+        uint16_t settleTimeUs = 20;
+        bool signalPullup = true;
+    };
 
-} // namespace oc::context
-```
+    explicit GenericMux(const Config& cfg) : config_(cfg) {}
 
-**`src/oc/context/ContextManager.hpp`**
-```cpp
-#pragma once
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <type_traits>
-#include "IContext.hpp"
-
-namespace oc {
-class ControlAPI;
-}
-
-namespace oc::context {
-
-// SFINAE helper pour détecter loadResources()
-template<typename T, typename = void>
-struct has_load_resources : std::false_type {};
-
-template<typename T>
-struct has_load_resources<T, std::void_t<decltype(T::loadResources())>> 
-    : std::true_type {};
-
-class ContextManager {
-public:
-    explicit ContextManager(ControlAPI& api) : api_(api) {}
-    
-    template<typename T>
-    bool registerContext(const std::string& id) {
-        static_assert(std::is_base_of_v<IContext, T>,
-                      "T must inherit from IContext");
-        
-        if (contexts_.find(id) != contexts_.end()) {
-            return false;  // Already registered
+    bool init() override {
+        for (uint8_t pin : config_.selectPins) {
+            pinMode(pin, OUTPUT);
+            digitalWrite(pin, LOW);
         }
-        
-        // Load resources if available (SFINAE)
-        if constexpr (has_load_resources<T>::value) {
-            T::loadResources();
-        }
-        
-        auto ctx = std::make_unique<T>();
-        if (!ctx->initialize(api_)) {
-            return false;
-        }
-        
-        contexts_[id] = std::move(ctx);
-        
-        // First context becomes default
-        if (default_id_.empty()) {
-            default_id_ = id;
-        }
-        
+        pinMode(config_.signalPin, config_.signalPullup ? INPUT_PULLUP : INPUT);
+        current_channel_ = 0;
+        initialized_ = true;
         return true;
     }
-    
-    bool switchTo(const std::string& id) {
-        auto it = contexts_.find(id);
-        if (it == contexts_.end()) return false;
+
+    uint8_t channelCount() const override { return 1 << NumPins; }
+
+    void select(uint8_t channel) override {
+        if (!initialized_ || channel >= channelCount()) return;
+        if (channel == current_channel_) return;
         
-        if (active_) {
-            active_->onDisconnected();
+        for (uint8_t i = 0; i < NumPins; ++i) {
+            digitalWrite(config_.selectPins[i], (channel >> i) & 0x01);
         }
-        
-        active_ = it->second.get();
-        active_->onConnected();
+        current_channel_ = channel;
+        delayMicroseconds(config_.settleTimeUs);
+    }
+
+    bool readDigital(uint8_t channel) override {
+        select(channel);
+        return digitalRead(config_.signalPin);
+    }
+
+    uint16_t readAnalog(uint8_t channel) override {
+        select(channel);
+        return analogRead(config_.signalPin);
+    }
+
+    bool supportsAnalog() const override { return true; }
+
+private:
+    Config config_;
+    uint8_t current_channel_ = 0;
+    bool initialized_ = false;
+};
+
+// ═══════════════════════════════════════════════════
+// Pre-configured aliases
+// ═══════════════════════════════════════════════════
+
+using CD74HC4067 = GenericMux<4>;  // 16 channels
+using CD74HC4051 = GenericMux<3>;  // 8 channels
+using CD74HC4052 = GenericMux<2>;  // 4 channels
+
+}  // namespace oc::drivers::arduino
+```
+
+### 6.3.2 - ButtonController.hpp
+
+```cpp
+#pragma once
+
+#include <Arduino.h>
+#include <array>
+#include <oc/hal/IButtonController.hpp>
+#include <oc/hal/IMultiplexer.hpp>
+#include <oc/hal/Types.hpp>
+
+namespace oc::drivers::arduino {
+
+struct ButtonDef {
+    hal::ButtonID id;
+    hal::GpioPin pin;
+    bool activeLow = true;  // Default = pull-up standard
+};
+
+template<size_t N>
+class ButtonController : public hal::IButtonController {
+public:
+    ButtonController(
+        const std::array<ButtonDef, N>& buttons,
+        hal::IMultiplexer* mux = nullptr,
+        uint8_t debounceMs = 5
+    ) : buttons_(buttons), mux_(mux), debounce_ms_(debounceMs) {
+        states_.fill(false);
+        last_change_.fill(0);
+    }
+
+    bool init() override {
+        for (const auto& btn : buttons_) {
+            if (btn.pin.source == hal::GpioPin::Source::MCU) {
+                pinMode(btn.pin.pin, INPUT_PULLUP);
+            }
+        }
+        initialized_ = true;
         return true;
     }
-    
-    void switchToDefault() {
-        if (!default_id_.empty()) {
-            switchTo(default_id_);
+
+    void update() override {
+        if (!initialized_) return;
+        
+        uint32_t now = millis();
+        
+        for (size_t i = 0; i < N; ++i) {
+            bool raw = readPin(buttons_[i]);
+            bool pressed = buttons_[i].activeLow ? !raw : raw;
+            
+            if (pressed != states_[i]) {
+                if (now - last_change_[i] >= debounce_ms_) {
+                    states_[i] = pressed;
+                    last_change_[i] = now;
+                    
+                    if (callback_) {
+                        callback_(
+                            buttons_[i].id,
+                            pressed ? hal::ButtonEvent::Pressed 
+                                    : hal::ButtonEvent::Released
+                        );
+                    }
+                }
+            }
         }
     }
-    
-    void setDefault(const std::string& id) {
-        default_id_ = id;
-    }
-    
-    IContext* active() const { return active_; }
-    
-    void update() {
-        if (active_) {
-            active_->update();
+
+    bool isPressed(hal::ButtonID id) const override {
+        for (size_t i = 0; i < N; ++i) {
+            if (buttons_[i].id == id) return states_[i];
         }
+        return false;
     }
-    
+
+    void setCallback(hal::ButtonCallback cb) override {
+        callback_ = cb;
+    }
+
 private:
-    ControlAPI& api_;
-    std::unordered_map<std::string, std::unique_ptr<IContext>> contexts_;
-    IContext* active_ = nullptr;
-    std::string default_id_;
+    bool readPin(const ButtonDef& btn) {
+        if (btn.pin.source == hal::GpioPin::Source::MCU) {
+            return digitalRead(btn.pin.pin);
+        } else {
+            // MUX source - pin.pin is the channel number
+            if (mux_) {
+                return mux_->readDigital(btn.pin.pin);
+            }
+            return false;  // No mux configured
+        }
+    }
+
+    std::array<ButtonDef, N> buttons_;
+    hal::IMultiplexer* mux_;
+    uint8_t debounce_ms_;
+    
+    std::array<bool, N> states_;
+    std::array<uint32_t, N> last_change_;
+    hal::ButtonCallback callback_;
+    bool initialized_ = false;
 };
 
-} // namespace oc::context
+}  // namespace oc::drivers::arduino
 ```
 
-### 3.2 Validation Phase 3
+### 6.3.3 - EncoderController.hpp (Arduino générique)
 
-- IContext et ContextManager compilent
-- Template registerContext<T> fonctionne
+**Dépendance** : `Encoder` (PJRC) - cross-platform
 
----
-
-# PHASE 4 : ControlAPI
-
-## Objectif
-Créer la façade API pour les contextes.
-
-### 4.1 Fichiers à Créer
-
-**`src/oc/api/ControlAPI.hpp`**
 ```cpp
 #pragma once
+
+#ifndef Encoder_h
+#error "EncoderController requires Encoder library by PJRC. Add 'Encoder' to lib_deps"
+#endif
+
+#include <Arduino.h>
+#include <Encoder.h>
+#include <array>
+#include <memory>
+#include <oc/hal/IEncoderController.hpp>
 #include <oc/hal/Types.hpp>
-#include <oc/hal/IMidiTransport.hpp>
-#include <oc/hal/IEncoderController.hpp>
-#include <oc/core/input/InputBinding.hpp>
-#include <oc/core/event/IEventBus.hpp>
 
-namespace oc {
+namespace oc::drivers::arduino {
 
-// Forward declarations
-namespace hal {
-    class IDisplayDriver;
-    class IButtonController;
-}
-
-class ControlAPI {
-public:
-    ControlAPI(
-        core::input::InputBinding& binding,
-        core::event::IEventBus& eventBus,
-        hal::IMidiTransport& midi,
-        hal::IEncoderController& encoders
-    );
-    
-    // ═══════════════════════════════════════════════════
-    // INPUT BINDING - Global (always active)
-    // ═══════════════════════════════════════════════════
-    
-    void onPressed(hal::ButtonID id, core::ActionCallback cb);
-    void onReleased(hal::ButtonID id, core::ActionCallback cb);
-    void onLongPress(hal::ButtonID id, core::ActionCallback cb, uint32_t ms = 0);
-    void onDoubleTap(hal::ButtonID id, core::ActionCallback cb);
-    void onCombo(hal::ButtonID btn1, hal::ButtonID btn2, core::ActionCallback cb);
-    
-    void onTurned(hal::EncoderID id, core::EncoderActionCallback cb);
-    void onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn, 
-                              core::EncoderActionCallback cb);
-    
-    // ═══════════════════════════════════════════════════
-    // INPUT BINDING - Scoped (active when scope visible)
-    // ═══════════════════════════════════════════════════
-    
-    void onPressed(hal::ButtonID id, core::ActionCallback cb,
-                   core::VisibilityPredicate isVisible, core::ScopeId scope,
-                   bool latch = false);
-    void onReleased(hal::ButtonID id, core::ActionCallback cb,
-                    core::VisibilityPredicate isVisible, core::ScopeId scope);
-    void onLongPress(hal::ButtonID id, core::ActionCallback cb, uint32_t ms,
-                     core::VisibilityPredicate isVisible, core::ScopeId scope);
-    void onDoubleTap(hal::ButtonID id, core::ActionCallback cb,
-                     core::VisibilityPredicate isVisible, core::ScopeId scope);
-    void onCombo(hal::ButtonID btn1, hal::ButtonID btn2, core::ActionCallback cb,
-                 core::VisibilityPredicate isVisible, core::ScopeId scope);
-    
-    void onTurned(hal::EncoderID id, core::EncoderActionCallback cb,
-                  core::VisibilityPredicate isVisible, core::ScopeId scope);
-    void onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn,
-                              core::EncoderActionCallback cb,
-                              core::VisibilityPredicate isVisible, core::ScopeId scope);
-    
-    void clearScope(core::ScopeId scope);
-    
-    // Latch state
-    bool isLatched(hal::ButtonID btn) const;
-    void setLatch(hal::ButtonID btn, bool latched);
-    
-    // ═══════════════════════════════════════════════════
-    // ENCODER CONTROL
-    // ═══════════════════════════════════════════════════
-    
-    void setEncoderPosition(hal::EncoderID id, float normalizedValue);
-    void setEncoderMode(hal::EncoderID id, hal::EncoderMode mode);
-    void setEncoderBounds(hal::EncoderID id, float min, float max);
-    void setEncoderDiscreteSteps(hal::EncoderID id, uint8_t steps);
-    void setEncoderContinuous(hal::EncoderID id);
-    
-    // ═══════════════════════════════════════════════════
-    // MIDI OUTPUT
-    // ═══════════════════════════════════════════════════
-    
-    void sendCC(uint8_t channel, uint8_t cc, uint8_t value);
-    void sendNoteOn(uint8_t channel, uint8_t note, uint8_t velocity);
-    void sendNoteOff(uint8_t channel, uint8_t note, uint8_t velocity);
-    void sendSysEx(const uint8_t* data, size_t length);
-    
-    // ═══════════════════════════════════════════════════
-    // MIDI INPUT (Templates for callbacks)
-    // ═══════════════════════════════════════════════════
-    
-    template<typename Callback>
-    void onCC(Callback cb);
-    
-    template<typename Callback>
-    void onNoteOn(Callback cb);
-    
-    template<typename Callback>
-    void onNoteOff(Callback cb);
-    
-    template<typename Callback>
-    void onSysEx(Callback cb);
-    
-    // ═══════════════════════════════════════════════════
-    // LOGGING
-    // ═══════════════════════════════════════════════════
-    
-    void log(const char* message);
-    
-    template<typename... Args>
-    void logf(const char* format, Args... args);
-    
-private:
-    core::input::InputBinding& binding_;
-    core::event::IEventBus& eventBus_;
-    hal::IMidiTransport& midi_;
-    hal::IEncoderController& encoders_;
+struct EncoderDef {
+    hal::EncoderID id;
+    uint8_t pinA;
+    uint8_t pinB;
+    uint16_t ppr = 24;           // Pulses per revolution
+    uint8_t stepsPerDetent = 4;  // Detent clicks per pulse
 };
 
-} // namespace oc
-```
-
-### 4.2 Validation Phase 4 ✅
-
-- ControlAPI compile ✅
-- Toutes les méthodes délèguent correctement ✅
-
-## Fichiers Créés Phase 4
-
-| Fichier | Rôle |
-|---------|------|
-| `src/oc/api/ControlAPI.hpp` | Façade API pour les contextes |
-| `src/oc/api/ControlAPI.cpp` | Implémentation avec délégation |
-
-## Ajustements Phase 4
-
-1. **View Management supprimé** : getParentContainer(), showPluginView(), hidePluginView() sont LVGL-spécifiques → dans le consommateur
-2. **MIDI étendu** : Ajout de sendProgramChange() et sendPitchBend() (plus complet que l'original)
-3. **eventBus() getter** : Accès direct pour usage avancé
-4. **setEncoderDelta() ajouté** : Initialement omis, corrigé - ajouté à IEncoderController + ControlAPI
-5. **Logging omis** : Optionnel, peut être ajouté si nécessaire
-
----
-
-## Écarts et Corrections - Phases 3-4
-
-### Include Order Fixes (conformité guidelines)
-| Fichier | Correction |
-|---------|------------|
-| `ContextManager.hpp` | `"IContext.hpp"` déplacé après STL includes |
-| `Events.hpp` | `"Event.hpp"`, `"EventTypes.hpp"` déplacés après `<cstdint>` |
-| `InputBinding.hpp` | Corrigé en Phase 3 |
-| `Binding.hpp` | Corrigé en Phase 3 |
-
-### Conformité au Plan - Corrigé
-
-| Aspect | Plan Original | Implémentation | Statut |
-|--------|---------------|----------------|--------|
-| **ContextManager deps** | `ContextManager(ControlAPI&)` | `ContextManager(oc::api::ControlAPI&)` | ✅ Conforme |
-| **ControlAPI namespace** | `oc::api::ControlAPI` | `oc::api::ControlAPI` | ✅ Conforme |
-| **Context events** | Non spécifiés | 4 events ajoutés | ✅ Extension |
-| **IEncoderController** | Sans setDelta | Avec `setDelta(float)` | ✅ Extension |
-
-### Notes pour Phase 5 (OpenControlApp)
-
-1. **OpenControlApp doit créer** :
-   - EventBus (owned)
-   - InputBinding (owned, dépend de EventBus)
-   - ControlAPI (owned, dépend de InputBinding, EventBus, IMidiTransport, IEncoderController)
-   - ContextManager (owned, dépend de ControlAPI uniquement - accède EventBus via api.eventBus())
-
-2. **Ordre d'initialisation** :
-   ```
-   EventBus → InputBinding → ControlAPI → ContextManager
-   ```
-
-3. **HAL drivers injectés** via AppBuilder :
-   - IDisplayDriver
-   - IMidiTransport
-   - IEncoderController
-   - IButtonController
-
-4. **Namespaces utilisés** :
-   - `oc::api::ControlAPI`
-   - `oc::context::ContextManager`, `oc::context::IContext`
-   - `oc::core::event::EventBus`, `oc::core::input::InputBinding`
-   - `oc::app::OpenControlApp`, `oc::app::AppBuilder`
-
----
-
-# PHASE 5 : OpenControlApp + AppBuilder
-
-## Objectif
-Créer l'application principale et le builder.
-
-### 5.1 Fichiers à Créer
-
-**`src/oc/app/AppBuilder.hpp`**
-```cpp
-#pragma once
-#include <memory>
-#include <oc/hal/IDisplayDriver.hpp>
-#include <oc/hal/IMidiTransport.hpp>
-#include <oc/hal/IEncoderController.hpp>
-#include <oc/hal/IButtonController.hpp>
-#include <oc/core/input/InputConfig.hpp>
-
-namespace oc::app {
-
-class OpenControlApp;
-
-class AppBuilder {
+template<size_t N>
+class EncoderController : public hal::IEncoderController {
 public:
-    AppBuilder& display(std::unique_ptr<hal::IDisplayDriver> driver);
-    AppBuilder& midi(std::unique_ptr<hal::IMidiTransport> transport);
-    AppBuilder& encoders(std::unique_ptr<hal::IEncoderController> controller);
-    AppBuilder& buttons(std::unique_ptr<hal::IButtonController> controller);
-    AppBuilder& inputConfig(const core::InputConfig& config);
-    
-    OpenControlApp build();
-    
-private:
-    std::unique_ptr<hal::IDisplayDriver> display_;
-    std::unique_ptr<hal::IMidiTransport> midi_;
-    std::unique_ptr<hal::IEncoderController> encoders_;
-    std::unique_ptr<hal::IButtonController> buttons_;
-    core::InputConfig inputConfig_;
-};
-
-} // namespace oc::app
-```
-
-**`src/oc/app/OpenControlApp.hpp`**
-```cpp
-#pragma once
-#include <memory>
-#include <oc/hal/IDisplayDriver.hpp>
-#include <oc/hal/IMidiTransport.hpp>
-#include <oc/hal/IEncoderController.hpp>
-#include <oc/hal/IButtonController.hpp>
-#include <oc/core/event/EventBus.hpp>
-#include <oc/core/input/InputBinding.hpp>
-#include <oc/context/ContextManager.hpp>
-#include <oc/api/ControlAPI.hpp>
-
-namespace oc::app {
-
-class AppBuilder;
-
-class OpenControlApp {
-public:
-    friend class AppBuilder;
-    
-    void begin();
-    void update();
-    
-    // Accessors
-    ControlAPI& api() { return *api_; }
-    context::ContextManager& contexts() { return *contexts_; }
-    core::event::IEventBus& eventBus() { return eventBus_; }
-    
-    // Context registration shortcut
-    template<typename T>
-    bool registerContext(const std::string& id) {
-        return contexts_->registerContext<T>(id);
+    explicit EncoderController(const std::array<EncoderDef, N>& defs)
+        : defs_(defs) {
+        modes_.fill(hal::EncoderMode::NORMALIZED);
+        bounds_min_.fill(0.0f);
+        bounds_max_.fill(1.0f);
+        positions_.fill(0);
+        last_values_.fill(0.5f);
     }
-    
+
+    bool init() override {
+        // Lazy init - create Encoder objects here (not in constructor)
+        // Reason: Arduino global objects are constructed before setup()
+        for (size_t i = 0; i < N; ++i) {
+            encoders_[i] = std::make_unique<Encoder>(
+                defs_[i].pinA, 
+                defs_[i].pinB
+            );
+        }
+        initialized_ = true;
+        return true;
+    }
+
+    void update() override {
+        if (!initialized_) return;
+        
+        for (size_t i = 0; i < N; ++i) {
+            int32_t pos = encoders_[i]->read();
+            if (pos == positions_[i]) continue;
+            
+            int32_t delta = pos - positions_[i];
+            positions_[i] = pos;
+            
+            float value = computeValue(i, pos, delta);
+            
+            if (value != last_values_[i]) {
+                last_values_[i] = value;
+                if (callback_) {
+                    callback_(defs_[i].id, value);
+                }
+            }
+        }
+    }
+
+    float getPosition(hal::EncoderID id) const override {
+        for (size_t i = 0; i < N; ++i) {
+            if (defs_[i].id == id) return last_values_[i];
+        }
+        return 0.0f;
+    }
+
+    void setPosition(hal::EncoderID id, float value) override {
+        for (size_t i = 0; i < N; ++i) {
+            if (defs_[i].id == id) {
+                last_values_[i] = value;
+                // Convert back to ticks for NORMALIZED mode
+                if (modes_[i] == hal::EncoderMode::NORMALIZED) {
+                    float range = bounds_max_[i] - bounds_min_[i];
+                    float normalized = (value - bounds_min_[i]) / range;
+                    positions_[i] = static_cast<int32_t>(
+                        normalized * defs_[i].ppr * defs_[i].stepsPerDetent
+                    );
+                    if (encoders_[i]) encoders_[i]->write(positions_[i]);
+                }
+                return;
+            }
+        }
+    }
+
+    void setMode(hal::EncoderID id, hal::EncoderMode mode) override {
+        for (size_t i = 0; i < N; ++i) {
+            if (defs_[i].id == id) {
+                modes_[i] = mode;
+                return;
+            }
+        }
+    }
+
+    void setBounds(hal::EncoderID id, float min, float max) override {
+        for (size_t i = 0; i < N; ++i) {
+            if (defs_[i].id == id) {
+                bounds_min_[i] = min;
+                bounds_max_[i] = max;
+                return;
+            }
+        }
+    }
+
+    void setDiscreteSteps(hal::EncoderID id, uint8_t steps) override {
+        for (size_t i = 0; i < N; ++i) {
+            if (defs_[i].id == id) {
+                discrete_steps_[i] = steps;
+                return;
+            }
+        }
+    }
+
+    void setContinuous(hal::EncoderID id) override {
+        setDiscreteSteps(id, 0);
+    }
+
+    void setDelta(hal::EncoderID id, float delta) override {
+        for (size_t i = 0; i < N; ++i) {
+            if (defs_[i].id == id) {
+                delta_per_detent_[i] = delta;
+                return;
+            }
+        }
+    }
+
+    void setCallback(hal::EncoderCallback cb) override {
+        callback_ = cb;
+    }
+
 private:
-    OpenControlApp() = default;
+    float computeValue(size_t idx, int32_t pos, int32_t delta) {
+        const auto& def = defs_[idx];
+        
+        switch (modes_[idx]) {
+            case hal::EncoderMode::RAW:
+                return static_cast<float>(pos);
+                
+            case hal::EncoderMode::RELATIVE: {
+                // Delta per detent
+                if (abs(delta) >= def.stepsPerDetent) {
+                    return (delta > 0) ? delta_per_detent_[idx] 
+                                       : -delta_per_detent_[idx];
+                }
+                return 0.0f;
+            }
+                
+            case hal::EncoderMode::NORMALIZED:
+            default: {
+                // Position [0.0-1.0] based on PPR and bounds
+                int32_t maxTicks = def.ppr * def.stepsPerDetent;
+                pos = constrain(pos, 0, maxTicks);
+                positions_[idx] = pos;  // Clamp stored position too
+                
+                float normalized = static_cast<float>(pos) / maxTicks;
+                float range = bounds_max_[idx] - bounds_min_[idx];
+                return bounds_min_[idx] + (normalized * range);
+            }
+        }
+    }
+
+    std::array<EncoderDef, N> defs_;
+    std::array<std::unique_ptr<Encoder>, N> encoders_;
     
-    // Hardware (owned)
-    std::unique_ptr<hal::IDisplayDriver> display_;
-    std::unique_ptr<hal::IMidiTransport> midi_;
-    std::unique_ptr<hal::IEncoderController> encoders_;
-    std::unique_ptr<hal::IButtonController> buttons_;
+    std::array<hal::EncoderMode, N> modes_;
+    std::array<float, N> bounds_min_;
+    std::array<float, N> bounds_max_;
+    std::array<int32_t, N> positions_;
+    std::array<float, N> last_values_;
+    std::array<uint8_t, N> discrete_steps_{};
+    std::array<float, N> delta_per_detent_;
     
-    // Core services
-    core::event::EventBus eventBus_;
-    std::unique_ptr<core::input::InputBinding> inputBinding_;
-    
-    // API and context
-    std::unique_ptr<ControlAPI> api_;
-    std::unique_ptr<context::ContextManager> contexts_;
-    
-    // Config
-    core::InputConfig inputConfig_;
+    hal::EncoderCallback callback_;
+    bool initialized_ = false;
 };
 
-} // namespace oc::app
+}  // namespace oc::drivers::arduino
 ```
 
-### 5.2 Validation Phase 5
-
-- AppBuilder et OpenControlApp compilent
-- Builder pattern fonctionne
+### Validation Phase 6.3
+- [ ] GenericMux compile avec aliases
+- [ ] ButtonController compile avec MCU + MUX
+- [ ] EncoderController compile avec lazy init
+- [ ] `#error` si lib Encoder manquante
 
 ---
 
-# PHASE 6 : Drivers Teensy
+## Phase 6.4 : Drivers Teensy
 
-## Objectif
-Implémenter les interfaces HAL pour Teensy 4.x.
+### Structure
 
-### 6.1 Fichiers à Copier et Adapter
+```
+src/drivers/teensy/
+├── input/
+│   └── EncoderController.hpp/cpp   # EncoderTool optimisé
+├── midi/
+│   └── TeensyUsbMidi.hpp/cpp
+└── display/
+    └── Ili9341Driver.hpp/cpp
+```
 
-| Source (core) | Destination (framework) | Adaptations |
-|---------------|------------------------|-------------|
-| `adapter/display/driver/Ili9341Driver.hpp` | `src/drivers/teensy/display/Ili9341Driver.hpp` | Implémenter `IDisplayDriver` |
-| `adapter/display/driver/Ili9341Driver.cpp` | `src/drivers/teensy/display/Ili9341Driver.cpp` | Config via struct |
-| `adapter/display/ui/LVGLBridge.hpp` | `src/drivers/teensy/display/LVGLTeensyBridge.hpp` | Adapter |
-| `adapter/display/ui/LVGLBridge.cpp` | `src/drivers/teensy/display/LVGLTeensyBridge.cpp` | |
-| `adapter/display/ui/LVGLMemory.hpp` | `src/drivers/teensy/display/LVGLMemory.hpp` | |
-| `adapter/input/encoder/Encoder.hpp` | `src/drivers/teensy/input/TeensyEncoder.hpp` | |
-| `adapter/input/encoder/Encoder.cpp` | `src/drivers/teensy/input/TeensyEncoder.cpp` | |
-| `adapter/input/encoder/EncoderController.hpp` | `src/drivers/teensy/input/TeensyEncoderController.hpp` | Template, implémenter `IEncoderController` |
-| `adapter/input/encoder/EncoderController.cpp` | `src/drivers/teensy/input/TeensyEncoderController.cpp` | |
-| `adapter/input/button/ButtonController.hpp` | `src/drivers/teensy/input/TeensyButtonController.hpp` | Template, implémenter `IButtonController` |
-| `adapter/input/button/ButtonController.cpp` | `src/drivers/teensy/input/TeensyButtonController.cpp` | |
-| `adapter/input/button/ButtonFactory.hpp` | (intégré dans TeensyButtonController) | |
-| `adapter/input/button/UnifiedButton.hpp` | `src/drivers/teensy/input/TeensyButton.hpp` | |
-| `adapter/input/button/reader/*` | `src/drivers/teensy/input/reader/*` | |
-| `adapter/multiplexer/MultiplexerController.hpp` | `src/drivers/teensy/input/CD74HC4067.hpp` | Implémenter `IMultiplexer` |
-| `adapter/multiplexer/MultiplexerController.cpp` | `src/drivers/teensy/input/CD74HC4067.cpp` | Config via struct |
-| `adapter/midi/TeensyUsbMidiIn.hpp` | `src/drivers/teensy/midi/TeensyUsbMidi.hpp` | Fusionner In+Out, implémenter `IMidiTransport` |
-| `adapter/midi/TeensyUsbMidiIn.cpp` | `src/drivers/teensy/midi/TeensyUsbMidi.cpp` | |
-| `adapter/midi/TeensyUsbMidiOut.hpp` | (fusionné) | |
-| `adapter/midi/TeensyUsbMidiOut.cpp` | (fusionné) | |
+**Namespace** : `oc::drivers::teensy`
 
-### 6.2 Structures de Configuration
+### 6.4.1 - TeensyUsbMidi
 
-**`src/drivers/teensy/display/Ili9341Driver.hpp`** (extrait)
 ```cpp
+#pragma once
+
+#include <oc/hal/IMidiTransport.hpp>
+
+namespace oc::drivers::teensy {
+
+class TeensyUsbMidi : public hal::IMidiTransport {
+public:
+    bool init() override;
+    void update() override;
+    
+    void sendCC(uint8_t channel, uint8_t cc, uint8_t value) override;
+    void sendNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) override;
+    void sendNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) override;
+    void sendSysEx(const uint8_t* data, size_t length) override;
+    void sendProgramChange(uint8_t channel, uint8_t program) override;
+    void sendPitchBend(uint8_t channel, int16_t value) override;
+    void sendChannelPressure(uint8_t channel, uint8_t pressure) override;
+    void allNotesOff() override;
+    
+    void setOnCC(CCCallback cb) override { on_cc_ = cb; }
+    void setOnNoteOn(NoteCallback cb) override { on_note_on_ = cb; }
+    void setOnNoteOff(NoteCallback cb) override { on_note_off_ = cb; }
+    void setOnSysEx(SysExCallback cb) override { on_sysex_ = cb; }
+
+private:
+    CCCallback on_cc_;
+    NoteCallback on_note_on_;
+    NoteCallback on_note_off_;
+    SysExCallback on_sysex_;
+};
+
+}  // namespace oc::drivers::teensy
+```
+
+### 6.4.2 - EncoderController (Teensy optimisé)
+
+Utilise `EncoderTool` (luni64) - optimisé Teensy avec callbacks ISR.
+
+```cpp
+#pragma once
+
+#ifndef ENCODERTOOL_H
+#error "Teensy EncoderController requires EncoderTool. Add 'luni64/EncoderTool' to lib_deps"
+#endif
+
+#include <EncoderTool.h>
+#include <oc/hal/IEncoderController.hpp>
+
+namespace oc::drivers::teensy {
+
+// Similar structure to arduino version but using EncoderTool
+// with ISR callbacks for better performance
+
+}  // namespace oc::drivers::teensy
+```
+
+### 6.4.3 - Ili9341Driver
+
+```cpp
+#pragma once
+
+#ifndef ILI9341_T4_H
+#error "Ili9341Driver requires ILI9341_T4. Add 'ILI9341_T4' to lib_deps"
+#endif
+
+#include <oc/hal/IDisplayDriver.hpp>
+
 namespace oc::drivers::teensy {
 
 struct Ili9341Config {
     uint16_t width = 320;
     uint16_t height = 240;
-    uint8_t cs_pin, dc_pin, rst_pin, mosi_pin, sck_pin, miso_pin;
-    uint32_t spi_speed = 20000000;
+    uint8_t csPin, dcPin, rstPin;
+    uint8_t mosiPin, sckPin, misoPin;
+    uint32_t spiSpeed = 20000000;
     uint8_t rotation = 3;
+    uint8_t vsyncSpacing = 2;
 };
 
 class Ili9341Driver : public hal::IDisplayDriver {
 public:
     explicit Ili9341Driver(const Ili9341Config& config);
-    // ... implémentation IDisplayDriver
+    
+    bool init() override;
+    void flush(const void* buffer, const hal::Rect& area) override;
+    uint16_t width() const override { return config_.width; }
+    uint16_t height() const override { return config_.height; }
+
+private:
+    Ili9341Config config_;
+    // ILI9341_T4 instance + DiffBuff internal
 };
 
-}
+}  // namespace oc::drivers::teensy
 ```
 
-**`src/drivers/teensy/input/CD74HC4067.hpp`** (extrait)
-```cpp
-namespace oc::drivers::teensy {
-
-struct CD74HC4067Config {
-    uint8_t s0_pin, s1_pin, s2_pin, s3_pin;
-    uint8_t sig_pin;
-    uint32_t debounce_us = 20;
-};
-
-class CD74HC4067 : public hal::IMultiplexer {
-public:
-    explicit CD74HC4067(const CD74HC4067Config& config);
-    // ... implémentation IMultiplexer
-};
-
-}
-```
-
-### 6.3 Validation Phase 6
-
-- Tous les drivers compilent
-- Chaque driver implémente son interface HAL
+### Validation Phase 6.4
+- [ ] TeensyUsbMidi compile et utilise usbMIDI
+- [ ] EncoderController Teensy compile avec EncoderTool
+- [ ] Ili9341Driver compile avec ILI9341_T4
+- [ ] `#error` si lib manquante
 
 ---
 
-# PHASE 7 : UI Optionnel (LVGL)
+## Dépendances Externes
 
-## Objectif
-Créer les composants UI optionnels.
+| Lib | Version | Driver | Board |
+|-----|---------|--------|-------|
+| `Encoder` | ^1.4.4 | `arduino::EncoderController` | Toutes |
+| `luni64/EncoderTool` | ^2.2.0 | `teensy::EncoderController` | Teensy |
+| `ILI9341_T4` | ^1.0.0 | `teensy::Ili9341Driver` | Teensy |
 
-### 7.1 Fichiers à Créer/Copier
+**Le framework n'a PAS ces dépendances** - elles sont optionnelles selon les drivers utilisés.
+
+---
+
+## Phase 7 : UI Optionnel (LVGL)
+
+### Fichiers à créer
 
 **`src/oc/ui/interface/IView.hpp`**
 ```cpp
@@ -1012,16 +699,15 @@ namespace oc::ui {
 class IView {
 public:
     virtual ~IView() = default;
-    
     virtual void onActivate() = 0;
     virtual void onDeactivate() = 0;
     virtual const char* getViewId() const = 0;
 };
 
-} // namespace oc::ui
+}  // namespace oc::ui
 ```
 
-**`src/oc/ui/LVGLAdapter.hpp`** (pour scoped bindings avec LVGL)
+**`src/oc/ui/LVGLAdapter.hpp`**
 ```cpp
 #pragma once
 #ifdef OC_USE_LVGL
@@ -1031,343 +717,61 @@ public:
 
 namespace oc::ui {
 
-// Helper pour créer VisibilityPredicate depuis lv_obj_t*
-inline core::VisibilityPredicate lvglVisibility(lv_obj_t* obj) {
+inline core::IsActiveFn lvglIsActive(lv_obj_t* obj) {
     return [obj]() {
         return obj && !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
     };
 }
 
-// Helper pour convertir lv_obj_t* en ScopeId
-inline core::ScopeId lvglScopeId(lv_obj_t* obj) {
-    return reinterpret_cast<core::ScopeId>(obj);
+inline core::ScopeID lvglScopeID(lv_obj_t* obj) {
+    return reinterpret_cast<core::ScopeID>(obj);
 }
 
-} // namespace oc::ui
+}  // namespace oc::ui
 
-#endif // OC_USE_LVGL
+#endif
 ```
-
-### 7.2 Widgets à Copier (optionnel, pour plus tard)
-
-| Source (core) | Destination (framework) |
-|---------------|------------------------|
-| `ui/shared/widget/Label.hpp` | `src/oc/ui/widget/Label.hpp` |
-| `ui/shared/widget/ButtonIndicator.hpp` | `src/oc/ui/widget/ButtonIndicator.hpp` |
-| ... | ... |
-
-### 7.3 Validation Phase 7
-
-- IView compile
-- LVGLAdapter compile si `OC_USE_LVGL` défini
 
 ---
 
-# PHASE 8 : Example Minimal
+## Phase 8 : Example Minimal
 
-## Objectif
-Créer un exemple testable pour valider le framework.
-
-### 8.1 Structure
+### Structure
 
 ```
 examples/minimal-teensy41/
-├── src/
-│   └── main.cpp
-├── include/
-│   └── Config.hpp
+├── src/main.cpp
+├── include/Config.hpp
 └── platformio.ini
 ```
 
-### 8.2 Fichiers
-
-**`examples/minimal-teensy41/platformio.ini`**
-```ini
-[env:teensy41]
-platform = teensy
-board = teensy41
-framework = arduino
-board_build.f_cpu = 450000000L
-
-build_flags = 
-    -std=c++17
-    -D USB_MIDI_SERIAL
-    -D OC_USE_LVGL
-    -D LV_CONF_INCLUDE_SIMPLE
-    -I ../../src
-    -I include
-
-lib_deps = 
-    lvgl/lvgl @ ^9.2.0
-    ILI9341_T4 @ ^1.0.0
-    luni64/EncoderTool @ ^2.2.0
-```
-
-**`examples/minimal-teensy41/include/Config.hpp`**
-```cpp
-#pragma once
-#include <drivers/teensy/display/Ili9341Driver.hpp>
-#include <drivers/teensy/input/TeensyEncoderController.hpp>
-#include <drivers/teensy/input/TeensyButtonController.hpp>
-#include <drivers/teensy/midi/TeensyUsbMidi.hpp>
-
-namespace Config {
-
-// IDs locaux
-enum class Button : oc::hal::ButtonID {
-    BTN_1 = 1,
-    BTN_2 = 2
-};
-
-enum class Encoder : oc::hal::EncoderID {
-    ENC_1 = 1,
-    ENC_2 = 2
-};
-
-// Display config
-constexpr oc::drivers::teensy::Ili9341Config DISPLAY = {
-    .width = 320,
-    .height = 240,
-    .cs_pin = 10,
-    .dc_pin = 9,
-    .rst_pin = 8,
-    .mosi_pin = 11,
-    .sck_pin = 13,
-    .miso_pin = 12,
-    .spi_speed = 20000000,
-    .rotation = 3
-};
-
-// Encoders (2 seulement)
-constexpr std::array ENCODERS = {
-    oc::drivers::teensy::EncoderDef{
-        static_cast<oc::hal::EncoderID>(Encoder::ENC_1), 2, 3
-    },
-    oc::drivers::teensy::EncoderDef{
-        static_cast<oc::hal::EncoderID>(Encoder::ENC_2), 4, 5
-    }
-};
-
-// Buttons (2 seulement, GPIO direct, PAS de mux)
-constexpr std::array BUTTONS = {
-    oc::drivers::teensy::ButtonDef{
-        static_cast<oc::hal::ButtonID>(Button::BTN_1), 
-        6, 
-        oc::hal::GpioPin::Source::MCU
-    },
-    oc::drivers::teensy::ButtonDef{
-        static_cast<oc::hal::ButtonID>(Button::BTN_2), 
-        7, 
-        oc::hal::GpioPin::Source::MCU
-    }
-};
-
-} // namespace Config
-```
-
-**`examples/minimal-teensy41/src/main.cpp`**
-```cpp
-#include <Arduino.h>
-#include <oc/app/AppBuilder.hpp>
-#include <Config.hpp>
-
-using namespace oc;
-using namespace oc::drivers::teensy;
-
-std::unique_ptr<app::OpenControlApp> app;
-
-// Context minimal pour test
-class MinimalContext : public context::IContext {
-public:
-    bool initialize(ControlAPI& api) override {
-        api_ = &api;
-        
-        // Log encoder turns
-        api.onTurned(static_cast<hal::EncoderID>(Config::Encoder::ENC_1),
-            [](float delta) {
-                Serial.printf("Encoder 1: delta=%.2f\n", delta);
-            });
-        
-        api.onTurned(static_cast<hal::EncoderID>(Config::Encoder::ENC_2),
-            [](float delta) {
-                Serial.printf("Encoder 2: delta=%.2f\n", delta);
-            });
-        
-        // Log button presses
-        api.onPressed(static_cast<hal::ButtonID>(Config::Button::BTN_1),
-            []() { Serial.println("Button 1 pressed"); });
-        
-        api.onReleased(static_cast<hal::ButtonID>(Config::Button::BTN_1),
-            []() { Serial.println("Button 1 released"); });
-        
-        api.onPressed(static_cast<hal::ButtonID>(Config::Button::BTN_2),
-            []() { Serial.println("Button 2 pressed"); });
-        
-        return true;
-    }
-    
-    void update() override {}
-    void cleanup() override {}
-    
-    const char* getName() const override { return "Minimal"; }
-    const char* getId() const override { return "minimal"; }
-    
-private:
-    ControlAPI* api_ = nullptr;
-};
-
-void setup() {
-    Serial.begin(115200);
-    delay(1000);
-    Serial.println("=== Open Control - Minimal Example ===");
-    
-    app = std::make_unique<app::OpenControlApp>(
-        app::AppBuilder()
-            .display(std::make_unique<Ili9341Driver>(Config::DISPLAY))
-            .midi(std::make_unique<TeensyUsbMidi>())
-            .encoders(std::make_unique<TeensyEncoderController<2>>(Config::ENCODERS))
-            .buttons(std::make_unique<TeensyButtonController<2>>(Config::BUTTONS))
-            .build()
-    );
-    
-    app->registerContext<MinimalContext>("minimal");
-    app->contexts().switchTo("minimal");
-    
-    app->begin();
-    
-    Serial.println("Ready! Turn encoders or press buttons.");
-}
-
-void loop() {
-    app->update();
-}
-```
-
-### 8.3 Validation Phase 8
-
-```bash
-cd examples/minimal-teensy41
-pio run
-pio run -t upload
-```
-
-**Critères de validation :**
+### Critères de validation
 - [ ] Compile sans erreur
 - [ ] Upload sur Teensy 4.1
 - [ ] Serial affiche "Ready!"
-- [ ] Rotation encodeur → log "Encoder X: delta=..."
-- [ ] Appui bouton → log "Button X pressed/released"
+- [ ] Rotation encodeur → log
+- [ ] Appui bouton → log
 
 ---
 
-# PHASE 9 : Adaptation midi-studio/core (FUTUR)
+## Phases Futures (9-10)
 
-## Objectif
-Transformer midi-studio/core en consommateur du framework.
+### Phase 9 : Adapter midi-studio/core
+- Ajouter `lib_deps = open-control`
+- Supprimer code dupliqué (`adapter/`, `core/event/`, etc.)
+- Créer `StandaloneContext`
 
-### 9.1 Modifications
-
-1. **platformio.ini** : Ajouter `lib_deps = open-control/framework`
-2. **Supprimer** : `adapter/`, `core/event/`, `core/input/`, `core/struct/`
-3. **Garder** : `config/`, `boot/`, `ui/` (ViewManager, SplashView)
-4. **Créer** : `context/StandaloneContext.hpp`
-5. **Adapter** : `main.cpp` pour utiliser AppBuilder
-
-### 9.2 Nouvelle structure midi-studio/core
-
-```
-midi-studio/core/
-├── src/
-│   ├── config/
-│   │   ├── Hardware.hpp         # Pins, config ILI9341, mux, etc.
-│   │   ├── InputIDs.hpp         # enum class Button, Encoder
-│   │   └── MidiMappings.hpp
-│   ├── context/
-│   │   ├── StandaloneContext.hpp
-│   │   └── StandaloneContext.cpp
-│   ├── boot/
-│   │   └── BootSequence.hpp     # Boot spécifique
-│   ├── ui/
-│   │   ├── ViewManager.hpp      # Gestion écrans
-│   │   └── SplashView.hpp
-│   └── main.cpp
-└── platformio.ini
-```
+### Phase 10 : Adapter context-bitwig
+- Renommer `Plugin.hpp` → `BitwigContext.hpp`
+- Changer héritage vers `oc::context::IContext`
+- Ajouter `isConnected()`, `onDisconnected()`
 
 ---
 
-# PHASE 10 : Adaptation context-bitwig (FUTUR)
+# Chemins Repositories
 
-## Objectif
-Transformer plugin-bitwig en Context.
-
-### 10.1 Modifications
-
-1. **Renommer** : `Plugin.hpp` → `BitwigContext.hpp`
-2. **Changer héritage** : `IPlugin` → `oc::context::IContext`
-3. **Ajouter méthodes** : `isConnected()`, `onDisconnected()`
-4. **Adapter main.cpp** : Utiliser ContextManager
-5. **Garder intact** : `protocol/`, `handler/`, `ui/` (interne)
-
-### 10.2 BitwigContext.hpp (aperçu)
-
-```cpp
-namespace MidiStudio::Context {
-
-class Bitwig : public oc::context::IContext {
-public:
-    static void loadResources();  // SFINAE preserved
-    
-    bool initialize(oc::ControlAPI& api) override;
-    void update() override;
-    void cleanup() override;
-    
-    const char* getName() const override { return "Bitwig Studio"; }
-    const char* getId() const override { return "bitwig"; }
-    
-    bool isConnected() const override { return protocol_.isConnected(); }
-    void onDisconnected() override;
-    
-private:
-    // Tout le reste identique à Plugin actuel
-    oc::ControlAPI* api_;
-    Protocol::Protocol protocol_;
-    // handlers, views, etc.
-};
-
-}
-```
-
----
-
-# Récapitulatif Phases
-
-| Phase | Objectif | Validation |
-|-------|----------|------------|
-| 1 | Structure + HAL interfaces | `pio run` compile |
-| 2 | Core logic (EventBus, InputBinding) | Compile sans LVGL |
-| 3 | Context system | IContext, ContextManager compilent |
-| 4 | ControlAPI | API compile |
-| 5 | OpenControlApp + Builder | Builder fonctionne |
-| 6 | Drivers Teensy | Tous drivers compilent |
-| 7 | UI optionnel | IView, LVGLAdapter compilent |
-| 8 | Example minimal | **TEST HARDWARE** ✅ |
-| 9 | Adapter midi-studio/core | (Futur) |
-| 10 | Adapter context-bitwig | (Futur) |
-
----
-
-# Estimation Temps
-
-| Phase | Durée |
-|-------|-------|
-| 1-2 | 1 jour |
-| 3-4 | 0.5 jour |
-| 5 | 0.5 jour |
-| 6 | 1.5 jours |
-| 7 | 0.5 jour |
-| 8 | 0.5 jour |
-| **Total Framework** | **4.5 jours** |
-| 9 | 1 jour |
-| 10 | 0.5 jour |
-| **Total Complet** | **6 jours** |
+| Repo | Chemin | Rôle |
+|------|--------|------|
+| **Framework** | `C:\Users\miu-lab\...\open-control\framework` | Cible |
+| **Core (source)** | `C:\Users\miu-lab\...\midi-studio\core` | Référence (NE PAS MODIFIER) |
+| **Bitwig (source)** | `C:\Users\miu-lab\...\midi-studio\plugin-bitwig` | Référence (NE PAS MODIFIER) |

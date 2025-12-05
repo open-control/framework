@@ -11,7 +11,12 @@ class IButtonController {
 public:
     virtual ~IButtonController() = default;
 
-    virtual void init() = 0;
+    /**
+     * @brief Initialize button hardware
+     * @return true if initialization succeeded, false on failure
+     */
+    virtual bool init() = 0;
+
     virtual void update() = 0;
 
     virtual bool isPressed(ButtonID id) const = 0;

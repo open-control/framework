@@ -465,10 +465,12 @@ Les couches externes ne se connaissent pas directement.
 | Enum values | `SCREAMING_SNAKE_CASE` | `LONG_PRESS`, `TURN_WHILE_PRESSED` |
 | Functions/Methods | `camelCase` | `onPressed()`, `getSubscriberCount()` |
 | Private members | `snake_case_` (trailing `_`) | `event_bus_`, `boot_complete_` |
+| Struct members (public) | `camelCase` | `buttonId`, `longPressMs`, `scopeId` |
 | Local variables | `snake_case` | `normalized_value`, `press_time` |
 | Constants | `SCREAMING_SNAKE_CASE` | `MAX_ACTIVE_NOTES`, `REFRESH_RATE_HZ` |
 | Namespaces | `PascalCase` ou `snake_case` | `oc::core::event`, `BaseTheme::Color` |
 | Type aliases | `PascalCase` | `EventCallback`, `VisibilityPredicate` |
+| Type aliases (IDs) | `PascalCase` with caps `ID` | `ButtonID`, `EncoderID`, `ScopeID`, `SubscriptionID` |
 | Template params | `T` or `PascalCase` | `template<typename Callback>` |
 
 ### Files

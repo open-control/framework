@@ -4,11 +4,11 @@ namespace oc::core::event {
 
 EventBus::EventBus() : next_id_(1) {}
 
-SubscriptionId EventBus::on(EventCategoryType category, EventType type, EventCallback callback) {
+SubscriptionID EventBus::on(EventCategoryType category, EventType type, EventCallback callback) {
     if (!callback) return 0;
 
     uint32_t key = makeKey(category, type);
-    SubscriptionId id = next_id_++;
+    SubscriptionID id = next_id_++;
 
     subscriptions_[key].push_back({id, callback});
     return id;
@@ -24,7 +24,7 @@ void EventBus::emit(const Event& event) {
     }
 }
 
-void EventBus::off(SubscriptionId id) {
+void EventBus::off(SubscriptionID id) {
     for (auto& pair : subscriptions_) {
         auto& list = pair.second;
         for (auto it = list.begin(); it != list.end(); ++it) {
