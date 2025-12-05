@@ -1,5 +1,29 @@
 # Plan de Migration Open Control Framework
 
+## Synthèse Globale
+
+**Framework Open Control v0.1.0** - Migration depuis midi-studio/core
+
+| Métrique | Valeur |
+|----------|--------|
+| **Phases complétées** | 0 → 6.5 (14 phases) |
+| **Fichiers créés** | ~40 fichiers |
+| **Namespaces** | `oc::hal`, `oc::core`, `oc::context`, `oc::api`, `oc::app`, `oc::drivers::*` |
+| **Plateformes supportées** | Arduino (générique), Teensy 4.x |
+| **Conformité guidelines** | 100% |
+| **Parité features Core** | 100% + améliorations |
+
+### Améliorations vs Core
+
+| Feature | Core | Framework |
+|---------|------|-----------|
+| Direction encoder | Non configurable | `invertDirection` |
+| Range angle | Hardcodé 270° | `rangeAngle` configurable |
+| Mode RAW | Non disponible | Ajouté |
+| Active notes | Hardcodé 16 | `maxActiveNotes` configurable |
+| Display buffers | DMAMEM internes | External (consumer fournit) |
+| Tous paramètres display | Hardcodés | Configurables via struct |
+
 ## Progression
 
 | Phase | Statut | Date | Notes |
@@ -15,7 +39,8 @@
 | **6.1** | ✅ | 2025-12-05 | Modifications HAL (prérequis Phase 6) |
 | **6.2** | ✅ | 2025-12-05 | Câblage HAL → EventBus |
 | **6.3** | ✅ | 2025-12-05 | Drivers Arduino + EncoderLogic common |
-| 6.4 | 🔴 | - | Drivers Teensy |
+| **6.4** | ✅ | 2025-12-05 | Drivers Teensy (séparation hpp/cpp, pending pattern) |
+| **6.5** | ✅ | 2025-12-05 | Refinements (ticksPerEvent, invertDirection, std::vector) |
 | 7 | 🔴 | - | UI Optionnel |
 | 8 | 🔴 | - | Example Minimal |
 | 9 | ⏸️ | - | Adapter midi-studio/core |
@@ -129,6 +154,168 @@ src/drivers/
 - [x] EncoderController compile avec EncoderLogic
 - [x] EncoderLogic conforme au comportement Core
 - [x] `#if __has_include` pour dépendance Encoder
+
+## Phase 6.4 : Drivers Teensy ✅
+
+### Fichiers créés
+
+```
+src/drivers/teensy/
+├── input/
+│   ├── EncoderController.hpp   # Non-template, std::vector
+│   └── EncoderController.cpp   # EncoderTool ISR + EncoderLogic
+├── midi/
+│   ├── TeensyUsbMidi.hpp
+│   └── TeensyUsbMidi.cpp       # usbMIDI natif Teensy
+└── display/
+    ├── Ili9341Driver.hpp       # External buffers (DMAMEM)
+    └── Ili9341Driver.cpp       # ILI9341_T4 + DiffBuff
+```
+
+### Décisions architecturales
+
+#### 1. Séparation hpp/cpp obligatoire (PIMPL supprimé)
+
+**Problème initial** : PIMPL créait une cascade `impl_->tft_->method()`.
+
+**Solution finale** : 
+- Teensy EncoderController : **Non-template** avec `std::vector`, accès direct
+- Arduino EncoderController : Reste template (header-only inévitable, standard C++)
+- **PIMPL supprimé** : Les dépendances lib (EncoderTool, ILI9341_T4) sont exposées dans .hpp
+- Justification : Le consumer doit avoir ces libs dans `lib_deps` de toute façon
+
+#### 2. Pattern Pending (Core-compatible, anti-crash)
+
+**Problème** : Appeler `std::function` callback depuis ISR = crash.
+
+**Solution Core** : 
+- ISR met à jour state + `has_pending_event_ = true`
+- Main loop `flushEvents()` émet l'event
+
+**Notre implémentation** :
+```cpp
+// EncoderLogic
+void processDelta(int32_t delta);  // Met à jour state, set pending
+std::optional<float> flush();       // Retourne pending si existe, clear flag
+
+// Teensy EncoderController
+// ISR callback
+encoders_hw_[i].attachCallback([this, i](int, int delta) {
+    impl_->encoders_logic[i]->processDelta(delta);  // Set pending
+});
+
+// Main loop
+void update() {
+    for (auto& logic : encoders_logic) {
+        auto pending = logic->flush();  // Get & clear
+        if (pending && callback_) callback_(id, *pending);  // Safe: main loop
+    }
+}
+```
+
+#### 3. Mouvement ±1 par tick (Core-compatible)
+
+**Problème initial** : Notre implémentation accumulait le delta brut.
+
+**Comportement Core** : `handleNormalizedMode` fait `movement = (delta > 0) ? 1 : -1`
+
+**Solution** : EncoderLogic modifié pour ±1 par appel à `processDelta()` :
+```cpp
+void EncoderLogic::handleNormalizedMode(int32_t direction) {
+    int32_t movement = (direction > 0) ? 1 : -1;  // ±1 seulement
+    position_ = std::clamp(position_ + movement, 0, virtual_range_);
+    // ...
+}
+```
+
+#### 4. Arduino vs Teensy : ISR dans les deux cas
+
+| Driver | Librairie | ISR interne | API externe |
+|--------|-----------|-------------|-------------|
+| Arduino | PJRC Encoder | ✅ Oui (transparent) | `read()` polling |
+| Teensy | EncoderTool | ✅ Oui | `attachCallback()` |
+
+Les deux utilisent ISR pour capture. Différence = API (polling vs callback).
+
+### Validation
+- [x] TeensyUsbMidi utilise usbMIDI natif
+- [x] EncoderController Teensy avec ISR callbacks (PIMPL supprimé)
+- [x] Ili9341Driver avec ILI9341_T4 + DiffBuff
+- [x] Pattern pending implémenté dans EncoderLogic
+- [x] Mouvement ±1 conforme à Core
+- [x] Séparation hpp/cpp pour tous les drivers Teensy
+- [x] External DMAMEM buffers pour display (consumer fournit)
+- [x] Tous paramètres display configurables (défauts = Core)
+
+## Phase 6.5 : Refinements Encoders + MIDI ✅
+
+### Changements EncoderConfig
+
+**Problème identifié** : `stepsPerDetent` conflate deux concepts :
+1. Résolution quadrature (multiplicateur x4)
+2. Seuil d'émission pour RELATIVE mode
+
+**Solution** : Séparation des concepts + inversion direction
+
+```cpp
+// AVANT
+struct EncoderConfig {
+    uint8_t stepsPerDetent = 4;  // Ambigu
+};
+
+// APRÈS
+constexpr uint8_t FULL_QUADRATURE_MULTIPLIER = 4;
+
+struct EncoderConfig {
+    hal::EncoderID id;
+    uint16_t ppr = 24;              // Pulses per revolution
+    uint16_t rangeAngle = 270;      // Degrees for full [0..1]
+    uint8_t ticksPerEvent = 4;      // Ticks before emission (4 = 1 detent)
+    bool invertDirection = false;   // Invert rotation (hardware-dependent)
+};
+```
+
+### Comportement final
+
+| Paramètre | Usage |
+|-----------|-------|
+| `ppr × 4` | Range NORMALIZED (toujours full quad) |
+| `ticksPerEvent = 4` | Émet 1 event par detent physique |
+| `ticksPerEvent = 1` | Émet 1 event par tick (haute sensibilité) |
+| `invertDirection = true` | Inverse direction (wiring variable) |
+
+### Changements TeensyUsbMidi
+
+**Amélioration** : Remplacé `new[]` par `std::vector<ActiveNote>` pour cohérence.
+
+```cpp
+// AVANT
+ActiveNote* active_notes_ = nullptr;  // new[] dans init()
+~TeensyUsbMidi() { delete[] active_notes_; }
+
+// APRÈS
+std::vector<ActiveNote> active_notes_;  // RAII automatique
+~TeensyUsbMidi() override = default;
+```
+
+### Fichiers modifiés
+
+| Fichier | Modifications |
+|---------|---------------|
+| `EncoderLogic.hpp` | `FULL_QUADRATURE_MULTIPLIER`, `ticksPerEvent`, `invertDirection` |
+| `EncoderLogic.cpp` | Inversion delta, full quad pour range |
+| `teensy/EncoderController.hpp` | `EncoderDef` mis à jour |
+| `teensy/EncoderController.cpp` | Config mapping |
+| `arduino/EncoderController.hpp` | `EncoderDef` mis à jour |
+| `TeensyUsbMidi.hpp` | `std::vector<ActiveNote>` |
+| `TeensyUsbMidi.cpp` | Range-based for loops |
+
+### Validation
+- [x] `invertDirection` appliqué dans `processDelta()`
+- [x] Full quad (x4) toujours utilisé pour range NORMALIZED
+- [x] `ticksPerEvent` utilisé pour seuil RELATIVE
+- [x] `std::vector` pour active notes (RAII)
+- [x] Guidelines 100% conformes (naming, documentation)
 
 ---
 
@@ -618,10 +805,10 @@ private:
 ```
 
 ### Validation Phase 6.3
-- [ ] GenericMux compile avec aliases
-- [ ] ButtonController compile avec MCU + MUX
-- [ ] EncoderController compile avec lazy init
-- [ ] `#error` si lib Encoder manquante
+- [x] GenericMux compile avec aliases
+- [x] ButtonController compile avec MCU + MUX
+- [x] EncoderController compile avec EncoderLogic
+- [x] `#if __has_include` pour dépendance Encoder
 
 ---
 
@@ -717,8 +904,9 @@ struct EncoderDef {
     uint8_t pinA;
     uint8_t pinB;
     uint16_t ppr = 24;
-    uint8_t stepsPerDetent = 4;
     uint16_t rangeAngle = 270;
+    uint8_t ticksPerEvent = 4;      // Ticks before emission
+    bool invertDirection = false;   // Hardware-dependent
 };
 
 template<size_t N>
@@ -786,10 +974,10 @@ private:
 ```
 
 ### Validation Phase 6.4
-- [ ] TeensyUsbMidi compile et utilise usbMIDI
-- [ ] EncoderController Teensy compile avec EncoderTool
-- [ ] Ili9341Driver compile avec ILI9341_T4
-- [ ] `#error` si lib manquante
+- [x] TeensyUsbMidi compile et utilise usbMIDI
+- [x] EncoderController Teensy compile avec EncoderTool
+- [x] Ili9341Driver compile avec ILI9341_T4
+- [x] External buffers DMAMEM pattern
 
 ---
 

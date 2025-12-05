@@ -20,24 +20,31 @@ namespace oc::drivers::arduino {
 
 /**
  * @brief Encoder definition for controller configuration
+ *
+ * @note See common::EncoderConfig for parameter documentation.
+ *       invertDirection allows adapting to different hardware wiring.
  */
 struct EncoderDef {
-    hal::EncoderID id;           ///< Unique encoder identifier
-    uint8_t pinA;                ///< Quadrature signal A pin
-    uint8_t pinB;                ///< Quadrature signal B pin
-    uint16_t ppr = 24;           ///< Pulses per revolution
-    uint8_t stepsPerDetent = 4;  ///< Steps per physical detent click
-    uint16_t rangeAngle = 270;   ///< Degrees of rotation for full [0..1] range
+    hal::EncoderID id;              ///< Unique encoder identifier
+    uint8_t pinA;                   ///< Quadrature signal A pin
+    uint8_t pinB;                   ///< Quadrature signal B pin
+    uint16_t ppr = 24;              ///< Pulses per revolution
+    uint16_t rangeAngle = 270;      ///< Degrees for full [0..1] range
+    uint8_t ticksPerEvent = 4;      ///< Ticks before event emission (4 = one detent)
+    bool invertDirection = false;   ///< Invert rotation direction
 };
 
 /**
  * @brief Generic encoder controller using PJRC Encoder library
  *
  * Cross-platform driver working on AVR, ARM, ESP32, and other Arduino boards.
- * Uses interrupt-driven quadrature decoding for accurate position tracking.
+ * Uses polling-based quadrature decoding via PJRC Encoder library.
+ *
+ * Processing model (Core-compatible):
+ * - update(): Reads position, processes ±1 per tick, flushes pending via callback
  *
  * Modes:
- * - NORMALIZED: Position [0.0-1.0] mapped to bounds, clamped to PPR range
+ * - NORMALIZED: Position [0.0-1.0] mapped to bounds, ±1 per tick
  * - RAW: Raw tick position as float
  * - RELATIVE: Emits ±delta_per_detent when a full detent is reached
  *
@@ -47,8 +54,8 @@ struct EncoderDef {
  *
  * @code
  * constexpr std::array encoders = {
- *     EncoderDef{.id = 1, .pinA = 2, .pinB = 3},  // defaults: ppr=24, stepsPerDetent=4, rangeAngle=270
- *     EncoderDef{.id = 2, .pinA = 4, .pinB = 5, .rangeAngle = 360},  // full rotation
+ *     EncoderDef{.id = 1, .pinA = 2, .pinB = 3},
+ *     EncoderDef{.id = 2, .pinA = 4, .pinB = 5, .rangeAngle = 360},
  * };
  * EncoderController<2> ctrl(encoders);
  * ctrl.init();
@@ -64,8 +71,9 @@ public:
             common::EncoderConfig cfg{
                 .id = defs[i].id,
                 .ppr = defs[i].ppr,
-                .stepsPerDetent = defs[i].stepsPerDetent,
-                .rangeAngle = defs[i].rangeAngle
+                .rangeAngle = defs[i].rangeAngle,
+                .ticksPerEvent = defs[i].ticksPerEvent,
+                .invertDirection = defs[i].invertDirection
             };
             encoders_logic_[i] = std::make_unique<common::EncoderLogic>(cfg);
         }
@@ -86,10 +94,12 @@ public:
 
         for (size_t i = 0; i < N; ++i) {
             int32_t pos = encoders_hw_[i]->read();
-            auto result = encoders_logic_[i]->processNewPosition(pos);
+            encoders_logic_[i]->processNewPosition(pos);
 
-            if (result.has_value() && callback_) {
-                callback_(defs_[i].id, result.value());
+            // Flush pending value (safe: main loop context)
+            auto pending = encoders_logic_[i]->flush();
+            if (pending.has_value() && callback_) {
+                callback_(defs_[i].id, pending.value());
             }
         }
     }
