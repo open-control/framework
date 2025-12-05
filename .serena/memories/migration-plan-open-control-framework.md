@@ -13,8 +13,8 @@
 | **5.1** | ✅ | 2025-12-05 | Audit naming + IsActiveFn refactor |
 | **5.2** | ✅ | 2025-12-05 | doubleTapWindowMs, EncoderMode 3 valeurs |
 | **6.1** | ✅ | 2025-12-05 | Modifications HAL (prérequis Phase 6) |
-| 6.2 | 🔴 | - | Câblage HAL → EventBus |
-| 6.3 | 🔴 | - | Drivers Arduino |
+| **6.2** | ✅ | 2025-12-05 | Câblage HAL → EventBus |
+| **6.3** | ✅ | 2025-12-05 | Drivers Arduino + EncoderLogic common |
 | 6.4 | 🔴 | - | Drivers Teensy |
 | 7 | 🔴 | - | UI Optionnel |
 | 8 | 🔴 | - | Example Minimal |
@@ -66,6 +66,69 @@
 | `IMultiplexer` | Renommé `readDigital()`, ajouté `readAnalog()`, `supportsAnalog()` |
 | `IMidiTransport` | Ajouté `sendChannelPressure()`, `allNotesOff()` |
 | `OpenControlApp` | `begin()` → retourne `bool`, gère échecs init |
+
+## Phase 6.3 : Drivers Arduino + EncoderLogic ✅
+
+### Décision architecturale : EncoderLogic partagé
+
+**Problème identifié** : La logique encoder (modes, accumulation, bounds, quantization) serait dupliquée entre Arduino et Teensy drivers.
+
+**Solution** : Extraction dans `drivers/common/EncoderLogic` - classe partagée sans dépendance Arduino.
+
+### Fichiers créés
+
+```
+src/drivers/
+├── common/
+│   ├── EncoderLogic.hpp     # Logique partagée (platform-agnostic)
+│   └── EncoderLogic.cpp
+└── arduino/
+    ├── mux/
+    │   └── GenericMux.hpp   # Template + aliases CD74HC4067/4051/4052
+    └── input/
+        ├── ButtonController.hpp   # Template MCU + MUX
+        └── EncoderController.hpp  # Utilise EncoderLogic + PJRC Encoder
+```
+
+### EncoderLogic - Conformité 100% Core
+
+| Fonctionnalité | Comportement | Notes |
+|----------------|--------------|-------|
+| **Modes** | NORMALIZED, RAW, RELATIVE | RAW = addition vs Core |
+| **rangeAngle** | Configurable (défaut 270°) | `ticks = PPR * stepsPerDetent * (angle/360)` |
+| **setMode reset** | Reset position à 0.5 quand → NORMALIZED/RAW | Comme Core |
+| **setDiscreteSteps** | Uniquement en mode NORMALIZED | Comme Core |
+| **Range adjustment** | Ajuste virtual_range si pas assez de résolution pour discrete steps | `minRange = steps / 0.5` |
+| **RELATIVE accumulation** | Accumule delta, émet quand ≥ stepsPerDetent | Total reset (pas partiel) |
+| **Quantization** | `round(value * (steps-1)) / (steps-1)` | Filtre si même valeur quantifiée |
+
+### Décisions techniques documentées
+
+1. **Naming collision évitée** : Classe nommée `EncoderLogic` (pas `Encoder`) pour éviter conflit avec PJRC `Encoder.h`
+
+2. **`std::optional<float>` return type** : Pattern "maybe emit" - `processNewPosition()` retourne :
+   - `std::nullopt` si pas d'émission (position inchangée, seuil non atteint, même valeur quantifiée)
+   - `float` avec valeur à émettre sinon
+
+3. **Normalisation `pos / range`** (pas `pos / (range-1)`) : Plus intuitif pour rotation physique :
+   - tick 0 → 0.0
+   - tick N → 1.0
+   - Interpolation linéaire directe
+
+4. **Range adjustment pour menus** : Garantit minimum 2 ticks par option de menu pour détection fiable :
+   ```cpp
+   int32_t minRangeForSteps = steps / 0.5f;  // = steps * 2
+   virtual_range_ = max(defaultRange, minRangeForSteps);
+   ```
+
+5. **Lazy init pattern** : Hardware créé dans `init()`, pas dans constructeur (Arduino global objects issue)
+
+### Validation
+- [x] GenericMux compile avec aliases
+- [x] ButtonController compile avec MCU + MUX
+- [x] EncoderController compile avec EncoderLogic
+- [x] EncoderLogic conforme au comportement Core
+- [x] `#if __has_include` pour dépendance Encoder
 
 ---
 
@@ -127,7 +190,7 @@ bool OpenControlApp::begin() {
     
     if (buttons_) {
         buttons_->setCallback([this](hal::ButtonID id, hal::ButtonEvent evt) {
-            if (evt == hal::ButtonEvent::Pressed) {
+            if (evt == hal::ButtonEvent::PRESSED) {
                 event_bus_.emit(core::event::ButtonPressEvent(id, true));
             } else {
                 event_bus_.emit(core::event::ButtonReleaseEvent(id));
@@ -152,28 +215,36 @@ bool OpenControlApp::begin() {
 
 ---
 
-## Phase 6.3 : Drivers Arduino (génériques)
+## Phase 6.3 : Drivers Arduino (génériques) ✅ IMPLÉMENTÉ
 
-### Structure
+> **Note** : Cette phase a été complétée avec création de `EncoderLogic` partagé.
+> Voir section "Phase 6.3 : Drivers Arduino + EncoderLogic" dans PHASES ACCOMPLIES.
+
+### Structure finale
 
 ```
-src/drivers/arduino/
-├── mux/
-│   └── GenericMux.hpp         # Template + aliases
-└── input/
-    ├── ButtonController.hpp   # Template, gère MCU + MUX
-    └── EncoderController.hpp  # Lib Encoder (PJRC)
+src/drivers/
+├── common/
+│   ├── EncoderLogic.hpp/.cpp  # Logique partagée Arduino/Teensy
+└── arduino/
+    ├── mux/
+    │   └── GenericMux.hpp     # Template + aliases
+    └── input/
+        ├── ButtonController.hpp
+        └── EncoderController.hpp  # Utilise EncoderLogic
 ```
 
-**Namespace** : `oc::drivers::arduino`
+**Namespace** : `oc::drivers::arduino`, `oc::drivers::common`
 
 ### 6.3.1 - GenericMux.hpp
 
 ```cpp
 #pragma once
 
-#include <Arduino.h>
 #include <array>
+
+#include <Arduino.h>
+
 #include <oc/hal/IMultiplexer.hpp>
 
 namespace oc::drivers::arduino {
@@ -250,8 +321,10 @@ using CD74HC4052 = GenericMux<2>;  // 4 channels
 ```cpp
 #pragma once
 
-#include <Arduino.h>
 #include <array>
+
+#include <Arduino.h>
+
 #include <oc/hal/IButtonController.hpp>
 #include <oc/hal/IMultiplexer.hpp>
 #include <oc/hal/Types.hpp>
@@ -303,8 +376,8 @@ public:
                     if (callback_) {
                         callback_(
                             buttons_[i].id,
-                            pressed ? hal::ButtonEvent::Pressed 
-                                    : hal::ButtonEvent::Released
+                            pressed ? hal::ButtonEvent::PRESSED 
+                                    : hal::ButtonEvent::RELEASED
                         );
                     }
                 }
@@ -360,10 +433,12 @@ private:
 #error "EncoderController requires Encoder library by PJRC. Add 'Encoder' to lib_deps"
 #endif
 
-#include <Arduino.h>
-#include <Encoder.h>
 #include <array>
 #include <memory>
+
+#include <Arduino.h>
+#include <Encoder.h>
+
 #include <oc/hal/IEncoderController.hpp>
 #include <oc/hal/Types.hpp>
 
@@ -557,7 +632,7 @@ private:
 ```
 src/drivers/teensy/
 ├── input/
-│   └── EncoderController.hpp/cpp   # EncoderTool optimisé
+│   └── EncoderController.hpp   # EncoderTool + EncoderLogic (common)
 ├── midi/
 │   └── TeensyUsbMidi.hpp/cpp
 └── display/
@@ -565,6 +640,17 @@ src/drivers/teensy/
 ```
 
 **Namespace** : `oc::drivers::teensy`
+
+### Principe : Réutilisation EncoderLogic
+
+Le driver Teensy réutilise `drivers/common/EncoderLogic` pour la logique (modes, bounds, quantization).
+Seule la partie hardware change (EncoderTool vs PJRC Encoder).
+
+```cpp
+// Structure similaire à Arduino
+std::array<std::unique_ptr<EncoderTool::Encoder>, N> encoders_hw_;
+std::array<std::unique_ptr<common::EncoderLogic>, N> encoders_logic_;
+```
 
 ### 6.4.1 - TeensyUsbMidi
 
@@ -607,24 +693,57 @@ private:
 ### 6.4.2 - EncoderController (Teensy optimisé)
 
 Utilise `EncoderTool` (luni64) - optimisé Teensy avec callbacks ISR.
+**Réutilise `drivers/common/EncoderLogic`** pour toute la logique métier.
 
 ```cpp
 #pragma once
 
-#ifndef ENCODERTOOL_H
+#if __has_include(<EncoderTool.h>)
+#include <EncoderTool.h>
+#else
 #error "Teensy EncoderController requires EncoderTool. Add 'luni64/EncoderTool' to lib_deps"
 #endif
 
-#include <EncoderTool.h>
+#include <array>
+#include <memory>
+
+#include <drivers/common/EncoderLogic.hpp>
 #include <oc/hal/IEncoderController.hpp>
 
 namespace oc::drivers::teensy {
 
-// Similar structure to arduino version but using EncoderTool
-// with ISR callbacks for better performance
+struct EncoderDef {
+    hal::EncoderID id;
+    uint8_t pinA;
+    uint8_t pinB;
+    uint16_t ppr = 24;
+    uint8_t stepsPerDetent = 4;
+    uint16_t rangeAngle = 270;
+};
+
+template<size_t N>
+class EncoderController : public hal::IEncoderController {
+public:
+    explicit EncoderController(const std::array<EncoderDef, N>& defs);
+    
+    bool init() override;
+    void update() override;
+    // ... autres méthodes délèguent à encoders_logic_[i]
+    
+private:
+    std::array<EncoderDef, N> defs_;
+    std::array<EncoderTool::Encoder, N> encoders_hw_;  // Stack-allocated (Teensy)
+    std::array<std::unique_ptr<common::EncoderLogic>, N> encoders_logic_;
+    // ...
+};
 
 }  // namespace oc::drivers::teensy
 ```
+
+**Différences vs Arduino** :
+- `EncoderTool::Encoder` stack-allocated (pas de `std::unique_ptr` pour hw)
+- Callbacks ISR pour meilleure réactivité
+- Même `EncoderLogic` pour comportement identique
 
 ### 6.4.3 - Ili9341Driver
 
