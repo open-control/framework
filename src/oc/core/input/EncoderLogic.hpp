@@ -1,12 +1,13 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <optional>
 
 #include <oc/hal/IEncoderController.hpp>
 #include <oc/hal/Types.hpp>
 
-namespace oc::drivers::common {
+namespace oc::core::input {
 
 /// Full quadrature multiplier (x4 resolution)
 constexpr uint8_t FULL_QUADRATURE_MULTIPLIER = 4;
@@ -86,9 +87,9 @@ public:
     std::optional<float> flush();
 
     /**
-     * @brief Check if there's a pending value
+     * @brief Check if there's a pending value (ISR-safe)
      */
-    bool hasPending() const { return has_pending_; }
+    bool hasPending() const { return has_pending_.load(std::memory_order_acquire); }
 
     // ═══════════════════════════════════════════════════
     // Getters
@@ -182,8 +183,8 @@ private:
     float last_quantized_value_ = -1.0f;
 
     // Pending pattern (prevents ISR callback crash)
-    bool has_pending_ = false;
+    std::atomic<bool> has_pending_{false};  ///< ISR-safe flag
     float pending_value_ = 0.0f;
 };
 
-}  // namespace oc::drivers::common
+}  // namespace oc::core::input

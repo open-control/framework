@@ -63,10 +63,6 @@ void Ili9341Driver::flush(const void* buffer, const hal::Rect& area) {
     }
 
     tft_->update(config_.framebuffer);
-
-    if (flush_cb_) {
-        flush_cb_(this);
-    }
 }
 
 void Ili9341Driver::waitAsyncComplete() {

@@ -65,8 +65,35 @@ public:
     // ACCESSORS
     // ═══════════════════════════════════════════════════
 
+    /// Access to ControlAPI for input bindings, MIDI, and encoder control
     api::ControlAPI& api() { return *api_; }
+
+    /// Access to ContextManager for context switching
     context::ContextManager& contexts() { return *contexts_; }
+
+    /**
+     * @brief Access to the internal event bus
+     *
+     * Use cases:
+     * - Subscribe to system events (ContextActivated, BootComplete, etc.)
+     * - Custom event logging/monitoring
+     * - Advanced: emit custom events for your own modules
+     *
+     * For input handling, prefer ControlAPI methods (onPressed, onTurned, etc.)
+     * which provide gesture detection and scoped bindings.
+     *
+     * @code
+     * // Subscribe to context changes
+     * app.eventBus().on(
+     *     EventCategory::CONTEXT,
+     *     SystemEvent::CONTEXT_ACTIVATED,
+     *     [](const Event& e) {
+     *         auto& ce = static_cast<const ContextActivatedEvent&>(e);
+     *         Serial.printf("Context: %s\n", ce.contextId);
+     *     }
+     * );
+     * @endcode
+     */
     core::event::IEventBus& eventBus() { return event_bus_; }
 
     // ═══════════════════════════════════════════════════

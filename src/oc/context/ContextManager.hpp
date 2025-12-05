@@ -4,6 +4,7 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "IContext.hpp"
 
@@ -50,13 +51,17 @@ public:
     // ═══════════════════════════════════════════════════
 
     /**
-     * @brief Register a context type with given ID
+     * @brief Register a context type with given ID (lazy initialization)
      * @tparam T Context class deriving from IContext
      * @param id Unique identifier for this context
-     * @return true if registration and initialization succeeded
+     * @return true if registration succeeded
      *
      * If T has a static loadResources() method, it will be called
-     * before initialization (SFINAE detection).
+     * immediately (SFINAE detection).
+     *
+     * @note Context initialization is deferred until first switchTo().
+     *       This allows registering multiple contexts without allocating
+     *       resources for inactive ones.
      */
     template <typename T>
     bool registerContext(const std::string& id) {
@@ -66,20 +71,15 @@ public:
             return false;  // Already registered
         }
 
-        // Load resources if available (SFINAE)
+        // Load resources if available (SFINAE) - still done eagerly
         if constexpr (has_load_resources<T>::value) {
             T::loadResources();
         }
 
+        // Create context but don't initialize yet (lazy init)
         auto ctx = std::make_unique<T>();
-        if (!ctx->initialize(api_)) {
-            emitError(*ctx);
-            return false;
-        }
-
-        IContext* ctxPtr = ctx.get();
         contexts_[id] = std::move(ctx);
-        emitRegistered(*ctxPtr);
+        emitRegistered(*contexts_[id]);
 
         // First context becomes default
         if (default_id_.empty()) {
@@ -130,6 +130,7 @@ private:
 
     oc::api::ControlAPI& api_;
     std::unordered_map<std::string, std::unique_ptr<IContext>> contexts_;
+    std::unordered_set<std::string> initialized_ids_;  ///< Tracks lazy-initialized contexts
     IContext* active_ = nullptr;
     std::string default_id_;
 };

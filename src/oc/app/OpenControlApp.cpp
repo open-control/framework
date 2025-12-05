@@ -46,6 +46,21 @@ bool OpenControlApp::begin() {
         });
     }
 
+    if (midi_) {
+        midi_->setOnCC([this](uint8_t ch, uint8_t cc, uint8_t val) {
+            event_bus_.emit(core::event::MidiCCEvent(ch, cc, val));
+        });
+        midi_->setOnNoteOn([this](uint8_t ch, uint8_t note, uint8_t vel) {
+            event_bus_.emit(core::event::MidiNoteOnEvent(ch, note, vel));
+        });
+        midi_->setOnNoteOff([this](uint8_t ch, uint8_t note, uint8_t vel) {
+            event_bus_.emit(core::event::MidiNoteOffEvent(ch, note, vel));
+        });
+        midi_->setOnSysEx([this](const uint8_t* data, size_t len) {
+            event_bus_.emit(core::event::SysExEvent(data, static_cast<uint16_t>(len)));
+        });
+    }
+
     contexts_->switchToDefault();
     return true;
 }

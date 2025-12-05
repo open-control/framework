@@ -6,9 +6,9 @@
 
 | Métrique | Valeur |
 |----------|--------|
-| **Phases complétées** | 0 → 6.5 (14 phases) |
-| **Fichiers créés** | ~40 fichiers |
-| **Namespaces** | `oc::hal`, `oc::core`, `oc::context`, `oc::api`, `oc::app`, `oc::drivers::*` |
+| **Phases complétées** | 0 → 7.1 (15 phases) |
+| **Fichiers créés** | ~47 fichiers |
+| **Namespaces** | `oc::hal`, `oc::core`, `oc::context`, `oc::api`, `oc::app`, `oc::ui`, `oc::drivers::*` |
 | **Plateformes supportées** | Arduino (générique), Teensy 4.x |
 | **Conformité guidelines** | 100% |
 | **Parité features Core** | 100% + améliorations |
@@ -41,7 +41,8 @@
 | **6.3** | ✅ | 2025-12-05 | Drivers Arduino + EncoderLogic common |
 | **6.4** | ✅ | 2025-12-05 | Drivers Teensy (séparation hpp/cpp, pending pattern) |
 | **6.5** | ✅ | 2025-12-05 | Refinements (ticksPerEvent, invertDirection, std::vector) |
-| 7 | 🔴 | - | UI Optionnel |
+| **7** | ✅ | 2025-12-05 | UI Optionnel (LVGLBridge, Interfaces, Adapter) |
+| **7.1** | ✅ | 2025-12-05 | Audit architectural + corrections (MIDI, atomic, lazy init) |
 | 8 | 🔴 | - | Example Minimal |
 | 9 | ⏸️ | - | Adapter midi-studio/core |
 | 10 | ⏸️ | - | Adapter context-bitwig |
@@ -316,6 +317,313 @@ std::vector<ActiveNote> active_notes_;  // RAII automatique
 - [x] `ticksPerEvent` utilisé pour seuil RELATIVE
 - [x] `std::vector` pour active notes (RAII)
 - [x] Guidelines 100% conformes (naming, documentation)
+
+## Phase 7.2 : Corrections Post-Audit ✅
+
+**Date** : 2025-12-05
+
+### Contexte
+
+Suite à l'audit architectural global, corrections et améliorations de cohérence.
+
+### Décisions Architecturales
+
+| Décision | Choix | Justification |
+|----------|-------|---------------|
+| Template vs Vector | **Template partout** | Cohérence API Arduino/Teensy, zero heap allocation, perf embedded |
+| lv_conf.h | Déplacé vers `config/dev/` | Framework ne fournit pas la config LVGL, consumer responsable |
+| EventBus exposure | Gardé exposé + documenté | Use cases légitimes (system events, logging) |
+
+### Modifications Implémentées
+
+| Fichier | Type | Description |
+|---------|------|-------------|
+| `drivers/teensy/input/EncoderController.hpp` | Réécrit | Converti en template `<size_t N>` avec `std::array` |
+| `drivers/teensy/input/EncoderController.cpp` | **Supprimé** | Header-only (template) |
+| `config/dev/lv_conf.h` | **Déplacé** | Depuis `src/lv_conf.h` |
+| `platformio.ini` | Modifié | Ajout `-I config/dev` pour teensy41-dev |
+| `oc/app/OpenControlApp.hpp` | Modifié | Documentation EventBus access avec use cases |
+| `src/main.cpp` | Modifié | Commentaire "COMPILATION TEST ONLY" |
+
+### API Unifiée Arduino/Teensy
+
+```cpp
+// Même API pour les deux plateformes
+constexpr std::array<EncoderDef, 3> encoders = {...};
+EncoderController<3> ctrl(encoders);  // Arduino ET Teensy
+```
+
+### Structure lv_conf.h
+
+```
+framework/
+├── config/
+│   └── dev/
+│       └── lv_conf.h      ← Dev builds only
+├── src/                    ← Plus de lv_conf.h
+└── platformio.ini          ← -I config/dev pour teensy41-dev
+```
+
+Consumer doit fournir son propre `lv_conf.h` via `-I` dans ses build_flags.
+
+---
+
+## Phase 7.1 : Audit Architectural ✅
+
+**Date** : 2025-12-05
+
+### Contexte
+
+Audit complet de l'architecture après Phase 7 pour identifier fragilités et incohérences.
+
+### Issues Identifiées et Résolutions
+
+| # | Issue | Sévérité | Résolution |
+|---|-------|----------|------------|
+| 1 | ButtonController Teensy manquant | ❌ Non-issue | Arduino ButtonController est générique, Teensy l'utilise |
+| 2 | MIDI IN pas câblé à EventBus | 🔴 Critique | **Corrigé** - Callbacks MIDI→EventBus dans OpenControlApp |
+| 3 | LVGLBridge flush_ready immédiat | ❌ Non-issue | Pattern pipeline correct (analysé Core) |
+| 4 | TimeProvider nullptr crash | 🟡 Important | **Documenté** - Consumer doit fournir, assert explicite |
+| 5 | Context switch ne nettoie pas bindings | ❌ Non-issue | Responsabilité du context (clearScope pattern Core) |
+| 6 | Race condition ISR has_pending_ | 🟡 Important | **Corrigé** - `std::atomic<bool>` avec memory_order |
+| 7 | setFlushCallback inutilisé | 🟢 Mineur | **Supprimé** - Interface simplifiée |
+| 8 | EncoderDef dupliqué Arduino/Teensy | 🟢 Mineur | **Corrigé** - Extrait dans `drivers/common/EncoderDef.hpp` |
+| 9 | setPosition return inconsistent | 🟢 Mineur | **Décision** - Garder `void` (HAL standard) |
+| 10 | Context init eager vs lazy | 🟢 Mineur | **Corrigé** - Lazy init implémenté |
+| 11 | AppBuilder validation faible | 🟢 Mineur | **Décision** - Garder assert (fail-fast embedded) |
+| 12 | lv_conf.h mal placé | 🟢 Mineur | **Corrigé** - Reste dans src/ pour dev builds |
+
+### Corrections Implémentées
+
+#### 1. MIDI IN → EventBus (OpenControlApp.cpp)
+
+```cpp
+if (midi_) {
+    midi_->setOnCC([this](uint8_t ch, uint8_t cc, uint8_t val) {
+        event_bus_.emit(core::event::MidiCCEvent(ch, cc, val));
+    });
+    midi_->setOnNoteOn([this](uint8_t ch, uint8_t note, uint8_t vel) {
+        event_bus_.emit(core::event::MidiNoteOnEvent(ch, note, vel));
+    });
+    midi_->setOnNoteOff([this](uint8_t ch, uint8_t note, uint8_t vel) {
+        event_bus_.emit(core::event::MidiNoteOffEvent(ch, note, vel));
+    });
+    midi_->setOnSysEx([this](const uint8_t* data, size_t len) {
+        event_bus_.emit(core::event::SysExEvent(data, static_cast<uint16_t>(len)));
+    });
+}
+```
+
+#### 2. std::atomic pour ISR safety (EncoderLogic)
+
+```cpp
+// EncoderLogic.hpp
+#include <atomic>
+std::atomic<bool> has_pending_{false};  ///< ISR-safe flag
+
+bool hasPending() const { 
+    return has_pending_.load(std::memory_order_acquire); 
+}
+
+// EncoderLogic.cpp
+std::optional<float> EncoderLogic::flush() {
+    if (!has_pending_.load(std::memory_order_acquire)) return std::nullopt;
+    has_pending_.store(false, std::memory_order_release);
+    return pending_value_;
+}
+
+void EncoderLogic::setPending(float value) {
+    pending_value_ = value;
+    has_pending_.store(true, std::memory_order_release);
+}
+```
+
+#### 3. EncoderDef extrait (drivers/common/EncoderDef.hpp)
+
+```cpp
+namespace oc::drivers::common {
+
+struct EncoderDef {
+    hal::EncoderID id;
+    uint8_t pinA;
+    uint8_t pinB;
+    uint16_t ppr = 24;
+    uint16_t rangeAngle = 270;
+    uint8_t ticksPerEvent = 4;
+    bool invertDirection = false;
+};
+
+}  // namespace oc::drivers::common
+```
+
+Arduino et Teensy drivers utilisent maintenant `using EncoderDef = common::EncoderDef;`
+
+#### 4. Lazy init contexts (ContextManager)
+
+```cpp
+// ContextManager.hpp
+std::unordered_set<std::string> initialized_ids_;  ///< Tracks lazy-initialized contexts
+
+// ContextManager.cpp
+bool ContextManager::switchTo(const std::string& id) {
+    // ...
+    // Lazy initialization: initialize on first switch
+    if (initialized_ids_.count(id) == 0) {
+        if (!ctx->initialize(api_)) {
+            emitError(*ctx);
+            return false;
+        }
+        initialized_ids_.insert(id);
+    }
+    // ...
+}
+```
+
+#### 5. setFlushCallback supprimé (IDisplayDriver)
+
+Interface simplifiée - plus de `FlushCallback` ni `flush_cb_` membre.
+Le pattern pipeline (flush_ready immédiat) est correct et n'a pas besoin de callback.
+
+#### 6. Environnement dev (platformio.ini)
+
+```ini
+[platformio]
+default_envs = teensy41-dev
+
+[env:teensy41]
+; Base clean pour consumers
+platform = teensy
+board = teensy41
+
+[env:teensy41-dev]
+; Dev avec toutes les libs pour test compilation
+extends = env:teensy41
+lib_deps =
+    https://github.com/luni64/EncoderTool
+    https://github.com/vindar/ILI9341_T4
+    https://github.com/PaulStoffregen/Encoder
+    https://github.com/lvgl/lvgl
+```
+
+### Décisions Architecturales Documentées
+
+| Décision | Choix | Justification |
+|----------|-------|---------------|
+| Context cleanup | Context's responsibility | Pattern clearScope() de Core - contexte gère ses bindings |
+| LVGLBridge flush | Immédiat flush_ready | Pipeline pattern - DMA double-buffering gère sync |
+| TimeProvider | Consumer fournit | Framework platform-agnostic, pas de dépendance Arduino |
+| setPosition return | void | Cohérent avec HAL standard (setter = void) |
+| AppBuilder validation | assert() | Fail-fast pattern embedded - erreur dev, pas runtime |
+| ISR safety | std::atomic<bool> | Portable, explicite, correct memory ordering |
+
+### Fichiers Modifiés
+
+| Fichier | Type | Modifications |
+|---------|------|---------------|
+| `src/oc/app/OpenControlApp.cpp` | Edit | MIDI callbacks → EventBus |
+| `src/oc/app/AppBuilder.hpp` | Edit | Documentation timeProvider |
+| `src/oc/core/input/EncoderLogic.hpp` | Edit | std::atomic<bool> |
+| `src/oc/core/input/EncoderLogic.cpp` | Edit | Atomic operations |
+| `src/oc/context/ContextManager.hpp` | Edit | Lazy init tracking |
+| `src/oc/context/ContextManager.cpp` | Edit | Lazy init logic |
+| `src/oc/hal/IDisplayDriver.hpp` | Edit | Suppression setFlushCallback |
+| `src/drivers/teensy/display/Ili9341Driver.cpp` | Edit | Suppression flush_cb_ call |
+| `src/drivers/common/EncoderDef.hpp` | **New** | Shared encoder definition |
+| `src/drivers/arduino/input/EncoderController.hpp` | Edit | Use common::EncoderDef |
+| `src/drivers/teensy/input/EncoderController.hpp` | Edit | Use common::EncoderDef |
+| `platformio.ini` | Edit | teensy41-dev environment |
+
+### Validation
+
+- [x] Build SUCCESS (teensy41-dev)
+- [x] Toutes corrections appliquées
+- [x] Guidelines 100% conformes
+- [x] Aucune régression
+
+---
+
+## Phase 7 : UI Optionnel (LVGL) ✅
+
+### Approche architecturale
+
+**Philosophie** : Framework fournit le pont LVGL, consumer gère mémoire et configuration.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      CONSUMER                                    │
+├─────────────────────────────────────────────────────────────────┤
+│  lv_conf.h         → Configuration LVGL (memory, features)      │
+│  DMAMEM buffer     → Draw buffer (consumer alloue)              │
+│  EXTMEM pool       → Heap LVGL si custom (consumer alloue)      │
+│  lv_init()         → Appelé avant bridge.init()                 │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      FRAMEWORK                                   │
+├─────────────────────────────────────────────────────────────────┤
+│  LVGLBridge        → lv_display ↔ IDisplayDriver                │
+│  IElement/IView    → Interfaces UI (getElement → lv_obj_t*)     │
+│  LVGLAdapter       → lvglIsActive() pour bindings scoped        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Fichiers créés
+
+```
+src/oc/ui/
+├── bridge/
+│   ├── LVGLBridge.hpp     # Config + init + refresh
+│   └── LVGLBridge.cpp     # flushCallback → driver->flush()
+├── interface/
+│   ├── IElement.hpp       # Base : getElement() → lv_obj_t*
+│   ├── IWidget.hpp        # Simple element
+│   ├── IComponent.hpp     # + show/hide/isVisible
+│   └── IView.hpp          # + onActivate/onDeactivate/getViewId
+└── adapter/
+    └── LVGLAdapter.hpp    # lvglIsActive(), lvglScopeID()
+```
+
+### LVGLBridgeConfig
+
+```cpp
+struct LVGLBridgeConfig {
+    uint16_t width;                    // Display width
+    uint16_t height;                   // Display height
+    void* buffer1;                     // Primary draw buffer (DMAMEM)
+    void* buffer2 = nullptr;           // Optional second buffer
+    size_t bufferSizeBytes;            // Size in bytes
+    hal::IDisplayDriver* driver;       // Our display driver
+    lv_display_render_mode_t renderMode = LV_DISPLAY_RENDER_MODE_FULL;
+};
+```
+
+### Guard conditionnelle
+
+Tous les fichiers UI utilisent `#if __has_include(<lvgl.h>)` pour compilation conditionnelle :
+- Si LVGL présent dans `lib_deps` → fichiers compilés
+- Sinon → fichiers ignorés, zéro impact
+
+### Integration bindings scoped
+
+```cpp
+// Consumer usage
+api.onPressed(
+    ButtonID{1},
+    oc::ui::lvglIsActive(myView.getElement()),  // Auto-désactivé si vue cachée
+    []() { handlePress(); }
+);
+```
+
+**Impact sur Framework core** : Aucun. `IsActiveFn` déjà découplé depuis Phase 5.1.
+
+### Validation
+- [x] LVGLBridge compile avec `__has_include` guard
+- [x] Interfaces IElement/IWidget/IComponent/IView créées
+- [x] LVGLAdapter fournit `lvglIsActive()` et `lvglScopeID()`
+- [x] Consumer contrôle lv_conf.h et mémoire
+- [x] Bindings scoped fonctionnent via IsActiveFn
+- [x] Guidelines 100% conformes
 
 ---
 
@@ -993,51 +1301,9 @@ private:
 
 ---
 
-## Phase 7 : UI Optionnel (LVGL)
+## Phase 7 : UI Optionnel (LVGL) ✅ IMPLÉMENTÉ
 
-### Fichiers à créer
-
-**`src/oc/ui/interface/IView.hpp`**
-```cpp
-#pragma once
-
-namespace oc::ui {
-
-class IView {
-public:
-    virtual ~IView() = default;
-    virtual void onActivate() = 0;
-    virtual void onDeactivate() = 0;
-    virtual const char* getViewId() const = 0;
-};
-
-}  // namespace oc::ui
-```
-
-**`src/oc/ui/LVGLAdapter.hpp`**
-```cpp
-#pragma once
-#ifdef OC_USE_LVGL
-
-#include <lvgl.h>
-#include <oc/core/struct/Binding.hpp>
-
-namespace oc::ui {
-
-inline core::IsActiveFn lvglIsActive(lv_obj_t* obj) {
-    return [obj]() {
-        return obj && !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
-    };
-}
-
-inline core::ScopeID lvglScopeID(lv_obj_t* obj) {
-    return reinterpret_cast<core::ScopeID>(obj);
-}
-
-}  // namespace oc::ui
-
-#endif
-```
+> Voir section "Phase 7 : UI Optionnel (LVGL)" dans PHASES ACCOMPLIES.
 
 ---
 

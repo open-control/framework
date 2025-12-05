@@ -29,12 +29,14 @@ enum class ButtonEvent : uint8_t {
 
 /**
  * @brief Rectangle for display regions
+ *
+ * Uses int32_t for compatibility with LVGL 9 coordinates.
  */
 struct Rect {
-    int16_t x1;
-    int16_t y1;
-    int16_t x2;
-    int16_t y2;
+    int32_t x1;
+    int32_t y1;
+    int32_t x2;
+    int32_t y2;
 };
 
 /**

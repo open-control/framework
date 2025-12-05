@@ -12,27 +12,15 @@
 
 #include <Arduino.h>
 
-#include <drivers/common/EncoderLogic.hpp>
+#include <drivers/common/EncoderDef.hpp>
+#include <oc/core/input/EncoderLogic.hpp>
 #include <oc/hal/IEncoderController.hpp>
 #include <oc/hal/Types.hpp>
 
 namespace oc::drivers::arduino {
 
-/**
- * @brief Encoder definition for controller configuration
- *
- * @note See common::EncoderConfig for parameter documentation.
- *       invertDirection allows adapting to different hardware wiring.
- */
-struct EncoderDef {
-    hal::EncoderID id;              ///< Unique encoder identifier
-    uint8_t pinA;                   ///< Quadrature signal A pin
-    uint8_t pinB;                   ///< Quadrature signal B pin
-    uint16_t ppr = 24;              ///< Pulses per revolution
-    uint16_t rangeAngle = 270;      ///< Degrees for full [0..1] range
-    uint8_t ticksPerEvent = 4;      ///< Ticks before event emission (4 = one detent)
-    bool invertDirection = false;   ///< Invert rotation direction
-};
+/// Use common EncoderDef for GPIO-based encoders
+using EncoderDef = common::EncoderDef;
 
 /**
  * @brief Generic encoder controller using PJRC Encoder library
@@ -68,14 +56,14 @@ public:
     explicit EncoderController(const std::array<EncoderDef, N>& defs) : defs_(defs) {
         // Create encoder logic instances
         for (size_t i = 0; i < N; ++i) {
-            common::EncoderConfig cfg{
+            core::input::EncoderConfig cfg{
                 .id = defs[i].id,
                 .ppr = defs[i].ppr,
                 .rangeAngle = defs[i].rangeAngle,
                 .ticksPerEvent = defs[i].ticksPerEvent,
                 .invertDirection = defs[i].invertDirection
             };
-            encoders_logic_[i] = std::make_unique<common::EncoderLogic>(cfg);
+            encoders_logic_[i] = std::make_unique<core::input::EncoderLogic>(cfg);
         }
     }
 
@@ -175,7 +163,7 @@ public:
 private:
     std::array<EncoderDef, N> defs_;
     std::array<std::unique_ptr<::Encoder>, N> encoders_hw_;               ///< Hardware (PJRC lib)
-    std::array<std::unique_ptr<common::EncoderLogic>, N> encoders_logic_; ///< Logic (shared)
+    std::array<std::unique_ptr<core::input::EncoderLogic>, N> encoders_logic_; ///< Logic (shared)
 
     hal::EncoderCallback callback_;
     bool initialized_ = false;

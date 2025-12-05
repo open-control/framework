@@ -1,4 +1,16 @@
-// Minimal main for library compilation test
+/**
+ * @file main.cpp
+ * @brief COMPILATION TEST ONLY - Not a functional example
+ *
+ * This file exists solely to verify that the framework compiles correctly
+ * during development. It includes all public headers to catch compilation errors.
+ *
+ * FOR USAGE EXAMPLES, see: examples/minimal-teensy41/
+ *
+ * As a library consumer, you should NOT include this file.
+ * Create your own main.cpp using AppBuilder to compose your application.
+ */
+
 #include <Arduino.h>
 
 // HAL interfaces

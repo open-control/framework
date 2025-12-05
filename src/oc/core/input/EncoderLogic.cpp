@@ -3,7 +3,7 @@
 #include <algorithm>  // std::clamp
 #include <cmath>      // std::round, std::abs
 
-namespace oc::drivers::common {
+namespace oc::core::input {
 
 EncoderLogic::EncoderLogic(const EncoderConfig& config) : config_(config) {
     virtual_range_ = calculateDefaultVirtualRange();
@@ -53,9 +53,9 @@ void EncoderLogic::processNewPosition(int32_t newPosition) {
 }
 
 std::optional<float> EncoderLogic::flush() {
-    if (!has_pending_) return std::nullopt;
+    if (!has_pending_.load(std::memory_order_acquire)) return std::nullopt;
 
-    has_pending_ = false;
+    has_pending_.store(false, std::memory_order_release);
     return pending_value_;
 }
 
@@ -130,7 +130,7 @@ bool EncoderLogic::applyQuantization(float value, float& outValue) {
 
 void EncoderLogic::setPending(float value) {
     pending_value_ = value;
-    has_pending_ = true;
+    has_pending_.store(true, std::memory_order_release);
 }
 
 int32_t EncoderLogic::calculateDefaultVirtualRange() const {
@@ -166,7 +166,7 @@ void EncoderLogic::setMode(hal::EncoderMode mode) {
         last_value_ = 0.5f;
     }
 
-    has_pending_ = false;
+    has_pending_.store(false, std::memory_order_release);
 }
 
 void EncoderLogic::setBounds(float min, float max) {
@@ -193,7 +193,7 @@ void EncoderLogic::setContinuous() {
 
 int32_t EncoderLogic::setPosition(float value) {
     last_value_ = value;
-    has_pending_ = false;
+    has_pending_.store(false, std::memory_order_release);
 
     if (mode_ == hal::EncoderMode::NORMALIZED) {
         float boundsRange = bounds_max_ - bounds_min_;
@@ -204,4 +204,4 @@ int32_t EncoderLogic::setPosition(float value) {
     return position_;
 }
 
-}  // namespace oc::drivers::common
+}  // namespace oc::core::input
