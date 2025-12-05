@@ -1,5 +1,7 @@
 #include "Ili9341Driver.hpp"
 
+#if __has_include(<ILI9341_T4.h>)
+
 #include <cstring>
 
 namespace oc::drivers::teensy {
@@ -72,3 +74,5 @@ void Ili9341Driver::waitAsyncComplete() {
 }
 
 }  // namespace oc::drivers::teensy
+
+#endif  // __has_include(<ILI9341_T4.h>)

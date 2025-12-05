@@ -1,5 +1,7 @@
 #pragma once
 
+#if __has_include(<ILI9341_T4.h>)
+
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -89,3 +91,5 @@ private:
 };
 
 }  // namespace oc::drivers::teensy
+
+#endif  // __has_include(<ILI9341_T4.h>)
