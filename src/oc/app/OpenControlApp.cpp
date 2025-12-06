@@ -66,6 +66,8 @@ bool OpenControlApp::begin() {
 }
 
 void OpenControlApp::update() {
+    uint32_t now = time_provider_();
+
     if (midi_) {
         midi_->update();
     }
@@ -73,10 +75,10 @@ void OpenControlApp::update() {
         encoders_->update();
     }
     if (buttons_) {
-        buttons_->update();
+        buttons_->update(now);
     }
     if (input_binding_) {
-        input_binding_->processTick(time_provider_());
+        input_binding_->processTick(now);
     }
 
     contexts_->update();

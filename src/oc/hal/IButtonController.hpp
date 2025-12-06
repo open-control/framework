@@ -17,7 +17,11 @@ public:
      */
     virtual bool init() = 0;
 
-    virtual void update() = 0;
+    /**
+     * @brief Poll button states and trigger callbacks
+     * @param currentTimeMs Current time in milliseconds (from App's TimeProvider)
+     */
+    virtual void update(uint32_t currentTimeMs) = 0;
 
     virtual bool isPressed(ButtonID id) const = 0;
     virtual void setCallback(ButtonCallback cb) = 0;
