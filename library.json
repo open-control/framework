@@ -27,7 +27,7 @@
   "platforms": ["teensy"],
   "export": {
     "include": ["src"],
-    "exclude": ["examples", ".git", ".gitignore", "script", "asset"]
+    "exclude": ["examples", ".git", ".gitignore", ".pio", "script", "asset"]
   },
   "build": {
     "includeDir": "src",

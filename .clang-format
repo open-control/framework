@@ -1,7 +1,7 @@
-# MIDI Studio Core - Minimal & Readable
+# Open Control Framework
 BasedOnStyle: Google
 Language: Cpp
-Standard: c++20
+Standard: c++17
 
 # Indentation
 IndentWidth: 4
