@@ -1,5 +1,4 @@
 {
-    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
     "files.associations": {
         "*.inc": "cpp",
     },

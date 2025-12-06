@@ -14,10 +14,10 @@ cd "$PROJECT_ROOT"
 require_cmd pio
 
 log "Cleaning build artifacts..."
-pio run -t clean -e debug 2>/dev/null || true
+pio run -t clean -e teensy41-dev 2>/dev/null || true
 
 log "Rebuilding to generate compile_commands.json..."
-pio run -e debug
+pio run -e teensy41-dev
 
 echo ""
 success "Done! Now restart clangd in VS Code:"
