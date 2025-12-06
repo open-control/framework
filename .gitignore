@@ -38,3 +38,6 @@ Thumbs.db
 
 # GCC ARM Compiler
 compile_commands.json
+# Local config
+.mcp.json
+.serena/
