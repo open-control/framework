@@ -24,7 +24,7 @@
   "license": "Apache-2.0",
   "homepage": "https://github.com/open-control",
   "frameworks": ["arduino"],
-  "platforms": ["teensy"],
+  "platforms": "*",
   "export": {
     "include": ["src"],
     "exclude": [".git", ".gitignore", ".pio", "script"]
