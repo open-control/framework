@@ -9,6 +9,11 @@
 #include <oc/core/struct/Binding.hpp>
 #include <oc/hal/Types.hpp>
 
+// For tests: if no TimeProvider given, use a default that returns 0
+#ifndef OC_DEFAULT_TIME_PROVIDER
+#define OC_DEFAULT_TIME_PROVIDER nullptr
+#endif
+
 namespace oc::core::input {
 
 /**
@@ -27,7 +32,15 @@ namespace oc::core::input {
  */
 class InputBinding {
 public:
-    explicit InputBinding(event::IEventBus& eventBus, const InputConfig& config = {});
+    /**
+     * @brief Construct InputBinding with optional TimeProvider
+     * @param eventBus Event bus for input events
+     * @param timeProvider Function returning current time in ms (for tests: can be nullptr)
+     * @param config Gesture timing configuration
+     */
+    explicit InputBinding(event::IEventBus& eventBus,
+                          hal::TimeProvider timeProvider = OC_DEFAULT_TIME_PROVIDER,
+                          const InputConfig& config = {});
     ~InputBinding();
 
     InputBinding(const InputBinding&) = delete;
@@ -45,7 +58,7 @@ public:
     void setLatch(hal::ButtonID btn, bool latched);
 
     /// Must be called periodically for long press detection
-    void processTick(uint32_t currentTimeMs);
+    void processTick();
     void clearBindings();
     void setBindingsEnabled(bool enabled);
 
@@ -130,6 +143,7 @@ private:
     std::unordered_map<hal::ButtonID, bool> latch_states_;
 
     event::IEventBus& event_bus_;
+    hal::TimeProvider time_provider_;
     event::SubscriptionID encoder_sub_;
     event::SubscriptionID button_press_sub_;
     event::SubscriptionID button_release_sub_;

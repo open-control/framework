@@ -6,8 +6,8 @@ namespace oc::core::input {
 
 using namespace event;
 
-InputBinding::InputBinding(IEventBus& eventBus, const InputConfig& config)
-    : event_bus_(eventBus), config_(config) {
+InputBinding::InputBinding(IEventBus& eventBus, hal::TimeProvider timeProvider, const InputConfig& config)
+    : event_bus_(eventBus), time_provider_(timeProvider), config_(config) {
     encoder_sub_ = event_bus_.on(EventCategory::USER_INPUT, InputEvent::ENCODER_CHANGED,
                                  [this](const Event& e) { onEncoderChanged(e); });
 
@@ -55,8 +55,10 @@ bool InputBinding::isLatched(hal::ButtonID btn) const {
 
 void InputBinding::setLatch(hal::ButtonID btn, bool latched) { latch_states_[btn] = latched; }
 
-void InputBinding::processTick(uint32_t currentTimeMs) {
-    current_time_ = currentTimeMs;
+void InputBinding::processTick() {
+    if (time_provider_) {
+        current_time_ = time_provider_();
+    }
     for (const auto& [buttonId, isPressed] : button_states_) {
         if (isPressed) checkAndTriggerLongPress(buttonId, current_time_);
     }

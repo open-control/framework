@@ -77,7 +77,7 @@ void OpenControlApp::update() {
         buttons_->update(now);
     }
     if (input_binding_) {
-        input_binding_->processTick(now);
+        input_binding_->processTick();
     }
 
     contexts_->update();

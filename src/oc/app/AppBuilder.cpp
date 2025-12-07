@@ -54,7 +54,7 @@ OpenControlApp AppBuilder::build() {
     // ═══════════════════════════════════════════════════
     if (app.buttons_ || app.encoders_) {
         app.input_binding_ =
-            std::make_unique<core::input::InputBinding>(app.event_bus_, app.input_config_);
+            std::make_unique<core::input::InputBinding>(app.event_bus_, app.time_provider_, app.input_config_);
     }
 
     // ═══════════════════════════════════════════════════

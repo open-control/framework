@@ -192,15 +192,23 @@ void EncoderLogic::setContinuous() {
 }
 
 int32_t EncoderLogic::setPosition(float value) {
-    last_value_ = value;
-    has_pending_.store(false, std::memory_order_release);
-
     if (mode_ == hal::EncoderMode::NORMALIZED) {
+        // Clamp value to bounds for consistency with handleNormalizedMode
+        float clampedValue = std::clamp(value, bounds_min_, bounds_max_);
+        last_value_ = clampedValue;
+
         float boundsRange = bounds_max_ - bounds_min_;
-        float normalized = (boundsRange > 0.0f) ? (value - bounds_min_) / boundsRange : 0.0f;
+        float normalized = (boundsRange > 0.0f) ? (clampedValue - bounds_min_) / boundsRange : 0.0f;
         position_ = static_cast<int32_t>(normalized * virtual_range_);
+    } else {
+        // RAW and RELATIVE modes: no bounds, store value directly
+        last_value_ = value;
+        if (mode_ == hal::EncoderMode::RAW) {
+            position_ = static_cast<int32_t>(value);
+        }
     }
 
+    has_pending_.store(false, std::memory_order_release);
     return position_;
 }
 
