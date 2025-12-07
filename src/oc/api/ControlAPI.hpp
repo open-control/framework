@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <oc/core/input/ButtonBuilder.hpp>
+#include <oc/core/input/EncoderBuilder.hpp>
 #include <oc/core/struct/Binding.hpp>
 #include <oc/hal/IEncoderController.hpp>
 #include <oc/hal/IMidiTransport.hpp>
@@ -27,8 +29,8 @@ namespace oc::api {
  *
  * @code
  * bool MyContext::initialize(ControlAPI& api) {
- *     api.onPressed(BTN_1, []() { doAction(); });
- *     api.onTurned(ENC_1, [](float v) { setParam(v); });
+ *     api.button(BTN_1).onPress().then([]{ doAction(); });
+ *     api.encoder(ENC_1).onTurn().then([](float v){ setParam(v); });
  *     api.sendCC(0, 1, 127);
  *     return true;
  * }
@@ -52,63 +54,40 @@ public:
     ControlAPI& operator=(const ControlAPI&) = delete;
 
     // ═══════════════════════════════════════════════════
-    // Input Binding - Global (always active)
+    // Input Binding - Fluent API
     // ═══════════════════════════════════════════════════
 
-    /// Register callback for button press
-    void onPressed(hal::ButtonID id, core::ActionCallback cb);
+    /**
+     * @brief Start building a button binding
+     *
+     * @code
+     * api.button(BTN_1).onPress().then([]{ doAction(); });
+     * api.button(BTN_1).onLongPress(800).scope(view).then([]{ showMenu(); });
+     * api.button(BTN_1).combo(BTN_2).then([]{ resetAll(); });
+     * @endcode
+     *
+     * @param id The button to bind
+     * @return ButtonBuilder for chained configuration
+     */
+    [[nodiscard]] core::input::ButtonBuilder button(hal::ButtonID id);
 
-    /// Register callback for button release
-    void onReleased(hal::ButtonID id, core::ActionCallback cb);
+    /**
+     * @brief Start building an encoder binding
+     *
+     * @code
+     * api.encoder(ENC_1).onTurn().then([](float v){ setValue(v); });
+     * api.encoder(ENC_1).onTurnWhilePressed(BTN_SHIFT).then([](float v){ fineAdjust(v); });
+     * @endcode
+     *
+     * @param id The encoder to bind
+     * @return EncoderBuilder for chained configuration
+     */
+    [[nodiscard]] core::input::EncoderBuilder encoder(hal::EncoderID id);
 
-    /// Register callback for long press (0 ms = use config default)
-    void onLongPress(hal::ButtonID id, core::ActionCallback cb, uint32_t ms = 0);
-
-    /// Register callback for double tap (0 ms = use config default)
-    void onDoubleTap(hal::ButtonID id, core::ActionCallback cb, uint32_t ms = 0);
-
-    /// Register callback for two-button combo
-    void onCombo(hal::ButtonID btn1, hal::ButtonID btn2, core::ActionCallback cb);
-
-    /// Register callback for encoder rotation
-    void onTurned(hal::EncoderID id, core::EncoderActionCallback cb);
-
-    /// Register callback for encoder rotation while button held
-    void onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn, core::EncoderActionCallback cb);
-
-    // ═══════════════════════════════════════════════════
-    // Input Binding - Scoped (grouped for clearScope, optional activation condition)
-    // ═══════════════════════════════════════════════════
-
-    /// Register scoped button press callback
-    void onPressed(hal::ButtonID id, core::ActionCallback cb, core::ScopeID scope,
-                   bool latch = false, core::IsActiveFn isActive = nullptr);
-
-    /// Register scoped button release callback
-    void onReleased(hal::ButtonID id, core::ActionCallback cb, core::ScopeID scope,
-                    core::IsActiveFn isActive = nullptr);
-
-    /// Register scoped long press callback
-    void onLongPress(hal::ButtonID id, core::ActionCallback cb, uint32_t ms, core::ScopeID scope,
-                     core::IsActiveFn isActive = nullptr);
-
-    /// Register scoped double tap callback
-    void onDoubleTap(hal::ButtonID id, core::ActionCallback cb, uint32_t ms, core::ScopeID scope,
-                     core::IsActiveFn isActive = nullptr);
-
-    /// Register scoped two-button combo callback
-    void onCombo(hal::ButtonID btn1, hal::ButtonID btn2, core::ActionCallback cb, core::ScopeID scope,
-                 core::IsActiveFn isActive = nullptr);
-
-    /// Register scoped encoder rotation callback
-    void onTurned(hal::EncoderID id, core::EncoderActionCallback cb, core::ScopeID scope,
-                  core::IsActiveFn isActive = nullptr);
-
-    /// Register scoped encoder rotation while button held callback
-    void onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn, core::EncoderActionCallback cb,
-                              core::ScopeID scope, core::IsActiveFn isActive = nullptr);
-
-    /// Remove all bindings for a scope
+    /**
+     * @brief Remove all bindings for a scope
+     * @param scope The scope ID to clear
+     */
     void clearScope(core::ScopeID scope);
 
     // ═══════════════════════════════════════════════════

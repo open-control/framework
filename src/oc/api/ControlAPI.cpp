@@ -9,76 +9,15 @@ ControlAPI::ControlAPI(core::input::InputBinding& binding, core::event::IEventBu
     : binding_(binding), eventBus_(eventBus), midi_(midi), encoders_(encoders) {}
 
 // ═══════════════════════════════════════════════════
-// Input Binding - Global
+// Input Binding - Fluent API
 // ═══════════════════════════════════════════════════
 
-void ControlAPI::onPressed(hal::ButtonID id, core::ActionCallback cb) {
-    binding_.onPressed(id, std::move(cb));
+core::input::ButtonBuilder ControlAPI::button(hal::ButtonID id) {
+    return core::input::ButtonBuilder(&binding_, id);
 }
 
-void ControlAPI::onReleased(hal::ButtonID id, core::ActionCallback cb) {
-    binding_.onReleased(id, std::move(cb));
-}
-
-void ControlAPI::onLongPress(hal::ButtonID id, core::ActionCallback cb, uint32_t ms) {
-    binding_.onLongPress(id, std::move(cb), ms);
-}
-
-void ControlAPI::onDoubleTap(hal::ButtonID id, core::ActionCallback cb, uint32_t ms) {
-    binding_.onDoubleTap(id, std::move(cb), ms);
-}
-
-void ControlAPI::onCombo(hal::ButtonID btn1, hal::ButtonID btn2, core::ActionCallback cb) {
-    binding_.onCombo(btn1, btn2, std::move(cb));
-}
-
-void ControlAPI::onTurned(hal::EncoderID id, core::EncoderActionCallback cb) {
-    binding_.onTurned(id, std::move(cb));
-}
-
-void ControlAPI::onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn,
-                                      core::EncoderActionCallback cb) {
-    binding_.onTurnedWhilePressed(enc, btn, std::move(cb));
-}
-
-// ═══════════════════════════════════════════════════
-// Input Binding - Scoped
-// ═══════════════════════════════════════════════════
-
-void ControlAPI::onPressed(hal::ButtonID id, core::ActionCallback cb, core::ScopeID scope,
-                           bool latch, core::IsActiveFn isActive) {
-    binding_.onPressed(id, std::move(cb), scope, latch, std::move(isActive));
-}
-
-void ControlAPI::onReleased(hal::ButtonID id, core::ActionCallback cb, core::ScopeID scope,
-                            core::IsActiveFn isActive) {
-    binding_.onReleased(id, std::move(cb), scope, std::move(isActive));
-}
-
-void ControlAPI::onLongPress(hal::ButtonID id, core::ActionCallback cb, uint32_t ms,
-                             core::ScopeID scope, core::IsActiveFn isActive) {
-    binding_.onLongPress(id, std::move(cb), ms, scope, std::move(isActive));
-}
-
-void ControlAPI::onDoubleTap(hal::ButtonID id, core::ActionCallback cb, uint32_t ms,
-                             core::ScopeID scope, core::IsActiveFn isActive) {
-    binding_.onDoubleTap(id, std::move(cb), ms, scope, std::move(isActive));
-}
-
-void ControlAPI::onCombo(hal::ButtonID btn1, hal::ButtonID btn2, core::ActionCallback cb,
-                         core::ScopeID scope, core::IsActiveFn isActive) {
-    binding_.onCombo(btn1, btn2, std::move(cb), scope, std::move(isActive));
-}
-
-void ControlAPI::onTurned(hal::EncoderID id, core::EncoderActionCallback cb, core::ScopeID scope,
-                          core::IsActiveFn isActive) {
-    binding_.onTurned(id, std::move(cb), scope, std::move(isActive));
-}
-
-void ControlAPI::onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn,
-                                      core::EncoderActionCallback cb, core::ScopeID scope,
-                                      core::IsActiveFn isActive) {
-    binding_.onTurnedWhilePressed(enc, btn, std::move(cb), scope, std::move(isActive));
+core::input::EncoderBuilder ControlAPI::encoder(hal::EncoderID id) {
+    return core::input::EncoderBuilder(&binding_, id);
 }
 
 void ControlAPI::clearScope(core::ScopeID scope) {

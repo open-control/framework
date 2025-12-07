@@ -14,14 +14,15 @@ namespace oc::core::input {
 /**
  * @brief Centralized input binding and gesture recognition system
  *
- * Subscribes to EventBus input events and provides a simple API for binding
- * actions to hardware controls. Supports complex patterns: combos, long press,
- * double tap, and scoped bindings with priority.
+ * Subscribes to EventBus input events and manages button/encoder bindings.
+ * Supports complex patterns: combos, long press, double tap, and scoped
+ * bindings with priority.
  *
+ * This class is used internally by ControlAPI. Use the fluent API instead:
  * @code
- * binding.onPressed(ButtonID::LEFT, []() { doAction(); });
- * binding.onTurned(EncoderID::MAIN, [](float v) { setParam(v); });
- * binding.onCombo(ButtonID::A, ButtonID::B, []() { reset(); });
+ * api.button(BTN_1).onPress().then([]{ doAction(); });
+ * api.encoder(ENC_1).onTurn().then([](float v){ setParam(v); });
+ * api.button(BTN_A).combo(BTN_B).then([]{ reset(); });
  * @endcode
  */
 class InputBinding {
@@ -33,35 +34,8 @@ public:
     InputBinding& operator=(const InputBinding&) = delete;
 
     // ═══════════════════════════════════════════════════
-    // Global bindings (always active)
+    // Scope and State Management
     // ═══════════════════════════════════════════════════
-
-    void onPressed(hal::ButtonID id, ActionCallback cb);
-    void onReleased(hal::ButtonID id, ActionCallback cb);
-    void onLongPress(hal::ButtonID id, ActionCallback cb, uint32_t ms = 0);
-    void onDoubleTap(hal::ButtonID id, ActionCallback cb, uint32_t ms = 0);
-    void onCombo(hal::ButtonID btn1, hal::ButtonID btn2, ActionCallback cb);
-    void onTurned(hal::EncoderID id, EncoderActionCallback cb);
-    void onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn, EncoderActionCallback cb);
-
-    // ═══════════════════════════════════════════════════
-    // Scoped bindings (grouped for clearScope, optional activation condition)
-    // ═══════════════════════════════════════════════════
-
-    void onPressed(hal::ButtonID id, ActionCallback cb, ScopeID scope,
-                   bool latch = false, IsActiveFn isActive = nullptr);
-    void onReleased(hal::ButtonID id, ActionCallback cb, ScopeID scope,
-                    IsActiveFn isActive = nullptr);
-    void onLongPress(hal::ButtonID id, ActionCallback cb, uint32_t ms, ScopeID scope,
-                     IsActiveFn isActive = nullptr);
-    void onDoubleTap(hal::ButtonID id, ActionCallback cb, uint32_t ms, ScopeID scope,
-                     IsActiveFn isActive = nullptr);
-    void onCombo(hal::ButtonID btn1, hal::ButtonID btn2, ActionCallback cb, ScopeID scope,
-                 IsActiveFn isActive = nullptr);
-    void onTurned(hal::EncoderID id, EncoderActionCallback cb, ScopeID scope,
-                  IsActiveFn isActive = nullptr);
-    void onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn, EncoderActionCallback cb,
-                              ScopeID scope, IsActiveFn isActive = nullptr);
 
     /// Remove all bindings associated with a scope
     void clearScope(ScopeID scope);
@@ -74,6 +48,36 @@ public:
     void processTick(uint32_t currentTimeMs);
     void clearBindings();
     void setBindingsEnabled(bool enabled);
+
+    // ═══════════════════════════════════════════════════
+    // Internal API for fluent builders
+    // ═══════════════════════════════════════════════════
+
+    /**
+     * @brief Register a button binding and return its ID
+     * @param binding The binding to register (id field will be set)
+     * @return The assigned BindingID
+     */
+    BindingID registerButtonBinding(ButtonBinding binding);
+
+    /**
+     * @brief Register an encoder binding and return its ID
+     * @param binding The binding to register (id field will be set)
+     * @return The assigned BindingID
+     */
+    BindingID registerEncoderBinding(EncoderBinding binding);
+
+    /**
+     * @brief Remove a binding by its ID
+     * @param id The binding ID to remove
+     * @return true if binding was found and removed
+     */
+    bool removeById(BindingID id);
+
+    /**
+     * @brief Get access to config for builders
+     */
+    const InputConfig& config() const { return config_; }
 
 private:
     std::vector<ButtonBinding> button_bindings_;
@@ -114,6 +118,7 @@ private:
     InputConfig config_;
     bool bindings_enabled_ = true;
     uint32_t current_time_ = 0;
+    BindingID next_binding_id_ = 1;  ///< Next ID to assign (0 = invalid)
 };
 
 }  // namespace oc::core::input

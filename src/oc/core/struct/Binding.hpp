@@ -9,6 +9,14 @@
 namespace oc::core {
 
 /**
+ * @brief Unique identifier for a registered binding
+ *
+ * Used internally to track and remove bindings.
+ * Value 0 indicates an invalid/unregistered binding.
+ */
+using BindingID = uint32_t;
+
+/**
  * @brief Predicate for conditional binding activation
  *
  * Called each time an input event matches this binding.
@@ -66,6 +74,7 @@ enum class EncoderBindingType : uint8_t {
  * The isActive predicate determines if the binding should trigger.
  */
 struct ButtonBinding {
+    BindingID id = 0;                              ///< Unique ID for removal (0 = unassigned)
     ButtonBindingType type;
     hal::ButtonID buttonId;
     std::optional<hal::ButtonID> secondaryButton;  ///< For COMBO
@@ -82,6 +91,7 @@ struct ButtonBinding {
  * @brief Encoder input binding definition
  */
 struct EncoderBinding {
+    BindingID id = 0;                             ///< Unique ID for removal (0 = unassigned)
     EncoderBindingType type;
     hal::EncoderID encoderId;
     std::optional<hal::ButtonID> requiredButton;  ///< For TURN_WHILE_PRESSED

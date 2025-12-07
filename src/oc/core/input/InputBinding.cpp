@@ -24,103 +24,9 @@ InputBinding::~InputBinding() {
     event_bus_.off(button_release_sub_);
 }
 
-void InputBinding::onPressed(hal::ButtonID id, ActionCallback cb) {
-    button_bindings_.push_back({.type = ButtonBindingType::PRESS, .buttonId = id, .action = std::move(cb)});
-}
-
-void InputBinding::onReleased(hal::ButtonID id, ActionCallback cb) {
-    button_bindings_.push_back({.type = ButtonBindingType::RELEASE, .buttonId = id, .action = std::move(cb)});
-}
-
-void InputBinding::onLongPress(hal::ButtonID id, ActionCallback cb, uint32_t ms) {
-    uint32_t duration = ms > 0 ? ms : config_.longPressMs;
-    button_bindings_.push_back(
-        {.type = ButtonBindingType::LONG_PRESS, .buttonId = id, .longPressMs = duration, .action = std::move(cb)});
-}
-
-void InputBinding::onDoubleTap(hal::ButtonID id, ActionCallback cb, uint32_t ms) {
-    uint32_t window = ms > 0 ? ms : config_.doubleTapWindowMs;
-    button_bindings_.push_back(
-        {.type = ButtonBindingType::DOUBLE_TAP, .buttonId = id, .doubleTapWindowMs = window, .action = std::move(cb)});
-}
-
-void InputBinding::onCombo(hal::ButtonID btn1, hal::ButtonID btn2, ActionCallback cb) {
-    button_bindings_.push_back(
-        {.type = ButtonBindingType::COMBO, .buttonId = btn1, .secondaryButton = btn2, .action = std::move(cb)});
-}
-
-void InputBinding::onTurned(hal::EncoderID id, EncoderActionCallback cb) {
-    encoder_bindings_.push_back({.type = EncoderBindingType::TURN, .encoderId = id, .action = std::move(cb)});
-}
-
-void InputBinding::onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn, EncoderActionCallback cb) {
-    encoder_bindings_.push_back(
-        {.type = EncoderBindingType::TURN_WHILE_PRESSED, .encoderId = enc, .requiredButton = btn, .action = std::move(cb)});
-}
-
-void InputBinding::onPressed(hal::ButtonID id, ActionCallback cb, ScopeID scope, bool latch, IsActiveFn isActive) {
-    button_bindings_.push_back({.type = ButtonBindingType::PRESS,
-                                .buttonId = id,
-                                .action = std::move(cb),
-                                .latch = latch,
-                                .isActive = std::move(isActive),
-                                .scopeId = scope});
-}
-
-void InputBinding::onReleased(hal::ButtonID id, ActionCallback cb, ScopeID scope, IsActiveFn isActive) {
-    button_bindings_.push_back({.type = ButtonBindingType::RELEASE,
-                                .buttonId = id,
-                                .action = std::move(cb),
-                                .isActive = std::move(isActive),
-                                .scopeId = scope});
-}
-
-void InputBinding::onLongPress(hal::ButtonID id, ActionCallback cb, uint32_t ms, ScopeID scope, IsActiveFn isActive) {
-    button_bindings_.push_back({.type = ButtonBindingType::LONG_PRESS,
-                                .buttonId = id,
-                                .longPressMs = ms,
-                                .action = std::move(cb),
-                                .isActive = std::move(isActive),
-                                .scopeId = scope});
-}
-
-void InputBinding::onDoubleTap(hal::ButtonID id, ActionCallback cb, uint32_t ms, ScopeID scope, IsActiveFn isActive) {
-    uint32_t window = ms > 0 ? ms : config_.doubleTapWindowMs;
-    button_bindings_.push_back({.type = ButtonBindingType::DOUBLE_TAP,
-                                .buttonId = id,
-                                .doubleTapWindowMs = window,
-                                .action = std::move(cb),
-                                .isActive = std::move(isActive),
-                                .scopeId = scope});
-}
-
-void InputBinding::onCombo(hal::ButtonID btn1, hal::ButtonID btn2, ActionCallback cb, ScopeID scope,
-                           IsActiveFn isActive) {
-    button_bindings_.push_back({.type = ButtonBindingType::COMBO,
-                                .buttonId = btn1,
-                                .secondaryButton = btn2,
-                                .action = std::move(cb),
-                                .isActive = std::move(isActive),
-                                .scopeId = scope});
-}
-
-void InputBinding::onTurned(hal::EncoderID id, EncoderActionCallback cb, ScopeID scope, IsActiveFn isActive) {
-    encoder_bindings_.push_back({.type = EncoderBindingType::TURN,
-                                 .encoderId = id,
-                                 .action = std::move(cb),
-                                 .isActive = std::move(isActive),
-                                 .scopeId = scope});
-}
-
-void InputBinding::onTurnedWhilePressed(hal::EncoderID enc, hal::ButtonID btn, EncoderActionCallback cb,
-                                        ScopeID scope, IsActiveFn isActive) {
-    encoder_bindings_.push_back({.type = EncoderBindingType::TURN_WHILE_PRESSED,
-                                 .encoderId = enc,
-                                 .requiredButton = btn,
-                                 .action = std::move(cb),
-                                 .isActive = std::move(isActive),
-                                 .scopeId = scope});
-}
+// ═══════════════════════════════════════════════════
+// Scope and State Management
+// ═══════════════════════════════════════════════════
 
 void InputBinding::clearScope(ScopeID scope) {
     auto buttonIt = button_bindings_.begin();
@@ -148,6 +54,64 @@ bool InputBinding::isLatched(hal::ButtonID btn) const {
 }
 
 void InputBinding::setLatch(hal::ButtonID btn, bool latched) { latch_states_[btn] = latched; }
+
+void InputBinding::processTick(uint32_t currentTimeMs) {
+    current_time_ = currentTimeMs;
+    for (const auto& [buttonId, isPressed] : button_states_) {
+        if (isPressed) checkAndTriggerLongPress(buttonId, current_time_);
+    }
+}
+
+void InputBinding::clearBindings() {
+    button_bindings_.clear();
+    encoder_bindings_.clear();
+}
+
+void InputBinding::setBindingsEnabled(bool enabled) { bindings_enabled_ = enabled; }
+
+// ═══════════════════════════════════════════════════
+// Internal API for fluent builders
+// ═══════════════════════════════════════════════════
+
+BindingID InputBinding::registerButtonBinding(ButtonBinding binding) {
+    BindingID id = next_binding_id_++;
+    binding.id = id;
+    button_bindings_.push_back(std::move(binding));
+    return id;
+}
+
+BindingID InputBinding::registerEncoderBinding(EncoderBinding binding) {
+    BindingID id = next_binding_id_++;
+    binding.id = id;
+    encoder_bindings_.push_back(std::move(binding));
+    return id;
+}
+
+bool InputBinding::removeById(BindingID id) {
+    if (id == 0) return false;
+
+    // Check button bindings
+    for (auto it = button_bindings_.begin(); it != button_bindings_.end(); ++it) {
+        if (it->id == id) {
+            button_bindings_.erase(it);
+            return true;
+        }
+    }
+
+    // Check encoder bindings
+    for (auto it = encoder_bindings_.begin(); it != encoder_bindings_.end(); ++it) {
+        if (it->id == id) {
+            encoder_bindings_.erase(it);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// ═══════════════════════════════════════════════════
+// Event Handlers
+// ═══════════════════════════════════════════════════
 
 void InputBinding::onEncoderChanged(const Event& event) {
     auto& evt = static_cast<const EncoderChangedEvent&>(event);
@@ -209,6 +173,10 @@ void InputBinding::onButtonRelease(const Event& event) {
     }
     checkAndTriggerDoubleTap(buttonId, now);
 }
+
+// ═══════════════════════════════════════════════════
+// Trigger Logic
+// ═══════════════════════════════════════════════════
 
 bool InputBinding::triggerScopedButtonBindings(hal::ButtonID buttonId, ButtonBindingType type) {
     bool anyTriggered = false;
@@ -293,6 +261,10 @@ void InputBinding::triggerMatchingEncoderBindings(hal::EncoderID encoderId, floa
     if (triggerScopedEncoderBindings(encoderId, encoderValue)) return;
     triggerGlobalEncoderBindings(encoderId, encoderValue);
 }
+
+// ═══════════════════════════════════════════════════
+// Gesture Detection
+// ═══════════════════════════════════════════════════
 
 void InputBinding::checkAndTriggerLongPress(hal::ButtonID buttonId, uint32_t now) {
     if (!button_states_[buttonId] || long_press_triggered_[buttonId]) return;
@@ -417,20 +389,6 @@ bool InputBinding::isButtonComboActive(hal::ButtonID btn1, hal::ButtonID btn2) c
     auto isPressed = [this](hal::ButtonID btn) { return button_states_.count(btn) && button_states_.at(btn); };
     return isPressed(btn1) && isPressed(btn2);
 }
-
-void InputBinding::processTick(uint32_t currentTimeMs) {
-    current_time_ = currentTimeMs;
-    for (const auto& [buttonId, isPressed] : button_states_) {
-        if (isPressed) checkAndTriggerLongPress(buttonId, current_time_);
-    }
-}
-
-void InputBinding::clearBindings() {
-    button_bindings_.clear();
-    encoder_bindings_.clear();
-}
-
-void InputBinding::setBindingsEnabled(bool enabled) { bindings_enabled_ = enabled; }
 
 bool InputBinding::isBindingActive(const ButtonBinding& binding) const {
     if (binding.scopeId == 0) return true;
