@@ -7,7 +7,7 @@
 
 namespace oc::core::event {
 
-using SubscriptionID = uint8_t;
+using SubscriptionID = uint16_t;
 using EventCallback = std::function<void(const Event&)>;
 
 /**

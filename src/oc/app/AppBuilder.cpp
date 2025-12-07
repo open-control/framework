@@ -63,7 +63,7 @@ OpenControlApp AppBuilder::build() {
 
     // ButtonAPI: requires buttons AND input_binding
     if (app.buttons_ && app.input_binding_) {
-        app.button_api_ = std::make_unique<api::ButtonAPI>(*app.input_binding_);
+        app.button_api_ = std::make_unique<api::ButtonAPI>(*app.input_binding_, *app.buttons_);
     }
 
     // EncoderAPI: requires encoders AND input_binding

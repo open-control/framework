@@ -2,6 +2,7 @@
 
 #include <oc/core/input/ButtonBuilder.hpp>
 #include <oc/core/struct/Binding.hpp>
+#include <oc/hal/IButtonController.hpp>
 #include <oc/hal/Types.hpp>
 
 namespace oc::core::input {
@@ -28,7 +29,7 @@ namespace oc::api {
  */
 class ButtonAPI {
 public:
-    explicit ButtonAPI(core::input::InputBinding& binding);
+    ButtonAPI(core::input::InputBinding& binding, hal::IButtonController& hw);
 
     // ═══════════════════════════════════════════════════
     // Binding fluent API
@@ -83,6 +84,7 @@ public:
 
 private:
     core::input::InputBinding& binding_;
+    hal::IButtonController& hw_;
 };
 
 }  // namespace oc::api

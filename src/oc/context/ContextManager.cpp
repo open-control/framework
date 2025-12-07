@@ -5,6 +5,7 @@
 #include <oc/api/MidiAPI.hpp>
 #include <oc/core/event/Events.hpp>
 #include <oc/core/event/IEventBus.hpp>
+#include <oc/core/Warning.hpp>
 
 namespace oc::context {
 
@@ -66,6 +67,7 @@ bool ContextManager::switchToImpl(uint8_t id) {
         if (id != default_id_ && default_id_ != INVALID_CONTEXT_ID) {
             return switchToImpl(default_id_);
         }
+        core::warn("[ContextManager] CRITICAL: Default context failed to create - system has no active context");
         return false;
     }
 
@@ -79,6 +81,7 @@ bool ContextManager::switchToImpl(uint8_t id) {
         if (id != default_id_ && default_id_ != INVALID_CONTEXT_ID) {
             return switchToImpl(default_id_);
         }
+        core::warn("[ContextManager] CRITICAL: Default context failed to initialize - system has no active context");
         return false;
     }
 

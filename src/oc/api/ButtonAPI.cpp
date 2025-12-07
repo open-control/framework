@@ -4,7 +4,8 @@
 
 namespace oc::api {
 
-ButtonAPI::ButtonAPI(core::input::InputBinding& binding) : binding_(binding) {}
+ButtonAPI::ButtonAPI(core::input::InputBinding& binding, hal::IButtonController& hw)
+    : binding_(binding), hw_(hw) {}
 
 core::input::ButtonBuilder ButtonAPI::button(hal::ButtonID id) {
     return core::input::ButtonBuilder(&binding_, id);
@@ -19,11 +20,11 @@ void ButtonAPI::clearScope(core::ScopeID scope) {
 }
 
 bool ButtonAPI::isPressed(hal::ButtonID id) const {
-    return binding_.isButtonPressed(id);
+    return hw_.isPressed(id);
 }
 
 core::IsActiveFn ButtonAPI::pressed(hal::ButtonID id) const {
-    return [this, id]() { return binding_.isButtonPressed(id); };
+    return [this, id]() { return hw_.isPressed(id); };
 }
 
 bool ButtonAPI::isLatched(hal::ButtonID id) const {

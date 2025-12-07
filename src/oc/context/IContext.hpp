@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cassert>
+
 #include <oc/api/ButtonAPI.hpp>
 #include <oc/api/ButtonProxy.hpp>
 #include <oc/api/EncoderAPI.hpp>
@@ -101,6 +103,7 @@ protected:
      * @return ButtonBuilder for fluent configuration
      */
     [[nodiscard]] core::input::ButtonBuilder onButton(hal::ButtonID id) {
+        assert(apis_->button && "ButtonAPI not available - add REQUIRES.button = true");
         return apis_->button->button(id);
     }
 
@@ -110,6 +113,7 @@ protected:
      * @return EncoderBuilder for fluent configuration
      */
     [[nodiscard]] core::input::EncoderBuilder onEncoder(hal::EncoderID id) {
+        assert(apis_->encoder && "EncoderAPI not available - add REQUIRES.encoder = true");
         return apis_->encoder->encoder(id);
     }
 
@@ -123,6 +127,7 @@ protected:
      * @return ButtonProxy for state operations
      */
     api::ButtonProxy button(hal::ButtonID id) {
+        assert(apis_->button && "ButtonAPI not available - add REQUIRES.button = true");
         return api::ButtonProxy(*apis_->button, id);
     }
 
@@ -132,6 +137,7 @@ protected:
      * @return EncoderProxy for state operations
      */
     api::EncoderProxy encoder(hal::EncoderID id) {
+        assert(apis_->encoder && "EncoderAPI not available - add REQUIRES.encoder = true");
         return api::EncoderProxy(*apis_->encoder, id);
     }
 
@@ -140,13 +146,22 @@ protected:
     // ═══════════════════════════════════════════════════
 
     /// Access to ButtonAPI for global operations (clearBindings, clearScope)
-    api::ButtonAPI& buttons() { return *apis_->button; }
+    api::ButtonAPI& buttons() {
+        assert(apis_->button && "ButtonAPI not available - add REQUIRES.button = true");
+        return *apis_->button;
+    }
 
     /// Access to EncoderAPI for global operations
-    api::EncoderAPI& encoders() { return *apis_->encoder; }
+    api::EncoderAPI& encoders() {
+        assert(apis_->encoder && "EncoderAPI not available - add REQUIRES.encoder = true");
+        return *apis_->encoder;
+    }
 
     /// Access to MidiAPI for MIDI I/O
-    api::MidiAPI& midi() { return *apis_->midi; }
+    api::MidiAPI& midi() {
+        assert(apis_->midi && "MidiAPI not available - add REQUIRES.midi = true");
+        return *apis_->midi;
+    }
 
     /// Access to EventBus for custom event handling
     core::event::IEventBus& events() { return apis_->events; }
