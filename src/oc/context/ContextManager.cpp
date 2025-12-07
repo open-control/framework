@@ -1,12 +1,14 @@
 #include "ContextManager.hpp"
 
-#include <oc/api/ControlAPI.hpp>
+#include <oc/api/ButtonAPI.hpp>
+#include <oc/api/EncoderAPI.hpp>
+#include <oc/api/MidiAPI.hpp>
 #include <oc/core/event/Events.hpp>
 #include <oc/core/event/IEventBus.hpp>
 
 namespace oc::context {
 
-ContextManager::ContextManager(oc::api::ControlAPI& api) : api_(api) {}
+ContextManager::ContextManager(const APIs& apis) : apis_(apis) {}
 
 ContextManager::~ContextManager() {
     if (active_) {
@@ -33,12 +35,26 @@ bool ContextManager::switchToImpl(uint8_t id) {
         return true;
     }
 
-    // 1. Cleanup and destroy old context
+    // 1. Cleanup old context
     if (active_) {
         emitDeactivated(active_id_, *active_);
         active_->onDisconnected();
         active_->cleanup();
-        active_.reset();  // Destroy - frees memory
+
+        // Clear bindings BEFORE destruction to prevent dangling callbacks
+        if (apis_.button) {
+            apis_.button->clearBindings();
+        }
+        if (apis_.encoder) {
+            apis_.encoder->clearBindings();
+        }
+
+        // Stop MIDI notes to prevent hanging notes
+        if (apis_.midi) {
+            apis_.midi->allNotesOff();
+        }
+
+        active_.reset();  // Destroy old context
     }
 
     // 2. Create new context from factory
@@ -54,7 +70,8 @@ bool ContextManager::switchToImpl(uint8_t id) {
     }
 
     // 3. Initialize new context
-    if (!active_->initialize(api_)) {
+    active_->setAPIs(apis_);
+    if (!active_->initialize()) {
         emitError(id);
         active_.reset();
         active_id_ = INVALID_CONTEXT_ID;
@@ -98,15 +115,15 @@ void ContextManager::update() {
 }
 
 void ContextManager::emitActivated(uint8_t id, const IContext& ctx) {
-    api_.eventBus().emit(core::event::ContextActivatedEvent(id, ctx.getName()));
+    apis_.events.emit(core::event::ContextActivatedEvent(id, ctx.getName()));
 }
 
 void ContextManager::emitDeactivated(uint8_t id, const IContext& ctx) {
-    api_.eventBus().emit(core::event::ContextDeactivatedEvent(id, ctx.getName()));
+    apis_.events.emit(core::event::ContextDeactivatedEvent(id, ctx.getName()));
 }
 
 void ContextManager::emitError(uint8_t id) {
-    api_.eventBus().emit(core::event::ContextErrorEvent(id));
+    apis_.events.emit(core::event::ContextErrorEvent(id));
 }
 
 }  // namespace oc::context

@@ -29,12 +29,13 @@ struct has_getIsActive<T, std::void_t<decltype(std::declval<const T&>().getIsAct
  * @brief Fluent builder for button bindings
  *
  * Provides a type-safe, chainable API for creating button bindings.
- * Must call a gesture method (onPress, onRelease, etc.) and terminate with then().
+ * Must call a gesture method (press, release, etc.) and terminate with then().
  *
  * Usage:
  * @code
- * api.button(BTN_1).onPress().then([]{ doAction(); });
- * api.button(BTN_1).onLongPress(800).scope(s).then([]{ showMenu(); });
+ * onButton(BTN_1).press().then([]{ doAction(); });
+ * onButton(BTN_1).longPress(800).scope(s).then([]{ showMenu(); });
+ * onButton(BTN_1).combo(BTN_2).then([]{ reset(); });
  * @endcode
  *
  * @note [[nodiscard]] ensures the builder is not discarded without calling then()
@@ -66,24 +67,24 @@ public:
     /**
      * @brief Trigger on button press
      */
-    ButtonBuilder& onPress();
+    ButtonBuilder& press();
 
     /**
      * @brief Trigger on button release
      */
-    ButtonBuilder& onRelease();
+    ButtonBuilder& release();
 
     /**
      * @brief Trigger after holding button for specified duration
      * @param ms Duration in milliseconds (0 = use config default)
      */
-    ButtonBuilder& onLongPress(uint32_t ms = 0);
+    ButtonBuilder& longPress(uint32_t ms = 0);
 
     /**
      * @brief Trigger on rapid double press
      * @param ms Window in milliseconds (0 = use config default)
      */
-    ButtonBuilder& onDoubleTap(uint32_t ms = 0);
+    ButtonBuilder& doubleTap(uint32_t ms = 0);
 
     /**
      * @brief Create a combo binding with another button

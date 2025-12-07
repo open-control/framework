@@ -50,6 +50,25 @@ public:
     void setBindingsEnabled(bool enabled);
 
     // ═══════════════════════════════════════════════════
+    // Separate button/encoder operations (for ButtonAPI/EncoderAPI)
+    // ═══════════════════════════════════════════════════
+
+    /// Check if a button is currently pressed (instantaneous state)
+    bool isButtonPressed(hal::ButtonID id) const;
+
+    /// Clear only button bindings
+    void clearButtonBindings();
+
+    /// Clear only encoder bindings
+    void clearEncoderBindings();
+
+    /// Clear button bindings in a specific scope
+    void clearButtonScope(ScopeID scope);
+
+    /// Clear encoder bindings in a specific scope
+    void clearEncoderScope(ScopeID scope);
+
+    // ═══════════════════════════════════════════════════
     // Internal API for fluent builders
     // ═══════════════════════════════════════════════════
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <oc/core/struct/Binding.hpp>
 
 namespace oc::core {
 
@@ -8,14 +8,6 @@ namespace oc::core {
 namespace input {
 class InputBinding;
 }
-
-/**
- * @brief Unique identifier for a registered binding
- *
- * Used internally to track and remove bindings.
- * Value 0 indicates an invalid/unregistered binding.
- */
-using BindingID = uint32_t;
 
 /**
  * @brief Handle returned by fluent API for optional unbinding
@@ -26,7 +18,7 @@ using BindingID = uint32_t;
  *
  * Usage:
  * @code
- * auto handle = api.button(BTN_1).onPress().then(callback);
+ * auto handle = onButton(BTN_1).press().then(callback);
  *
  * // Later, if needed:
  * handle.unbind();

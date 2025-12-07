@@ -5,11 +5,11 @@
 #include <memory>
 #include <type_traits>
 
+#include "APIs.hpp"
 #include "IContext.hpp"
+#include "Requirements.hpp"
 
-namespace oc::api {
-class ControlAPI;
-}
+#include <oc/core/Warning.hpp>
 
 namespace oc::context {
 
@@ -44,14 +44,9 @@ struct has_load_resources<T, std::void_t<decltype(T::loadResources())>> : std::t
  * Context IDs are user-defined enums (e.g., `enum class ContextID : uint8_t`).
  * The framework stores them as uint8_t internally.
  *
- * @code
- * // User-defined in Config.hpp:
- * enum class ContextID : uint8_t {
- *     STANDALONE = 0,
- *     BITWIG = 1,
- *     _COUNT  // Optional: for compile-time validation
- * };
+ * Validates context Requirements at registration time.
  *
+ * @code
  * // Registration:
  * mgr.registerContext<StandaloneContext>(ContextID::STANDALONE);
  * mgr.registerContext<BitwigContext>(ContextID::BITWIG);
@@ -67,7 +62,7 @@ public:
     /// Factory function signature: creates a new context instance
     using ContextFactory = std::unique_ptr<IContext> (*)();
 
-    explicit ContextManager(oc::api::ControlAPI& api);
+    explicit ContextManager(const APIs& apis);
     ~ContextManager();
 
     ContextManager(const ContextManager&) = delete;
@@ -84,6 +79,7 @@ public:
      * @param id Context identifier (user-defined enum value)
      * @return true if registration succeeded
      *
+     * Validates Requirements at registration time.
      * If T has a static loadResources() method, it will be called
      * immediately for resource preloading.
      *
@@ -102,6 +98,22 @@ public:
         }
         if (factories_[idx] != nullptr) {
             return false;  // Already registered
+        }
+
+        // Validate requirements at registration time
+        if constexpr (has_requirements<T>::value) {
+            if (T::REQUIRES.button && !apis_.button) {
+                core::warn("[ContextManager] Context requires ButtonAPI but none provided");
+                return false;
+            }
+            if (T::REQUIRES.encoder && !apis_.encoder) {
+                core::warn("[ContextManager] Context requires EncoderAPI but none provided");
+                return false;
+            }
+            if (T::REQUIRES.midi && !apis_.midi) {
+                core::warn("[ContextManager] Context requires MidiAPI but none provided");
+                return false;
+            }
         }
 
         // Load resources if available (SFINAE)
@@ -136,6 +148,7 @@ public:
      * @return true if switch succeeded
      *
      * Destroys the current context and creates the new one.
+     * Clears all bindings and stops MIDI notes before destruction.
      * If initialization fails, falls back to default context.
      */
     template <typename ID>
@@ -200,7 +213,7 @@ private:
     void emitDeactivated(uint8_t id, const IContext& ctx);
     void emitError(uint8_t id);
 
-    oc::api::ControlAPI& api_;
+    const APIs& apis_;
 
     // Fixed-size storage - no dynamic allocation
     std::array<ContextFactory, MAX_CONTEXTS> factories_{};

@@ -70,6 +70,45 @@ void InputBinding::clearBindings() {
 void InputBinding::setBindingsEnabled(bool enabled) { bindings_enabled_ = enabled; }
 
 // ═══════════════════════════════════════════════════
+// Separate button/encoder operations
+// ═══════════════════════════════════════════════════
+
+bool InputBinding::isButtonPressed(hal::ButtonID id) const {
+    auto it = button_states_.find(id);
+    return it != button_states_.end() && it->second;
+}
+
+void InputBinding::clearButtonBindings() {
+    button_bindings_.clear();
+}
+
+void InputBinding::clearEncoderBindings() {
+    encoder_bindings_.clear();
+}
+
+void InputBinding::clearButtonScope(ScopeID scope) {
+    auto it = button_bindings_.begin();
+    while (it != button_bindings_.end()) {
+        if (it->scopeId == scope) {
+            it = button_bindings_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void InputBinding::clearEncoderScope(ScopeID scope) {
+    auto it = encoder_bindings_.begin();
+    while (it != encoder_bindings_.end()) {
+        if (it->scopeId == scope) {
+            it = encoder_bindings_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════
 // Internal API for fluent builders
 // ═══════════════════════════════════════════════════
 

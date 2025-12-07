@@ -25,12 +25,12 @@ struct has_getIsActive_encoder<T, std::void_t<decltype(std::declval<const T&>().
  * @brief Fluent builder for encoder bindings
  *
  * Provides a type-safe, chainable API for creating encoder bindings.
- * Must call a gesture method (onTurn, onTurnWhilePressed) and terminate with then().
+ * Must call turn() gesture and terminate with then().
  *
  * Usage:
  * @code
- * api.encoder(ENC_1).onTurn().then([](float v){ setValue(v); });
- * api.encoder(ENC_1).onTurnWhilePressed(BTN_SHIFT).scope(s).then([](float v){ fineAdjust(v); });
+ * onEncoder(ENC_1).turn().then([](float v){ setValue(v); });
+ * onEncoder(ENC_1).turn().when(button(BTN_SHIFT).pressed()).then([](float v){ fineAdjust(v); });
  * @endcode
  */
 class [[nodiscard]] EncoderBuilder {
@@ -54,19 +54,19 @@ public:
     EncoderBuilder& operator=(const EncoderBuilder&) = delete;
 
     // ═══════════════════════════════════════════════════
-    // Gesture selection (exactly ONE required)
+    // Gesture selection
     // ═══════════════════════════════════════════════════
 
     /**
      * @brief Trigger on any encoder rotation
+     *
+     * For conditional triggering (e.g., while a button is pressed),
+     * use when() with a predicate:
+     * @code
+     * onEncoder(ENC_1).turn().when(button(BTN_SHIFT).pressed()).then(...);
+     * @endcode
      */
-    EncoderBuilder& onTurn();
-
-    /**
-     * @brief Trigger only when a button is held while turning
-     * @param btn The button that must be pressed
-     */
-    EncoderBuilder& onTurnWhilePressed(hal::ButtonID btn);
+    EncoderBuilder& turn();
 
     // ═══════════════════════════════════════════════════
     // Modifiers (optional, chainable)
@@ -113,8 +113,6 @@ public:
 private:
     InputBinding* registry_ = nullptr;
     hal::EncoderID encoderId_{};
-    EncoderBindingType type_ = EncoderBindingType::TURN;
-    std::optional<hal::ButtonID> requiredButton_ = std::nullopt;
     ScopeID scope_ = 0;
     IsActiveFn isActive_ = nullptr;
     bool gestureSet_ = false;

@@ -2,7 +2,10 @@
 
 #include <memory>
 
-#include <oc/api/ControlAPI.hpp>
+#include <oc/api/ButtonAPI.hpp>
+#include <oc/api/EncoderAPI.hpp>
+#include <oc/api/MidiAPI.hpp>
+#include <oc/context/APIs.hpp>
 #include <oc/context/ContextManager.hpp>
 #include <oc/core/event/EventBus.hpp>
 #include <oc/core/input/InputBinding.hpp>
@@ -23,14 +26,21 @@ class AppBuilder;
  * Owns all framework components and provides the main application loop.
  * Created via AppBuilder for proper dependency injection.
  *
+ * All hardware components are optional except timeProvider.
+ * APIs are created conditionally based on available hardware:
+ * - ButtonAPI: created if buttons controller is provided
+ * - EncoderAPI: created if encoders controller is provided
+ * - MidiAPI: created if MIDI transport is provided
+ *
  * @code
  * OpenControlApp app = AppBuilder()
  *     .midi(std::make_unique<TeensyUsbMidi>())
  *     .encoders(std::make_unique<TeensyEncoderController<2>>(config))
  *     .buttons(std::make_unique<TeensyButtonController<2>>(config))
+ *     .timeProvider(millis)
  *     .build();
  *
- * app.registerContext<MyContext>("my-context");
+ * app.registerContext<MyContext>(ContextID::MAIN);
  * app.begin();
  *
  * void loop() { app.update(); }
@@ -61,11 +71,17 @@ public:
     void update();
 
     // ═══════════════════════════════════════════════════
-    // ACCESSORS
+    // API ACCESSORS
     // ═══════════════════════════════════════════════════
 
-    /// Access to ControlAPI for input bindings, MIDI, and encoder control
-    api::ControlAPI& api() { return *api_; }
+    /// Access to ButtonAPI (nullptr if no button controller)
+    api::ButtonAPI* buttonAPI() { return button_api_.get(); }
+
+    /// Access to EncoderAPI (nullptr if no encoder controller)
+    api::EncoderAPI* encoderAPI() { return encoder_api_.get(); }
+
+    /// Access to MidiAPI (nullptr if no MIDI transport)
+    api::MidiAPI* midiAPI() { return midi_api_.get(); }
 
     /// Access to ContextManager for context switching
     context::ContextManager& contexts() { return *contexts_; }
@@ -78,8 +94,9 @@ public:
      * - Custom event logging/monitoring
      * - Advanced: emit custom events for your own modules
      *
-     * For input handling, prefer ControlAPI methods (onPressed, onTurned, etc.)
-     * which provide gesture detection and scoped bindings.
+     * For input handling, prefer the fluent API in contexts:
+     *   onButton(id).press().then(...)
+     *   onEncoder(id).turn().then(...)
      *
      * @code
      * // Subscribe to context changes
@@ -88,7 +105,7 @@ public:
      *     SystemEvent::CONTEXT_ACTIVATED,
      *     [](const Event& e) {
      *         auto& ce = static_cast<const ContextActivatedEvent&>(e);
-     *         Serial.printf("Context: %s\n", ce.contextId);
+     *         Serial.printf("Context: %s\n", ce.contextName);
      *     }
      * );
      * @endcode
@@ -105,6 +122,10 @@ public:
      * @tparam ID Enum type convertible to uint8_t (user-defined ContextID)
      * @param id Context identifier enum value
      * @return true if registration succeeded
+     *
+     * @note Context requirements are validated at registration time.
+     *       If T::REQUIRES specifies an API that wasn't provided to the builder,
+     *       registration will fail.
      */
     template <typename T, typename ID>
     bool registerContext(ID id) {
@@ -148,8 +169,13 @@ private:
     core::event::EventBus event_bus_;
     std::unique_ptr<core::input::InputBinding> input_binding_;
 
-    // API and context management
-    std::unique_ptr<api::ControlAPI> api_;
+    // APIs (owned, conditionally created)
+    std::unique_ptr<api::ButtonAPI> button_api_;
+    std::unique_ptr<api::EncoderAPI> encoder_api_;
+    std::unique_ptr<api::MidiAPI> midi_api_;
+    std::unique_ptr<context::APIs> apis_;
+
+    // Context management
     std::unique_ptr<context::ContextManager> contexts_;
 
     // Configuration

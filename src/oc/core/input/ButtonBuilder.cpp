@@ -45,9 +45,9 @@ ButtonBuilder& ButtonBuilder::operator=(ButtonBuilder&& other) noexcept {
     return *this;
 }
 
-ButtonBuilder& ButtonBuilder::onPress() {
+ButtonBuilder& ButtonBuilder::press() {
     if (gestureSet_) {
-        warn("[ButtonBuilder] Gesture already set - ignoring onPress()");
+        warn("[ButtonBuilder] Gesture already set - ignoring press()");
         return *this;
     }
     type_ = ButtonBindingType::PRESS;
@@ -55,9 +55,9 @@ ButtonBuilder& ButtonBuilder::onPress() {
     return *this;
 }
 
-ButtonBuilder& ButtonBuilder::onRelease() {
+ButtonBuilder& ButtonBuilder::release() {
     if (gestureSet_) {
-        warn("[ButtonBuilder] Gesture already set - ignoring onRelease()");
+        warn("[ButtonBuilder] Gesture already set - ignoring release()");
         return *this;
     }
     type_ = ButtonBindingType::RELEASE;
@@ -65,9 +65,9 @@ ButtonBuilder& ButtonBuilder::onRelease() {
     return *this;
 }
 
-ButtonBuilder& ButtonBuilder::onLongPress(uint32_t ms) {
+ButtonBuilder& ButtonBuilder::longPress(uint32_t ms) {
     if (gestureSet_) {
-        warn("[ButtonBuilder] Gesture already set - ignoring onLongPress()");
+        warn("[ButtonBuilder] Gesture already set - ignoring longPress()");
         return *this;
     }
     type_ = ButtonBindingType::LONG_PRESS;
@@ -76,9 +76,9 @@ ButtonBuilder& ButtonBuilder::onLongPress(uint32_t ms) {
     return *this;
 }
 
-ButtonBuilder& ButtonBuilder::onDoubleTap(uint32_t ms) {
+ButtonBuilder& ButtonBuilder::doubleTap(uint32_t ms) {
     if (gestureSet_) {
-        warn("[ButtonBuilder] Gesture already set - ignoring onDoubleTap()");
+        warn("[ButtonBuilder] Gesture already set - ignoring doubleTap()");
         return *this;
     }
     type_ = ButtonBindingType::DOUBLE_TAP;

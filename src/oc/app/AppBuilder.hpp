@@ -20,22 +20,29 @@ class OpenControlApp;
  * constructing the application.
  *
  * Required components:
- * - midi: MIDI transport driver
- * - encoders: Encoder controller driver
- * - buttons: Button controller driver
  * - timeProvider: Platform-specific milliseconds function (e.g., millis on Arduino)
  *
- * Optional components:
- * - display: Display driver (nullptr if no display)
+ * Optional components (APIs created conditionally):
+ * - buttons: Button controller -> creates ButtonAPI
+ * - encoders: Encoder controller -> creates EncoderAPI
+ * - midi: MIDI transport -> creates MidiAPI
+ * - display: Display driver (for UI frameworks)
  * - inputConfig: Gesture timing configuration (defaults provided)
  *
  * @code
+ * // Full configuration
  * auto app = AppBuilder()
- *     .timeProvider(millis)  // Required: platform time source
- *     .midi(std::make_unique<TeensyUsbMidi>())
- *     .encoders(std::make_unique<EncoderController<2>>(encoders))
+ *     .timeProvider(millis)  // Required
  *     .buttons(std::make_unique<ButtonController<4>>(buttons))
- *     .display(std::make_unique<Ili9341Driver>(displayConfig))  // Optional
+ *     .encoders(std::make_unique<EncoderController<2>>(encoders))
+ *     .midi(std::make_unique<TeensyUsbMidi>())
+ *     .display(std::make_unique<Ili9341Driver>(displayConfig))
+ *     .build();
+ *
+ * // Minimal configuration (buttons only)
+ * auto app = AppBuilder()
+ *     .timeProvider(millis)
+ *     .buttons(std::make_unique<ButtonController<4>>(buttons))
  *     .build();
  * @endcode
  */
@@ -53,7 +60,7 @@ public:
     /**
      * @brief Build the OpenControlApp with configured components
      * @return Configured OpenControlApp instance
-     * @note Asserts if required components (midi, encoders, buttons, timeProvider) are missing
+     * @note Asserts if timeProvider is missing (only required component)
      */
     OpenControlApp build();
 

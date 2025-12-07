@@ -16,8 +16,6 @@ EncoderBuilder::~EncoderBuilder() {
 EncoderBuilder::EncoderBuilder(EncoderBuilder&& other) noexcept
     : registry_(other.registry_),
       encoderId_(other.encoderId_),
-      type_(other.type_),
-      requiredButton_(other.requiredButton_),
       scope_(other.scope_),
       isActive_(std::move(other.isActive_)),
       gestureSet_(other.gestureSet_),
@@ -30,8 +28,6 @@ EncoderBuilder& EncoderBuilder::operator=(EncoderBuilder&& other) noexcept {
     if (this != &other) {
         registry_ = other.registry_;
         encoderId_ = other.encoderId_;
-        type_ = other.type_;
-        requiredButton_ = other.requiredButton_;
         scope_ = other.scope_;
         isActive_ = std::move(other.isActive_);
         gestureSet_ = other.gestureSet_;
@@ -42,23 +38,11 @@ EncoderBuilder& EncoderBuilder::operator=(EncoderBuilder&& other) noexcept {
     return *this;
 }
 
-EncoderBuilder& EncoderBuilder::onTurn() {
+EncoderBuilder& EncoderBuilder::turn() {
     if (gestureSet_) {
-        warn("[EncoderBuilder] Gesture already set - ignoring onTurn()");
+        warn("[EncoderBuilder] Gesture already set - ignoring turn()");
         return *this;
     }
-    type_ = EncoderBindingType::TURN;
-    gestureSet_ = true;
-    return *this;
-}
-
-EncoderBuilder& EncoderBuilder::onTurnWhilePressed(hal::ButtonID btn) {
-    if (gestureSet_) {
-        warn("[EncoderBuilder] Gesture already set - ignoring onTurnWhilePressed()");
-        return *this;
-    }
-    type_ = EncoderBindingType::TURN_WHILE_PRESSED;
-    requiredButton_ = btn;
     gestureSet_ = true;
     return *this;
 }
@@ -93,9 +77,9 @@ BindingHandle EncoderBuilder::then(EncoderActionCallback cb) {
 
     EncoderBinding binding{
         .id = 0,  // Will be assigned by registerEncoderBinding
-        .type = type_,
+        .type = EncoderBindingType::TURN,
         .encoderId = encoderId_,
-        .requiredButton = requiredButton_,
+        .requiredButton = std::nullopt,
         .action = std::move(cb),
         .enabled = true,
         .isActive = std::move(isActive_),
