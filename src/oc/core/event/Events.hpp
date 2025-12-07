@@ -104,40 +104,37 @@ public:
 // Context Events
 // ═══════════════════════════════════════════════════════════════════
 
-/// Context was successfully registered
-class ContextRegisteredEvent : public Event {
-public:
-    explicit ContextRegisteredEvent(const char* ctxId)
-        : Event(EventCategory::CONTEXT, SystemEvent::CONTEXT_REGISTERED), contextId(ctxId) {}
-
-    const char* contextId;
-};
-
 /// Context was activated (switched to)
 class ContextActivatedEvent : public Event {
 public:
-    explicit ContextActivatedEvent(const char* ctxId)
-        : Event(EventCategory::CONTEXT, SystemEvent::CONTEXT_ACTIVATED), contextId(ctxId) {}
+    ContextActivatedEvent(uint8_t id, const char* name)
+        : Event(EventCategory::CONTEXT, SystemEvent::CONTEXT_ACTIVATED),
+          contextId(id),
+          contextName(name) {}
 
-    const char* contextId;
+    uint8_t contextId;       ///< Numeric ID for logic
+    const char* contextName; ///< Human-readable name for logging
 };
 
 /// Context was deactivated (switched away from)
 class ContextDeactivatedEvent : public Event {
 public:
-    explicit ContextDeactivatedEvent(const char* ctxId)
-        : Event(EventCategory::CONTEXT, SystemEvent::CONTEXT_DEACTIVATED), contextId(ctxId) {}
+    ContextDeactivatedEvent(uint8_t id, const char* name)
+        : Event(EventCategory::CONTEXT, SystemEvent::CONTEXT_DEACTIVATED),
+          contextId(id),
+          contextName(name) {}
 
-    const char* contextId;
+    uint8_t contextId;
+    const char* contextName;
 };
 
 /// Context initialization failed
 class ContextErrorEvent : public Event {
 public:
-    explicit ContextErrorEvent(const char* ctxId)
-        : Event(EventCategory::CONTEXT, SystemEvent::CONTEXT_ERROR), contextId(ctxId) {}
+    explicit ContextErrorEvent(uint8_t id)
+        : Event(EventCategory::CONTEXT, SystemEvent::CONTEXT_ERROR), contextId(id) {}
 
-    const char* contextId;
+    uint8_t contextId;
 };
 
 }  // namespace oc::core::event

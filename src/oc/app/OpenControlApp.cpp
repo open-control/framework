@@ -61,8 +61,7 @@ bool OpenControlApp::begin() {
         });
     }
 
-    contexts_->switchToDefault();
-    return true;
+    return contexts_->begin();
 }
 
 void OpenControlApp::update() {

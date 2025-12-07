@@ -13,6 +13,9 @@ namespace oc::context {
  * DAW integration). Contexts receive lifecycle callbacks and access hardware
  * through the ControlAPI facade.
  *
+ * Context identification is handled by ContextID (user-defined enum),
+ * not by the context itself. This eliminates string allocations.
+ *
  * @code
  * class MyContext : public IContext {
  * public:
@@ -23,8 +26,10 @@ namespace oc::context {
  *     void update() override {}
  *     void cleanup() override {}
  *     const char* getName() const override { return "My Context"; }
- *     const char* getId() const override { return "my-context"; }
  * };
+ *
+ * // Registration with ContextID:
+ * app->registerContext<MyContext>(ContextID::MY_CONTEXT);
  * @endcode
  */
 class IContext {
@@ -52,11 +57,8 @@ public:
     // Identity
     // ═══════════════════════════════════════════════════
 
-    /// Human-readable display name
+    /// Human-readable display name (for logging/debug only)
     virtual const char* getName() const = 0;
-
-    /// Unique identifier for switching
-    virtual const char* getId() const = 0;
 
     // ═══════════════════════════════════════════════════
     // Connection state (for DAW integrations)
@@ -68,7 +70,7 @@ public:
     /// Called when connection is established
     virtual void onConnected() {}
 
-    /// Called when connection is lost
+    /// Called when connection is lost (before switchToDefault)
     virtual void onDisconnected() {}
 };
 

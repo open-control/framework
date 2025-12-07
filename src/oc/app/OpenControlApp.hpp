@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <string>
 
 #include <oc/api/ControlAPI.hpp>
 #include <oc/context/ContextManager.hpp>
@@ -101,15 +100,40 @@ public:
     // ═══════════════════════════════════════════════════
 
     /**
-     * @brief Register a context type
+     * @brief Register a context factory
      * @tparam T Context class implementing IContext
-     * @param id Unique identifier for this context
+     * @tparam ID Enum type convertible to uint8_t (user-defined ContextID)
+     * @param id Context identifier enum value
      * @return true if registration succeeded
      */
-    template <typename T>
-    bool registerContext(const std::string& id) {
+    template <typename T, typename ID>
+    bool registerContext(ID id) {
         return contexts_->registerContext<T>(id);
     }
+
+    /**
+     * @brief Switch to a context by ID
+     * @tparam ID Enum type convertible to uint8_t
+     * @param id Context identifier
+     * @return true if switch succeeded
+     */
+    template <typename ID>
+    bool switchTo(ID id) {
+        return contexts_->switchTo(id);
+    }
+
+    /**
+     * @brief Set the default context
+     * @tparam ID Enum type convertible to uint8_t
+     * @param id Context identifier to use as default
+     */
+    template <typename ID>
+    void setDefault(ID id) {
+        contexts_->setDefault(id);
+    }
+
+    /// Switch to the default context
+    void switchToDefault() { contexts_->switchToDefault(); }
 
 private:
     OpenControlApp() = default;

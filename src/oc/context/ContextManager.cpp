@@ -11,80 +11,102 @@ ContextManager::ContextManager(oc::api::ControlAPI& api) : api_(api) {}
 ContextManager::~ContextManager() {
     if (active_) {
         active_->cleanup();
-    }
-    // Only cleanup contexts that were initialized
-    for (auto& pair : contexts_) {
-        if (pair.second.get() != active_ && initialized_ids_.count(pair.first)) {
-            pair.second->cleanup();
-        }
+        active_.reset();
     }
 }
 
-bool ContextManager::switchTo(const std::string& id) {
-    auto it = contexts_.find(id);
-    if (it == contexts_.end()) {
+bool ContextManager::begin() {
+    if (default_id_ == INVALID_CONTEXT_ID) {
+        return false;  // No contexts registered
+    }
+    return switchToImpl(default_id_);
+}
+
+bool ContextManager::switchToImpl(uint8_t id) {
+    // Validate ID
+    if (id >= MAX_CONTEXTS || factories_[id] == nullptr) {
+        return false;  // Not registered
+    }
+
+    // Already active?
+    if (active_id_ == id && active_) {
+        return true;
+    }
+
+    // 1. Cleanup and destroy old context
+    if (active_) {
+        emitDeactivated(active_id_, *active_);
+        active_->onDisconnected();
+        active_->cleanup();
+        active_.reset();  // Destroy - frees memory
+    }
+
+    // 2. Create new context from factory
+    active_ = factories_[id]();
+    if (!active_) {
+        emitError(id);
+        active_id_ = INVALID_CONTEXT_ID;
+        // Try fallback to default if this wasn't already the default
+        if (id != default_id_ && default_id_ != INVALID_CONTEXT_ID) {
+            return switchToImpl(default_id_);
+        }
         return false;
     }
 
-    IContext* ctx = it->second.get();
-
-    // Lazy initialization: initialize on first switch
-    if (initialized_ids_.count(id) == 0) {
-        if (!ctx->initialize(api_)) {
-            emitError(*ctx);
-            return false;
+    // 3. Initialize new context
+    if (!active_->initialize(api_)) {
+        emitError(id);
+        active_.reset();
+        active_id_ = INVALID_CONTEXT_ID;
+        // Try fallback to default
+        if (id != default_id_ && default_id_ != INVALID_CONTEXT_ID) {
+            return switchToImpl(default_id_);
         }
-        initialized_ids_.insert(id);
+        return false;
     }
 
-    // Deactivate previous context
-    if (active_) {
-        emitDeactivated(*active_);
-        active_->onDisconnected();
-    }
-
-    // Activate new context
-    active_ = ctx;
+    // 4. Success
+    active_id_ = id;
     active_->onConnected();
-    emitActivated(*active_);
+    emitActivated(id, *active_);
 
     return true;
 }
 
 void ContextManager::switchToDefault() {
-    if (!default_id_.empty()) {
-        switchTo(default_id_);
+    if (default_id_ != INVALID_CONTEXT_ID) {
+        switchToImpl(default_id_);
     }
-}
-
-void ContextManager::setDefault(const std::string& id) {
-    default_id_ = id;
-}
-
-bool ContextManager::hasContext(const std::string& id) const {
-    return contexts_.find(id) != contexts_.end();
 }
 
 void ContextManager::update() {
-    if (active_) {
-        active_->update();
+    if (!active_) {
+        return;
+    }
+
+    // Update the active context
+    active_->update();
+
+    // Check for disconnection (DAW contexts)
+    if (!active_->isConnected()) {
+        active_->onDisconnected();
+        // Fall back to default context
+        if (active_id_ != default_id_) {
+            switchToDefault();
+        }
     }
 }
 
-void ContextManager::emitRegistered(const IContext& ctx) {
-    api_.eventBus().emit(core::event::ContextRegisteredEvent(ctx.getId()));
+void ContextManager::emitActivated(uint8_t id, const IContext& ctx) {
+    api_.eventBus().emit(core::event::ContextActivatedEvent(id, ctx.getName()));
 }
 
-void ContextManager::emitActivated(const IContext& ctx) {
-    api_.eventBus().emit(core::event::ContextActivatedEvent(ctx.getId()));
+void ContextManager::emitDeactivated(uint8_t id, const IContext& ctx) {
+    api_.eventBus().emit(core::event::ContextDeactivatedEvent(id, ctx.getName()));
 }
 
-void ContextManager::emitDeactivated(const IContext& ctx) {
-    api_.eventBus().emit(core::event::ContextDeactivatedEvent(ctx.getId()));
-}
-
-void ContextManager::emitError(const IContext& ctx) {
-    api_.eventBus().emit(core::event::ContextErrorEvent(ctx.getId()));
+void ContextManager::emitError(uint8_t id) {
+    api_.eventBus().emit(core::event::ContextErrorEvent(id));
 }
 
 }  // namespace oc::context
