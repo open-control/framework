@@ -8,179 +8,394 @@
 #include <oc/api/EncoderProxy.hpp>
 #include <oc/api/MidiAPI.hpp>
 #include <oc/context/APIs.hpp>
+#include <oc/context/IContextSwitcher.hpp>
 #include <oc/core/input/ButtonBuilder.hpp>
 #include <oc/core/input/EncoderBuilder.hpp>
 
 namespace oc::context {
 
 /**
- * @brief Base interface for application contexts
+ * @brief Base class for application contexts (screens/modes)
  *
- * A context represents a distinct application mode (e.g., Standalone, DAW integration).
- * Only ONE context is active at a time. Switching destroys the old and creates the new.
+ * A context represents a distinct mode of operation in the application,
+ * such as a main menu, settings screen, or DAW control surface. Each context
+ * manages its own input bindings, UI state, and behavior.
  *
- * Contexts declare their API requirements via static REQUIRES member:
+ * ## Lifecycle
+ *
+ * Contexts follow a strict lifecycle managed by ContextManager:
+ *
+ * 1. **Construction**: Factory creates instance (no APIs available yet)
+ * 2. **setAPIs()**: Framework injects API references
+ * 3. **initialize()**: Context sets up bindings and initial state
+ * 4. **onConnected()**: Called after successful initialization
+ * 5. **update()**: Called every frame while active
+ * 6. **onDisconnected()**: Called before cleanup (for DAW contexts)
+ * 7. **cleanup()**: Context releases resources
+ * 8. **Destruction**: Instance is destroyed
+ *
+ * ## Implementation Example
+ *
  * @code
- * class MyContext : public IContext {
- *     static constexpr Requirements REQUIRES {
+ * class MainContext : public IContext {
+ * public:
+ *     static constexpr Requirements REQUIRES{
  *         .button = true,
  *         .encoder = true,
- *         .midi = true
+ *         .midi = false
  *     };
- *     // ...
+ *
+ *     bool initialize() override {
+ *         onButton(ButtonID::PLAY).onPress([this] { play(); });
+ *         onEncoder(EncoderID::VOLUME).onTurn([this](int v) { setVolume(v); });
+ *         return true;
+ *     }
+ *
+ *     void update() override {
+ *         // Called every frame
+ *     }
+ *
+ *     void cleanup() override {
+ *         // Bindings are auto-cleared by ContextManager
+ *     }
+ *
+ *     const char* getName() const override { return "Main"; }
  * };
  * @endcode
  *
- * Access APIs via protected accessors:
+ * ## Context Switching
+ *
+ * Contexts can switch to other contexts using the protected switchTo() method.
+ * Switching is **deferred** - the actual switch happens after update() returns,
+ * ensuring safe lifecycle management.
+ *
  * @code
- * bool initialize() override {
- *     // Bindings - "on" prefix for events
- *     onButton(BTN_1).press().then([this]{ midi().sendCC(1,20,127); });
- *     onEncoder(ENC_1).turn().then([this](float v){ updateValue(v); });
- *
- *     // State by ID - via proxy
- *     button(BTN_1).setLatch(true);
- *     encoder(ENC_1).setMode(EncoderMode::RELATIVE);
- *
- *     // Global operations - plural form
- *     buttons().clearScope(someScope);
- *     return true;
+ * void onSettingsPressed() {
+ *     switchTo(ContextID::SETTINGS);  // Deferred switch
  * }
  * @endcode
+ *
+ * @see ContextManager
+ * @see Requirements
+ * @see IContextSwitcher
  */
 class IContext {
 public:
     virtual ~IContext() = default;
 
     /**
-     * @brief Called by framework before initialize()
-     * @param apis Reference to APIs struct with available API pointers
+     * @brief Inject API references (called by ContextManager before initialize)
+     * @param apis Reference to the APIs container
+     * @note Do not call this directly - managed by ContextManager
      */
     void setAPIs(const APIs& apis) { apis_ = &apis; }
 
-    // ═══════════════════════════════════════════════════
+    // ─────────────────────────────────────────────────────────────────────
     // Lifecycle (must implement)
-    // ═══════════════════════════════════════════════════
+    // ─────────────────────────────────────────────────────────────────────
 
     /**
-     * @brief Initialize the context
+     * @brief Initialize the context after APIs are available
      *
-     * Called after setAPIs(). Set up bindings, initialize state.
-     * @return true if initialization succeeded
+     * Set up input bindings, subscribe to events, initialize UI, etc.
+     * Called after setAPIs() and before onConnected().
+     *
+     * @return true if initialization succeeded, false to trigger fallback
      */
     virtual bool initialize() = 0;
 
-    /// Called every frame while context is active
+    /**
+     * @brief Update the context (called every frame while active)
+     *
+     * Handle per-frame logic, animations, polling, etc.
+     * Input events are delivered via bindings, not here.
+     */
     virtual void update() = 0;
 
-    /// Called when context is being destroyed
+    /**
+     * @brief Clean up resources before destruction
+     *
+     * Release any resources, unsubscribe from events, etc.
+     * Input bindings are automatically cleared by ContextManager.
+     */
     virtual void cleanup() = 0;
 
-    /// Human-readable display name (for logging/debug only)
+    /**
+     * @brief Get the human-readable name of this context
+     * @return Static string identifying this context (for debugging/UI)
+     */
     virtual const char* getName() const = 0;
 
-    // ═══════════════════════════════════════════════════
-    // Connection state (optional override for DAW contexts)
-    // ═══════════════════════════════════════════════════
+    // ─────────────────────────────────────────────────────────────────────
+    // Connection State (optional override for DAW contexts)
+    // ─────────────────────────────────────────────────────────────────────
 
-    /// Check if external connection is active (default: always true)
+    /**
+     * @brief Check if the context is still connected
+     *
+     * For DAW contexts, this indicates whether the DAW connection is alive.
+     * When this returns false, ContextManager will call onDisconnected()
+     * and may switch to the default context.
+     *
+     * @return true if connected (default), false if disconnected
+     */
     virtual bool isConnected() const { return true; }
 
-    /// Called when connection is established
+    /**
+     * @brief Called when the context becomes active
+     *
+     * Override to perform actions when this context is activated,
+     * such as sending initial state to a DAW or updating display.
+     */
     virtual void onConnected() {}
 
-    /// Called when connection is lost (before switchToDefault)
+    /**
+     * @brief Called when the context is about to be deactivated
+     *
+     * Override to perform cleanup when losing focus, such as
+     * sending "goodbye" messages to a DAW or saving state.
+     */
     virtual void onDisconnected() {}
 
 protected:
-    // ═══════════════════════════════════════════════════
-    // Bindings - "on" prefix = event callbacks
-    // ═══════════════════════════════════════════════════
+    // ─────────────────────────────────────────────────────────────────────
+    // Input Binding Builders (fluent API)
+    // ─────────────────────────────────────────────────────────────────────
 
     /**
      * @brief Start building a button binding
-     * @param id Button to bind
-     * @return ButtonBuilder for fluent configuration
+     *
+     * Returns a fluent builder for configuring button actions.
+     *
+     * @param id Button identifier
+     * @return ButtonBuilder for chaining configuration
+     *
+     * @code
+     * onButton(ButtonID::PLAY)
+     *     .onPress([this] { transport.play(); })
+     *     .onLongPress([this] { transport.stop(); }, 500);
+     * @endcode
      */
     [[nodiscard]] core::input::ButtonBuilder onButton(hal::ButtonID id) {
-        assert(apis_->button && "ButtonAPI not available - add REQUIRES.button = true");
+        assert(apis_->button && "ButtonAPI not available");
         return apis_->button->button(id);
     }
 
     /**
      * @brief Start building an encoder binding
-     * @param id Encoder to bind
-     * @return EncoderBuilder for fluent configuration
+     *
+     * Returns a fluent builder for configuring encoder actions.
+     *
+     * @param id Encoder identifier
+     * @return EncoderBuilder for chaining configuration
+     *
+     * @code
+     * onEncoder(EncoderID::VOLUME)
+     *     .withRange(0, 127)
+     *     .onTurn([this](int value) { setVolume(value); });
+     * @endcode
      */
     [[nodiscard]] core::input::EncoderBuilder onEncoder(hal::EncoderID id) {
-        assert(apis_->encoder && "EncoderAPI not available - add REQUIRES.encoder = true");
+        assert(apis_->encoder && "EncoderAPI not available");
         return apis_->encoder->encoder(id);
     }
 
-    // ═══════════════════════════════════════════════════
-    // State by ID - returns lightweight proxy
-    // ═══════════════════════════════════════════════════
+    // ─────────────────────────────────────────────────────────────────────
+    // State Proxies (for querying input state)
+    // ─────────────────────────────────────────────────────────────────────
 
     /**
-     * @brief Get proxy for button state access
-     * @param id Button ID
-     * @return ButtonProxy for state operations
+     * @brief Get a proxy for querying button state
+     * @param id Button identifier
+     * @return ButtonProxy for state queries (isPressed, isLatched, etc.)
      */
     api::ButtonProxy button(hal::ButtonID id) {
-        assert(apis_->button && "ButtonAPI not available - add REQUIRES.button = true");
+        assert(apis_->button && "ButtonAPI not available");
         return api::ButtonProxy(*apis_->button, id);
     }
 
     /**
-     * @brief Get proxy for encoder state access
-     * @param id Encoder ID
-     * @return EncoderProxy for state operations
+     * @brief Get a proxy for querying encoder state
+     * @param id Encoder identifier
+     * @return EncoderProxy for state queries (value, position, etc.)
      */
     api::EncoderProxy encoder(hal::EncoderID id) {
-        assert(apis_->encoder && "EncoderAPI not available - add REQUIRES.encoder = true");
+        assert(apis_->encoder && "EncoderAPI not available");
         return api::EncoderProxy(*apis_->encoder, id);
     }
 
-    // ═══════════════════════════════════════════════════
-    // Global APIs - plural form for all buttons/encoders
-    // ═══════════════════════════════════════════════════
+    // ─────────────────────────────────────────────────────────────────────
+    // Global API Access
+    // ─────────────────────────────────────────────────────────────────────
 
-    /// Access to ButtonAPI for global operations (clearBindings, clearScope)
+    /**
+     * @brief Access the ButtonAPI for advanced operations
+     * @return Reference to ButtonAPI
+     */
     api::ButtonAPI& buttons() {
-        assert(apis_->button && "ButtonAPI not available - add REQUIRES.button = true");
+        assert(apis_->button && "ButtonAPI not available");
         return *apis_->button;
     }
 
-    /// Access to EncoderAPI for global operations
+    /**
+     * @brief Access the EncoderAPI for advanced operations
+     * @return Reference to EncoderAPI
+     */
     api::EncoderAPI& encoders() {
-        assert(apis_->encoder && "EncoderAPI not available - add REQUIRES.encoder = true");
+        assert(apis_->encoder && "EncoderAPI not available");
         return *apis_->encoder;
     }
 
-    /// Access to MidiAPI for MIDI I/O
+    /**
+     * @brief Access the MidiAPI for sending MIDI messages
+     * @return Reference to MidiAPI
+     */
     api::MidiAPI& midi() {
-        assert(apis_->midi && "MidiAPI not available - add REQUIRES.midi = true");
+        assert(apis_->midi && "MidiAPI not available");
         return *apis_->midi;
     }
 
-    /// Access to EventBus for custom event handling
+    /**
+     * @brief Access the event bus for pub/sub messaging
+     * @return Reference to IEventBus
+     */
     core::event::IEventBus& events() { return apis_->events; }
 
-    // ═══════════════════════════════════════════════════
-    // Availability checks
-    // ═══════════════════════════════════════════════════
+    // ─────────────────────────────────────────────────────────────────────
+    // Context Switching (deferred - safe to call from update/handlers)
+    // ─────────────────────────────────────────────────────────────────────
 
-    /// Check if ButtonAPI is available
+    /**
+     * @brief Request a switch to another context
+     *
+     * The switch is **deferred** - it will occur after update() returns.
+     * This ensures safe lifecycle management (no use-after-free).
+     *
+     * @tparam ID Enum class or integral type for context IDs
+     * @param id Target context identifier
+     *
+     * @code
+     * switchTo(ContextID::SETTINGS);
+     * // Still executing in current context here
+     * // Switch happens after update() returns
+     * @endcode
+     */
+    template <typename ID>
+    void switchTo(ID id) {
+        assert(apis_->contexts && "ContextSwitcher not available");
+        apis_->contexts->switchTo(id);
+    }
+
+    /**
+     * @brief Request a switch to the default context
+     *
+     * Deferred switch to the context marked as default.
+     * Useful for "back to home" or "escape" actions.
+     */
+    void switchToDefault() {
+        assert(apis_->contexts && "ContextSwitcher not available");
+        apis_->contexts->switchToDefault();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Context Queries
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * @brief Check if a context is registered
+     * @tparam ID Enum class or integral type
+     * @param id Context identifier to check
+     * @return true if context exists
+     */
+    template <typename ID>
+    bool hasContext(ID id) const {
+        assert(apis_->contexts && "ContextSwitcher not available");
+        return apis_->contexts->hasContext(id);
+    }
+
+    /**
+     * @brief Get the name of a registered context
+     * @param id Raw context ID
+     * @return Context name, or nullptr if not registered
+     */
+    const char* contextName(uint8_t id) const {
+        assert(apis_->contexts && "ContextSwitcher not available");
+        return apis_->contexts->contextName(id);
+    }
+
+    /**
+     * @brief Get the ID of the currently active context
+     * @return Active context ID (should be this context's ID)
+     */
+    uint8_t activeContextId() const {
+        assert(apis_->contexts && "ContextSwitcher not available");
+        return apis_->contexts->activeId();
+    }
+
+    /**
+     * @brief Get the ID of the default context
+     * @return Default context ID
+     */
+    uint8_t defaultContextId() const {
+        assert(apis_->contexts && "ContextSwitcher not available");
+        return apis_->contexts->defaultId();
+    }
+
+    /**
+     * @brief Get the number of registered contexts
+     * @return Count of registered contexts
+     */
+    size_t contextCount() const {
+        assert(apis_->contexts && "ContextSwitcher not available");
+        return apis_->contexts->contextCount();
+    }
+
+    /**
+     * @brief Iterate over all registered contexts
+     *
+     * Useful for building context selection menus.
+     *
+     * @tparam Fn Callable accepting const ContextInfo&
+     * @param fn Callback invoked for each context
+     *
+     * @code
+     * forEachContext([this](const ContextInfo& info) {
+     *     menu.addItem(info.name, [id = info.id, this] {
+     *         switchTo(id);
+     *     });
+     * });
+     * @endcode
+     */
+    template <typename Fn>
+    void forEachContext(Fn&& fn) const {
+        assert(apis_->contexts && "ContextSwitcher not available");
+        apis_->contexts->forEachContext(std::forward<Fn>(fn));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Availability Checks
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * @brief Check if ButtonAPI is available
+     * @return true if buttons can be used
+     */
     bool hasButtons() const { return apis_->button != nullptr; }
 
-    /// Check if EncoderAPI is available
+    /**
+     * @brief Check if EncoderAPI is available
+     * @return true if encoders can be used
+     */
     bool hasEncoders() const { return apis_->encoder != nullptr; }
 
-    /// Check if MidiAPI is available
+    /**
+     * @brief Check if MidiAPI is available
+     * @return true if MIDI can be used
+     */
     bool hasMidi() const { return apis_->midi != nullptr; }
 
 private:
-    const APIs* apis_ = nullptr;
+    const APIs* apis_ = nullptr;  ///< Injected API references (set by ContextManager)
 };
 
 }  // namespace oc::context

@@ -3,104 +3,135 @@
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <type_traits>
 
 #include "APIs.hpp"
 #include "IContext.hpp"
+#include "IContextSwitcher.hpp"
 #include "Requirements.hpp"
 
 #include <oc/core/Warning.hpp>
 
 namespace oc::context {
 
-/**
- * @brief Maximum number of contexts that can be registered
- *
- * Fixed-size array eliminates dynamic allocation.
- * 16 slots is sufficient for most applications.
- */
+/// @brief Maximum number of contexts that can be registered
 inline constexpr size_t MAX_CONTEXTS = 16;
 
-/**
- * @brief Invalid context ID sentinel
- */
+/// @brief Sentinel value indicating no valid context ID
 inline constexpr uint8_t INVALID_CONTEXT_ID = 0xFF;
 
-/**
- * @brief SFINAE helper to detect static loadResources() method
- */
+/// @cond INTERNAL
 template <typename T, typename = void>
 struct has_load_resources : std::false_type {};
 
 template <typename T>
 struct has_load_resources<T, std::void_t<decltype(T::loadResources())>> : std::true_type {};
+/// @endcond
 
 /**
- * @brief Manages context registration, lifecycle, and switching
+ * @brief Manages context lifecycle, registration, and switching
  *
- * Uses factory pattern with fixed-size storage. Only ONE context
- * is in memory at a time - switching destroys the old and creates the new.
+ * ContextManager is the central hub for managing application contexts.
+ * It handles registration, instantiation, lifecycle management, and
+ * safe switching between contexts.
  *
- * Context IDs are user-defined enums (e.g., `enum class ContextID : uint8_t`).
- * The framework stores them as uint8_t internally.
+ * ## Registration
  *
- * Validates context Requirements at registration time.
+ * Contexts are registered with a unique ID and name at startup:
  *
  * @code
- * // Registration:
- * mgr.registerContext<StandaloneContext>(ContextID::STANDALONE);
- * mgr.registerContext<BitwigContext>(ContextID::BITWIG);
- * mgr.setDefault(ContextID::STANDALONE);
- * mgr.begin();  // Activates default context
+ * enum class ContextID : uint8_t { MAIN = 0, SETTINGS = 1, DAW = 2 };
  *
- * // Runtime switching:
- * mgr.switchTo(ContextID::BITWIG);
+ * manager.registerContext<MainContext>(ContextID::MAIN, "Main");
+ * manager.registerContext<SettingsContext>(ContextID::SETTINGS, "Settings");
+ * manager.registerContext<DawContext>(ContextID::DAW, "DAW Control");
  * @endcode
+ *
+ * ## Lifecycle
+ *
+ * 1. Call registerContext() for each context type
+ * 2. Optionally call setDefault() to specify fallback context
+ * 3. Call begin() to activate the default context
+ * 4. Call update() every frame in the main loop
+ *
+ * ## Context Switching
+ *
+ * All context switching is **deferred** via switchTo() - the actual switch
+ * occurs after the current update() cycle completes. This ensures safe
+ * lifecycle management (no use-after-free when a context switches away
+ * from itself).
+ *
+ * The only exception is begin() which performs an immediate switch to
+ * bootstrap the application.
+ *
+ * ## Requirements Validation
+ *
+ * If a context defines static REQUIRES, registration will fail if the
+ * required APIs are not configured.
+ *
+ * ## Resource Loading
+ *
+ * If a context defines static loadResources(), it will be called during
+ * registration (before any instance is created).
+ *
+ * @see IContext
+ * @see IContextSwitcher
+ * @see Requirements
  */
-class ContextManager {
+class ContextManager : public IContextSwitcher {
 public:
-    /// Factory function signature: creates a new context instance
+    /// @brief Factory function type for creating context instances
     using ContextFactory = std::unique_ptr<IContext> (*)();
 
+    /**
+     * @brief Construct a ContextManager with API references
+     * @param apis Reference to APIs container (must outlive ContextManager)
+     */
     explicit ContextManager(const APIs& apis);
-    ~ContextManager();
+
+    /**
+     * @brief Destructor - cleans up active context
+     */
+    ~ContextManager() override;
 
     ContextManager(const ContextManager&) = delete;
     ContextManager& operator=(const ContextManager&) = delete;
 
-    // ═══════════════════════════════════════════════════
+    // ─────────────────────────────────────────────────────────────────────
     // Registration
-    // ═══════════════════════════════════════════════════
+    // ─────────────────────────────────────────────────────────────────────
 
     /**
-     * @brief Register a context factory for a given ID
-     * @tparam T Context class deriving from IContext
-     * @tparam ID Enum type convertible to uint8_t
-     * @param id Context identifier (user-defined enum value)
-     * @return true if registration succeeded
+     * @brief Register a context type with an ID and name
      *
-     * Validates Requirements at registration time.
-     * If T has a static loadResources() method, it will be called
-     * immediately for resource preloading.
+     * The context is not instantiated until it becomes active.
+     * The first registered context becomes the default.
      *
-     * @note Context is NOT created yet - only the factory is stored.
-     *       Actual instantiation happens on first switchTo().
+     * @tparam T Context class (must inherit from IContext)
+     * @tparam ID Enum class or integral type for context IDs
+     * @param id Unique identifier for this context (0-15)
+     * @param name Human-readable name for UI/debugging
+     * @return true if registration succeeded, false if:
+     *         - ID >= MAX_CONTEXTS
+     *         - ID already registered
+     *         - Required APIs not available
+     *
+     * @code
+     * manager.registerContext<MainContext>(ContextID::MAIN, "Main Menu");
+     * @endcode
      */
     template <typename T, typename ID>
-    bool registerContext(ID id) {
+    bool registerContext(ID id, const char* name) {
         static_assert(std::is_base_of_v<IContext, T>, "T must inherit from IContext");
         static_assert(std::is_enum_v<ID> || std::is_integral_v<ID>,
                       "ID must be an enum or integral type");
 
         const uint8_t idx = static_cast<uint8_t>(id);
-        if (idx >= MAX_CONTEXTS) {
-            return false;  // Out of range
-        }
-        if (factories_[idx] != nullptr) {
-            return false;  // Already registered
-        }
+        if (idx >= MAX_CONTEXTS) return false;
+        if (factories_[idx] != nullptr) return false;
 
-        // Validate requirements at registration time
+        // Validate requirements if context defines them
         if constexpr (has_requirements<T>::value) {
             if (T::REQUIRES.button && !apis_.button) {
                 core::warn("[ContextManager] Context requires ButtonAPI but none provided");
@@ -116,55 +147,94 @@ public:
             }
         }
 
-        // Load resources if available (SFINAE)
+        // Load static resources if context defines loadResources()
         if constexpr (has_load_resources<T>::value) {
             T::loadResources();
         }
 
-        // Store factory function (no allocation, just function pointer)
         factories_[idx] = []() -> std::unique_ptr<IContext> {
             return std::make_unique<T>();
         };
+        names_[idx] = name;
 
-        // Track for iteration/debugging
         registered_count_++;
-
-        // First registered context becomes default
         if (default_id_ == INVALID_CONTEXT_ID) {
             default_id_ = idx;
         }
-
         return true;
     }
 
-    // ═══════════════════════════════════════════════════
-    // Switching
-    // ═══════════════════════════════════════════════════
+    // ─────────────────────────────────────────────────────────────────────
+    // Context Switching (deferred - processed after update())
+    // ─────────────────────────────────────────────────────────────────────
 
     /**
-     * @brief Switch to context by ID
-     * @tparam ID Enum type convertible to uint8_t
-     * @param id Context identifier
-     * @return true if switch succeeded
+     * @brief Schedule a deferred switch to context by ID
      *
-     * Destroys the current context and creates the new one.
-     * Clears all bindings and stops MIDI notes before destruction.
-     * If initialization fails, falls back to default context.
+     * The switch will occur after the current update() cycle completes.
+     *
+     * @param id Raw context ID (0-255)
      */
-    template <typename ID>
-    bool switchTo(ID id) {
-        static_assert(std::is_enum_v<ID> || std::is_integral_v<ID>,
-                      "ID must be an enum or integral type");
-        return switchToImpl(static_cast<uint8_t>(id));
+    void switchToById(uint8_t id) override { pending_switch_ = id; }
+
+    /**
+     * @brief Schedule a deferred switch to the default context
+     */
+    void switchToDefault() override {
+        if (default_id_ != INVALID_CONTEXT_ID) {
+            pending_switch_ = default_id_;
+        }
     }
 
-    /// Switch to the default context
-    void switchToDefault();
+    /**
+     * @brief Check if a context with the given ID is registered
+     * @param id Raw context ID
+     * @return true if context exists
+     */
+    bool hasContextById(uint8_t id) const override {
+        return id < MAX_CONTEXTS && factories_[id] != nullptr;
+    }
 
     /**
-     * @brief Set which context ID is the default
-     * @tparam ID Enum type convertible to uint8_t
-     * @param id Context identifier to use as default
+     * @brief Get the registered name of a context
+     * @param id Raw context ID
+     * @return Name string, or nullptr if not registered
+     */
+    const char* contextName(uint8_t id) const override {
+        if (id < MAX_CONTEXTS && names_[id]) return names_[id];
+        return nullptr;
+    }
+
+    /**
+     * @brief Get the ID of the currently active context
+     * @return Active context ID, or INVALID_CONTEXT_ID if none
+     */
+    uint8_t activeId() const override { return active_id_; }
+
+    /**
+     * @brief Get the ID of the default context
+     * @return Default context ID, or INVALID_CONTEXT_ID if not set
+     */
+    uint8_t defaultId() const override { return default_id_; }
+
+    /**
+     * @brief Get the number of registered contexts
+     * @return Count of registered contexts
+     */
+    size_t contextCount() const override { return registered_count_; }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Configuration
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * @brief Set which context is the default/fallback
+     *
+     * The default context is activated by begin() and used as fallback
+     * when initialization fails or DAW disconnects.
+     *
+     * @tparam ID Enum class or integral type
+     * @param id Context ID to use as default
      */
     template <typename ID>
     void setDefault(ID id) {
@@ -173,56 +243,70 @@ public:
         default_id_ = static_cast<uint8_t>(id);
     }
 
-    // ═══════════════════════════════════════════════════
-    // State
-    // ═══════════════════════════════════════════════════
+    // ─────────────────────────────────────────────────────────────────────
+    // State Queries
+    // ─────────────────────────────────────────────────────────────────────
 
-    /// Get currently active context (may be nullptr before begin())
+    /**
+     * @brief Get the currently active context instance
+     * @return Pointer to active context, or nullptr if none
+     */
     IContext* active() const { return active_.get(); }
 
-    /// Get active context ID (INVALID_CONTEXT_ID if none)
-    uint8_t activeId() const { return active_id_; }
+    /**
+     * @brief Check if a deferred switch is pending
+     * @return true if a switch will occur after update()
+     */
+    bool hasPendingSwitch() const { return pending_switch_.has_value(); }
 
-    /// Get default context ID
-    uint8_t defaultId() const { return default_id_; }
-
-    /// Check if a context is registered
-    template <typename ID>
-    bool hasContext(ID id) const {
-        const uint8_t idx = static_cast<uint8_t>(id);
-        return idx < MAX_CONTEXTS && factories_[idx] != nullptr;
-    }
-
-    /// Number of registered contexts
-    size_t registeredCount() const { return registered_count_; }
-
-    // ═══════════════════════════════════════════════════
+    // ─────────────────────────────────────────────────────────────────────
     // Lifecycle
-    // ═══════════════════════════════════════════════════
+    // ─────────────────────────────────────────────────────────────────────
 
-    /// Initialize and activate the default context
+    /**
+     * @brief Activate the default context
+     *
+     * Call this once after all contexts are registered to start the application.
+     *
+     * @return true if default context activated successfully
+     */
     bool begin();
 
-    /// Call active context's update() - should be called every frame
-    /// Also checks isConnected() and triggers fallback if disconnected
+    /**
+     * @brief Update the active context and process pending switches
+     *
+     * Call this every frame in the main loop. It will:
+     * 1. Call active context's update()
+     * 2. Process any pending deferred switch
+     * 3. Handle DAW disconnection if applicable
+     */
     void update();
+
+protected:
+    /// @copydoc IContextSwitcher::forEachContextImpl
+    void forEachContextImpl(ContextCallback fn, void* userData) const override {
+        for (uint8_t i = 0; i < MAX_CONTEXTS; ++i) {
+            if (factories_[i]) {
+                fn(i, names_[i], i == default_id_, userData);
+            }
+        }
+    }
 
 private:
     bool switchToImpl(uint8_t id);
+    void processPendingSwitch();
     void emitActivated(uint8_t id, const IContext& ctx);
     void emitDeactivated(uint8_t id, const IContext& ctx);
     void emitError(uint8_t id);
 
-    const APIs& apis_;
-
-    // Fixed-size storage - no dynamic allocation
-    std::array<ContextFactory, MAX_CONTEXTS> factories_{};
-
-    // Only ONE context in memory at a time
-    std::unique_ptr<IContext> active_;
-    uint8_t active_id_ = INVALID_CONTEXT_ID;
-    uint8_t default_id_ = INVALID_CONTEXT_ID;
-    size_t registered_count_ = 0;
+    const APIs& apis_;                                    ///< Reference to shared APIs
+    std::array<ContextFactory, MAX_CONTEXTS> factories_{};///< Context factory functions
+    std::array<const char*, MAX_CONTEXTS> names_{};       ///< Context names for UI/debug
+    std::unique_ptr<IContext> active_;                    ///< Currently active context
+    uint8_t active_id_ = INVALID_CONTEXT_ID;              ///< ID of active context
+    uint8_t default_id_ = INVALID_CONTEXT_ID;             ///< ID of default/fallback context
+    size_t registered_count_ = 0;                         ///< Number of registered contexts
+    std::optional<uint8_t> pending_switch_;               ///< Deferred switch target
 };
 
 }  // namespace oc::context

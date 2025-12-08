@@ -20,72 +20,61 @@ ContextManager::~ContextManager() {
 
 bool ContextManager::begin() {
     if (default_id_ == INVALID_CONTEXT_ID) {
-        return false;  // No contexts registered
+        return false;
     }
     return switchToImpl(default_id_);
 }
 
 bool ContextManager::switchToImpl(uint8_t id) {
-    // Validate ID
     if (id >= MAX_CONTEXTS || factories_[id] == nullptr) {
-        return false;  // Not registered
+        return false;
     }
 
-    // Already active?
     if (active_id_ == id && active_) {
         return true;
     }
 
-    // 1. Cleanup old context
     if (active_) {
         emitDeactivated(active_id_, *active_);
         active_->onDisconnected();
         active_->cleanup();
 
-        // Clear bindings BEFORE destruction to prevent dangling callbacks
         if (apis_.button) {
             apis_.button->clearBindings();
         }
         if (apis_.encoder) {
             apis_.encoder->clearBindings();
         }
-
-        // Stop MIDI notes to prevent hanging notes
         if (apis_.midi) {
             apis_.midi->allNotesOff();
         }
 
-        active_.reset();  // Destroy old context
+        active_.reset();
     }
 
-    // 2. Create new context from factory
     active_ = factories_[id]();
     if (!active_) {
         emitError(id);
         active_id_ = INVALID_CONTEXT_ID;
-        // Try fallback to default if this wasn't already the default
         if (id != default_id_ && default_id_ != INVALID_CONTEXT_ID) {
             return switchToImpl(default_id_);
         }
-        core::warn("[ContextManager] CRITICAL: Default context failed to create - system has no active context");
+        core::warn("[ContextManager] CRITICAL: Default context failed to create");
         return false;
     }
 
-    // 3. Initialize new context
     active_->setAPIs(apis_);
     if (!active_->initialize()) {
         emitError(id);
         active_.reset();
         active_id_ = INVALID_CONTEXT_ID;
-        // Try fallback to default
         if (id != default_id_ && default_id_ != INVALID_CONTEXT_ID) {
             return switchToImpl(default_id_);
         }
-        core::warn("[ContextManager] CRITICAL: Default context failed to initialize - system has no active context");
+        core::warn("[ContextManager] CRITICAL: Default context failed to initialize");
         return false;
     }
 
-    // 4. Success
     active_id_ = id;
     active_->onConnected();
     emitActivated(id, *active_);
@@ -93,9 +82,11 @@ bool ContextManager::switchToImpl(uint8_t id) {
     return true;
 }
 
-void ContextManager::switchToDefault() {
-    if (default_id_ != INVALID_CONTEXT_ID) {
-        switchToImpl(default_id_);
+void ContextManager::processPendingSwitch() {
+    if (pending_switch_) {
+        uint8_t targetId = *pending_switch_;
+        pending_switch_.reset();
+        switchToImpl(targetId);
     }
 }
 
@@ -104,15 +95,16 @@ void ContextManager::update() {
         return;
     }
 
-    // Update the active context
     active_->update();
 
-    // Check for disconnection (DAW contexts)
-    if (!active_->isConnected()) {
+    // Process deferred switch AFTER update returns (safe lifecycle)
+    processPendingSwitch();
+
+    // Check for disconnection (DAW contexts) - schedule deferred switch
+    if (active_ && !active_->isConnected()) {
         active_->onDisconnected();
-        // Fall back to default context
-        if (active_id_ != default_id_) {
-            switchToDefault();
+        if (active_id_ != default_id_ && default_id_ != INVALID_CONTEXT_ID) {
+            pending_switch_ = default_id_;
         }
     }
 }

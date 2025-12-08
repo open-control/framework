@@ -40,7 +40,7 @@ class AppBuilder;
  *     .timeProvider(millis)
  *     .build();
  *
- * app.registerContext<MyContext>(ContextID::MAIN);
+ * app.registerContext<MyContext>(ContextID::MAIN, "Main");
  * app.begin();
  *
  * void loop() { app.update(); }
@@ -121,6 +121,7 @@ public:
      * @tparam T Context class implementing IContext
      * @tparam ID Enum type convertible to uint8_t (user-defined ContextID)
      * @param id Context identifier enum value
+     * @param name Human-readable name for UI/debugging
      * @return true if registration succeeded
      *
      * @note Context requirements are validated at registration time.
@@ -128,8 +129,8 @@ public:
      *       registration will fail.
      */
     template <typename T, typename ID>
-    bool registerContext(ID id) {
-        return contexts_->registerContext<T>(id);
+    bool registerContext(ID id, const char* name) {
+        return contexts_->registerContext<T>(id, name);
     }
 
     /**
