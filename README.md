@@ -68,24 +68,27 @@ oc::
 #include <oc/app/AppBuilder.hpp>
 #include <oc/app/OpenControlApp.hpp>
 
-oc::app::OpenControlApp app;
+std::optional<oc::app::OpenControlApp> app;
 
 void setup() {
     app = oc::app::AppBuilder()
         .timeProvider(millis)
-        .buttons(makeButtonController(...))
-        .encoders(makeEncoderController(...))
-        .midi(std::make_unique<UsbMidi>())
+        .buttons(std::make_unique<MyButtonController>())
+        .encoders(std::make_unique<MyEncoderController>())
+        .midi(std::make_unique<MyMidiDriver>())
+        .inputConfig({.longPressMs = 500, .doubleTapWindowMs = 300})
         .build();
 
-    app.registerContext<MyContext>(0);
-    app.begin();
+    app->registerContext<MyContext>(ContextID::MAIN, "Main");
+    app->begin();
 }
 
 void loop() {
-    app.update();
+    app->update();
 }
 ```
+
+> **Teensy users**: See [hal-teensy](https://github.com/open-control/hal-teensy) for a simplified `oc::teensy::AppBuilder` that auto-configures drivers.
 
 ---
 
