@@ -48,7 +48,7 @@ struct GpioPin {
         MUX   ///< Via multiplexer
     };
 
-    uint8_t pin;
+    uint8_t pin{};
     Source source = Source::MCU;
 };
 
