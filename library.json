@@ -1,6 +1,6 @@
 {
   "name": "framework",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Open Control Framework - Hardware abstraction for MIDI controllers with optional LVGL UI",
   "keywords": [
     "midi",
@@ -26,7 +26,7 @@
   "frameworks": ["arduino"],
   "platforms": "*",
   "export": {
-    "include": ["src"],
+    "include": ["src", "README.md", "LICENSE"],
     "exclude": [".git", ".gitignore", ".pio", "script"]
   },
   "build": {
