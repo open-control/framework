@@ -167,6 +167,7 @@ protected:
      *
      * Returns a fluent builder for configuring button actions.
      *
+     * @tparam ID Enum class or integral type convertible to hal::ButtonID
      * @param id Button identifier
      * @return ButtonBuilder for chaining configuration
      *
@@ -176,9 +177,10 @@ protected:
      *     .onLongPress([this] { transport.stop(); }, 500);
      * @endcode
      */
-    [[nodiscard]] core::input::ButtonBuilder onButton(hal::ButtonID id) {
+    template <typename ID>
+    [[nodiscard]] core::input::ButtonBuilder onButton(ID id) {
         assert(apis_->button && "ButtonAPI not available");
-        return apis_->button->button(id);
+        return apis_->button->button(static_cast<hal::ButtonID>(id));
     }
 
     /**
@@ -186,6 +188,7 @@ protected:
      *
      * Returns a fluent builder for configuring encoder actions.
      *
+     * @tparam ID Enum class or integral type convertible to hal::EncoderID
      * @param id Encoder identifier
      * @return EncoderBuilder for chaining configuration
      *
@@ -195,9 +198,10 @@ protected:
      *     .onTurn([this](int value) { setVolume(value); });
      * @endcode
      */
-    [[nodiscard]] core::input::EncoderBuilder onEncoder(hal::EncoderID id) {
+    template <typename ID>
+    [[nodiscard]] core::input::EncoderBuilder onEncoder(ID id) {
         assert(apis_->encoder && "EncoderAPI not available");
-        return apis_->encoder->encoder(id);
+        return apis_->encoder->encoder(static_cast<hal::EncoderID>(id));
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -206,22 +210,26 @@ protected:
 
     /**
      * @brief Get a proxy for querying button state
+     * @tparam ID Enum class or integral type convertible to hal::ButtonID
      * @param id Button identifier
      * @return ButtonProxy for state queries (isPressed, isLatched, etc.)
      */
-    api::ButtonProxy button(hal::ButtonID id) {
+    template <typename ID>
+    api::ButtonProxy button(ID id) {
         assert(apis_->button && "ButtonAPI not available");
-        return api::ButtonProxy(*apis_->button, id);
+        return api::ButtonProxy(*apis_->button, static_cast<hal::ButtonID>(id));
     }
 
     /**
      * @brief Get a proxy for querying encoder state
+     * @tparam ID Enum class or integral type convertible to hal::EncoderID
      * @param id Encoder identifier
      * @return EncoderProxy for state queries (value, position, etc.)
      */
-    api::EncoderProxy encoder(hal::EncoderID id) {
+    template <typename ID>
+    api::EncoderProxy encoder(ID id) {
         assert(apis_->encoder && "EncoderAPI not available");
-        return api::EncoderProxy(*apis_->encoder, id);
+        return api::EncoderProxy(*apis_->encoder, static_cast<hal::EncoderID>(id));
     }
 
     // ─────────────────────────────────────────────────────────────────────

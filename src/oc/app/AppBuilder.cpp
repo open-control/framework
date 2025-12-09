@@ -3,6 +3,7 @@
 #include <cassert>
 
 #include "OpenControlApp.hpp"
+#include <oc/log/Log.hpp>
 
 namespace oc::app {
 
@@ -33,6 +34,7 @@ AppBuilder& AppBuilder::inputConfig(const core::InputConfig& config) {
 
 AppBuilder& AppBuilder::timeProvider(hal::TimeProvider provider) {
     time_provider_ = provider;
+    log::setTimeProvider(provider);  // Share with Log API
     return *this;
 }
 
