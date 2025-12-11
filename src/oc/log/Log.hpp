@@ -52,7 +52,11 @@ inline void setTimeProvider(hal::TimeProvider tp) {
 }
 
 inline uint32_t getTime() {
+#ifdef OC_LOG_TIMESTAMP
+    return OC_LOG_TIMESTAMP();
+#else
     return timeProvider_ ? timeProvider_() : 0;
+#endif
 }
 
 // =============================================================================
@@ -156,22 +160,23 @@ private:
 // Public Macros
 // =============================================================================
 
-#if defined(OC_LOG_DISABLED)
+#ifdef OC_LOG
 
-// Disabled: all macros become no-ops
-#define OC_LOG_DEBUG(...) ((void)0)
-#define OC_LOG_INFO(...)  ((void)0)
-#define OC_LOG_WARN(...)  ((void)0)
-#define OC_LOG_ERROR(...) ((void)0)
-#define OC_LOG_SCOPE(name) ((void)0)
-
-#else
-
-// Enabled: actual implementation
+// Enabled: actual implementation (dev mode)
+// Define -DOC_LOG in platformio.ini build_flags to enable
 #define OC_LOG_DEBUG(...) oc::log::detail::log(oc::log::color::CYAN,   "DEBUG", __VA_ARGS__)
 #define OC_LOG_INFO(...)  oc::log::detail::log(oc::log::color::GREEN,  "INFO",  __VA_ARGS__)
 #define OC_LOG_WARN(...)  oc::log::detail::log(oc::log::color::YELLOW, "WARN",  __VA_ARGS__)
 #define OC_LOG_ERROR(...) oc::log::detail::log(oc::log::color::RED,    "ERROR", __VA_ARGS__)
 #define OC_LOG_SCOPE(name) oc::log::ScopeTimer _oc_scope_timer_##__LINE__(name)
+
+#else
+
+// Disabled: all macros become no-ops (release mode, zero overhead)
+#define OC_LOG_DEBUG(...) ((void)0)
+#define OC_LOG_INFO(...)  ((void)0)
+#define OC_LOG_WARN(...)  ((void)0)
+#define OC_LOG_ERROR(...) ((void)0)
+#define OC_LOG_SCOPE(name) ((void)0)
 
 #endif
