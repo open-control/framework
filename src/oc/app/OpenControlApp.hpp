@@ -60,10 +60,12 @@ public:
 
     /**
      * @brief Initialize all hardware and services
-     * Must be called once in setup() before update()
-     * @return Result<void> - ok() on success, err() with ErrorCode on failure
+     *
+     * Must be called once in setup() before update().
+     * On error: logs the error and halts (embedded systems have no recovery).
+     * Silent on success - only user-defined logs will appear.
      */
-    core::Result<void> begin();
+    void begin();
 
     /**
      * @brief Main application loop

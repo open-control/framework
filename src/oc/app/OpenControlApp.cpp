@@ -1,6 +1,7 @@
 #include "OpenControlApp.hpp"
 
 #include <oc/core/event/Events.hpp>
+#include <oc/log/Log.hpp>
 
 namespace oc::app {
 
@@ -9,31 +10,22 @@ OpenControlApp::~OpenControlApp() = default;
 OpenControlApp::OpenControlApp(OpenControlApp&&) noexcept = default;
 OpenControlApp& OpenControlApp::operator=(OpenControlApp&&) noexcept = default;
 
-core::Result<void> OpenControlApp::begin() {
-    // Display is optional
-    if (display_) {
-        auto result = display_->init();
-        if (!result) return result;
-    }
+void OpenControlApp::begin() {
+    // Helper: check result and halt on error
+    auto check = [](const core::Result<void>& result, const char* component) {
+        if (!result) {
+            OC_LOG_ERROR("{} init failed: {}", component, core::errorCodeToString(result.error().code));
+            while (true) {}  // Halt - no recovery in embedded
+        }
+    };
 
-    // Required components
-    if (midi_) {
-        auto result = midi_->init();
-        if (!result) return result;
-    }
-    if (encoders_) {
-        auto result = encoders_->init();
-        if (!result) return result;
-    }
-    if (buttons_) {
-        auto result = buttons_->init();
-        if (!result) return result;
-    }
+    // Initialize hardware components
+    if (display_) check(display_->init(), "Display");
+    if (midi_) check(midi_->init(), "MIDI");
+    if (encoders_) check(encoders_->init(), "Encoders");
+    if (buttons_) check(buttons_->init(), "Buttons");
 
-    // ═══════════════════════════════════════════════════
     // Wire HAL callbacks to EventBus
-    // ═══════════════════════════════════════════════════
-
     if (buttons_) {
         buttons_->setCallback([this](hal::ButtonID id, hal::ButtonEvent evt) {
             if (evt == hal::ButtonEvent::PRESSED) {
@@ -65,7 +57,7 @@ core::Result<void> OpenControlApp::begin() {
         });
     }
 
-    return contexts_->begin();
+    check(contexts_->begin(), "Context");
 }
 
 void OpenControlApp::update() {
