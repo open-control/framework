@@ -179,6 +179,7 @@ protected:
      */
     template <typename ID>
     [[nodiscard]] core::input::ButtonBuilder onButton(ID id) {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->button && "ButtonAPI not available");
         return apis_->button->button(static_cast<hal::ButtonID>(id));
     }
@@ -200,6 +201,7 @@ protected:
      */
     template <typename ID>
     [[nodiscard]] core::input::EncoderBuilder onEncoder(ID id) {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->encoder && "EncoderAPI not available");
         return apis_->encoder->encoder(static_cast<hal::EncoderID>(id));
     }
@@ -216,6 +218,7 @@ protected:
      */
     template <typename ID>
     api::ButtonProxy button(ID id) {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->button && "ButtonAPI not available");
         return api::ButtonProxy(*apis_->button, static_cast<hal::ButtonID>(id));
     }
@@ -228,6 +231,7 @@ protected:
      */
     template <typename ID>
     api::EncoderProxy encoder(ID id) {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->encoder && "EncoderAPI not available");
         return api::EncoderProxy(*apis_->encoder, static_cast<hal::EncoderID>(id));
     }
@@ -241,6 +245,7 @@ protected:
      * @return Reference to ButtonAPI
      */
     api::ButtonAPI& buttons() {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->button && "ButtonAPI not available");
         return *apis_->button;
     }
@@ -250,6 +255,7 @@ protected:
      * @return Reference to EncoderAPI
      */
     api::EncoderAPI& encoders() {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->encoder && "EncoderAPI not available");
         return *apis_->encoder;
     }
@@ -259,6 +265,7 @@ protected:
      * @return Reference to MidiAPI
      */
     api::MidiAPI& midi() {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->midi && "MidiAPI not available");
         return *apis_->midi;
     }
@@ -267,7 +274,10 @@ protected:
      * @brief Access the event bus for pub/sub messaging
      * @return Reference to IEventBus
      */
-    core::event::IEventBus& events() { return apis_->events; }
+    core::event::IEventBus& events() {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        return apis_->events;
+    }
 
     // ─────────────────────────────────────────────────────────────────────
     // Context Switching (deferred - safe to call from update/handlers)
@@ -290,6 +300,7 @@ protected:
      */
     template <typename ID>
     void switchTo(ID id) {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->contexts && "ContextSwitcher not available");
         apis_->contexts->switchTo(id);
     }
@@ -301,6 +312,7 @@ protected:
      * Useful for "back to home" or "escape" actions.
      */
     void switchToDefault() {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->contexts && "ContextSwitcher not available");
         apis_->contexts->switchToDefault();
     }
@@ -317,6 +329,7 @@ protected:
      */
     template <typename ID>
     bool hasContext(ID id) const {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->contexts && "ContextSwitcher not available");
         return apis_->contexts->hasContext(id);
     }
@@ -327,6 +340,7 @@ protected:
      * @return Context name, or nullptr if not registered
      */
     const char* contextName(uint8_t id) const {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->contexts && "ContextSwitcher not available");
         return apis_->contexts->contextName(id);
     }
@@ -336,6 +350,7 @@ protected:
      * @return Active context ID (should be this context's ID)
      */
     uint8_t activeContextId() const {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->contexts && "ContextSwitcher not available");
         return apis_->contexts->activeId();
     }
@@ -345,6 +360,7 @@ protected:
      * @return Default context ID
      */
     uint8_t defaultContextId() const {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->contexts && "ContextSwitcher not available");
         return apis_->contexts->defaultId();
     }
@@ -354,6 +370,7 @@ protected:
      * @return Count of registered contexts
      */
     size_t contextCount() const {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->contexts && "ContextSwitcher not available");
         return apis_->contexts->contextCount();
     }
@@ -376,6 +393,7 @@ protected:
      */
     template <typename Fn>
     void forEachContext(Fn&& fn) const {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->contexts && "ContextSwitcher not available");
         apis_->contexts->forEachContext(std::forward<Fn>(fn));
     }

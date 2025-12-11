@@ -160,13 +160,25 @@ public:
 private:
     OpenControlApp() = default;
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // MEMBER DECLARATION ORDER IS CRITICAL FOR SAFE DESTRUCTION
+    // C++ destroys members in REVERSE declaration order.
+    //
+    // Required destruction order:
+    // 1. contexts_      - cleanup() calls clearBindings() on input_binding_
+    // 2. input_binding_ - destructor calls event_bus_.off()
+    // 3. event_bus_     - destroyed LAST (other components may unsubscribe)
+    //
+    // DO NOT REORDER these members without understanding the implications!
+    // ═══════════════════════════════════════════════════════════════════════
+
     // Hardware (owned via unique_ptr)
     std::unique_ptr<hal::IDisplayDriver> display_;
     std::unique_ptr<hal::IMidiTransport> midi_;
     std::unique_ptr<hal::IEncoderController> encoders_;
     std::unique_ptr<hal::IButtonController> buttons_;
 
-    // Core services (owned)
+    // Core services - event_bus_ MUST be declared before input_binding_
     core::event::EventBus event_bus_;
     std::unique_ptr<core::input::InputBinding> input_binding_;
 
@@ -176,10 +188,10 @@ private:
     std::unique_ptr<api::MidiAPI> midi_api_;
     std::unique_ptr<context::APIs> apis_;
 
-    // Context management
+    // Context management - MUST be declared AFTER input_binding_ and event_bus_
     std::unique_ptr<context::ContextManager> contexts_;
 
-    // Configuration
+    // Configuration (trivial destruction, order doesn't matter)
     core::InputConfig input_config_;
     hal::TimeProvider time_provider_ = nullptr;
 };

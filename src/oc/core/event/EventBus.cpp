@@ -18,8 +18,13 @@ void EventBus::emit(const Event& event) {
     uint32_t key = makeKey(event.getCategory(), event.getType());
     auto it = subscriptions_.find(key);
     if (it != subscriptions_.end()) {
-        for (const auto& sub : it->second) {
-            sub.callback(event);
+        // Copy to allow safe modification during iteration
+        // (callbacks may call off() or trigger nested emit())
+        auto callbacks_copy = it->second;
+        for (const auto& sub : callbacks_copy) {
+            if (sub.callback) {
+                sub.callback(event);
+            }
         }
     }
 }

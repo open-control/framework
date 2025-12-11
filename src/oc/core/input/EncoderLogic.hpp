@@ -183,8 +183,9 @@ private:
     float last_quantized_value_ = -1.0f;
 
     // Pending pattern (prevents ISR callback crash)
-    std::atomic<bool> has_pending_{false};  ///< ISR-safe flag
-    float pending_value_ = 0.0f;
+    // Both must be atomic to prevent race condition between ISR and main loop
+    std::atomic<bool> has_pending_{false};   ///< ISR-safe flag
+    std::atomic<float> pending_value_{0.0f}; ///< ISR-safe value (lock-free on ARM Cortex-M)
 };
 
 }  // namespace oc::core::input

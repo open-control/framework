@@ -55,8 +55,10 @@ void EncoderLogic::processNewPosition(int32_t newPosition) {
 std::optional<float> EncoderLogic::flush() {
     if (!has_pending_.load(std::memory_order_acquire)) return std::nullopt;
 
-    has_pending_.store(false, std::memory_order_release);
-    return pending_value_;
+    has_pending_.store(false, std::memory_order_relaxed);
+    float value = pending_value_.load(std::memory_order_relaxed);
+    last_value_ = value;
+    return value;
 }
 
 // ═══════════════════════════════════════════════════
@@ -129,7 +131,7 @@ bool EncoderLogic::applyQuantization(float value, float& outValue) {
 }
 
 void EncoderLogic::setPending(float value) {
-    pending_value_ = value;
+    pending_value_.store(value, std::memory_order_relaxed);
     has_pending_.store(true, std::memory_order_release);
 }
 

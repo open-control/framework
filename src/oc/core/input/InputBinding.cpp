@@ -1,6 +1,7 @@
 #include "InputBinding.hpp"
 
 #include <oc/core/event/Events.hpp>
+#include <oc/core/Warning.hpp>
 
 namespace oc::core::input {
 
@@ -8,6 +9,10 @@ using namespace event;
 
 InputBinding::InputBinding(IEventBus& eventBus, hal::TimeProvider timeProvider, const InputConfig& config)
     : event_bus_(eventBus), time_provider_(timeProvider), config_(config) {
+    if (!time_provider_) {
+        warn("[InputBinding] No TimeProvider - long press and double tap detection disabled");
+    }
+
     encoder_sub_ = event_bus_.on(EventCategory::USER_INPUT, InputEvent::ENCODER_CHANGED,
                                  [this](const Event& e) { onEncoderChanged(e); });
 
@@ -116,6 +121,7 @@ void InputBinding::clearEncoderScope(ScopeID scope) {
 
 BindingID InputBinding::registerButtonBinding(ButtonBinding binding) {
     BindingID id = next_binding_id_++;
+    if (id == 0) id = next_binding_id_++;  // Skip 0 (invalid ID) on overflow
     binding.id = id;
     button_bindings_.push_back(std::move(binding));
     return id;
@@ -123,6 +129,7 @@ BindingID InputBinding::registerButtonBinding(ButtonBinding binding) {
 
 BindingID InputBinding::registerEncoderBinding(EncoderBinding binding) {
     BindingID id = next_binding_id_++;
+    if (id == 0) id = next_binding_id_++;  // Skip 0 (invalid ID) on overflow
     binding.id = id;
     encoder_bindings_.push_back(std::move(binding));
     return id;
@@ -239,6 +246,7 @@ bool InputBinding::triggerGlobalButtonBindings(hal::ButtonID buttonId, ButtonBin
     for (auto& binding : button_bindings_) {
         if (!binding.enabled || binding.buttonId != buttonId || binding.type != type) continue;
         if (binding.scopeId != 0) continue;
+        if (!isBindingActive(binding)) continue;  // Respect when() predicate for global bindings
 
         if (binding.action) {
             binding.action();
@@ -281,6 +289,7 @@ bool InputBinding::triggerGlobalEncoderBindings(hal::EncoderID encoderId, float 
     for (auto& binding : encoder_bindings_) {
         if (!binding.enabled || binding.encoderId != encoderId) continue;
         if (binding.scopeId != 0) continue;
+        if (!isBindingActive(binding)) continue;  // Respect when() predicate for global bindings
 
         if (binding.type == EncoderBindingType::TURN_WHILE_PRESSED && binding.requiredButton.has_value()) {
             hal::ButtonID btn = *binding.requiredButton;
@@ -432,13 +441,13 @@ bool InputBinding::isButtonComboActive(hal::ButtonID btn1, hal::ButtonID btn2) c
 }
 
 bool InputBinding::isBindingActive(const ButtonBinding& binding) const {
-    if (binding.scopeId == 0) return true;
+    // when() predicate is respected for both scoped and global bindings
     if (!binding.isActive) return true;  // nullptr = always active
     return binding.isActive();
 }
 
 bool InputBinding::isBindingActive(const EncoderBinding& binding) const {
-    if (binding.scopeId == 0) return true;
+    // when() predicate is respected for both scoped and global bindings
     if (!binding.isActive) return true;  // nullptr = always active
     return binding.isActive();
 }
