@@ -11,6 +11,7 @@
 #include "IContextSwitcher.hpp"
 #include "Requirements.hpp"
 
+#include <oc/core/Result.hpp>
 #include <oc/core/Warning.hpp>
 
 namespace oc::context {
@@ -268,9 +269,9 @@ public:
      *
      * Call this once after all contexts are registered to start the application.
      *
-     * @return true if default context activated successfully
+     * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    bool begin();
+    core::Result<void> begin();
 
     /**
      * @brief Update the active context and process pending switches

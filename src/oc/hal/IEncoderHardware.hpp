@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <memory>
 
+#include <oc/core/Result.hpp>
+
 namespace oc::hal {
 
 /**
@@ -32,9 +34,9 @@ public:
 
     /**
      * @brief Initialize encoder hardware (pins, ISR, etc.)
-     * @return true if initialization succeeded
+     * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    virtual bool init() = 0;
+    virtual core::Result<void> init() = 0;
 
     /**
      * @brief Configure the delta callback

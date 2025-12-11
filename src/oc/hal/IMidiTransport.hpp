@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <functional>
 
+#include <oc/core/Result.hpp>
+
 namespace oc::hal {
 
 /**
@@ -15,9 +17,9 @@ public:
 
     /**
      * @brief Initialize MIDI hardware
-     * @return true if initialization succeeded, false on failure
+     * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    virtual bool init() = 0;
+    virtual core::Result<void> init() = 0;
 
     virtual void update() = 0;
 

@@ -18,11 +18,17 @@ ContextManager::~ContextManager() {
     }
 }
 
-bool ContextManager::begin() {
+core::Result<void> ContextManager::begin() {
+    using R = core::Result<void>;
+    using E = core::ErrorCode;
+
     if (default_id_ == INVALID_CONTEXT_ID) {
-        return false;
+        return R::err({E::CONTEXT_NOT_REGISTERED, "no default context"});
     }
-    return switchToImpl(default_id_);
+    if (!switchToImpl(default_id_)) {
+        return R::err({E::CONTEXT_INIT_FAILED, "default context"});
+    }
+    return R::ok();
 }
 
 bool ContextManager::switchToImpl(uint8_t id) {

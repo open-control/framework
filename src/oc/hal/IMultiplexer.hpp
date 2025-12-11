@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include <oc/core/Result.hpp>
+
 namespace oc::hal {
 
 /**
@@ -15,9 +17,9 @@ public:
 
     /**
      * @brief Initialize multiplexer hardware
-     * @return true if initialization succeeded, false on failure
+     * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    virtual bool init() = 0;
+    virtual core::Result<void> init() = 0;
 
     /// Select a channel (for advanced batch reading)
     virtual void select(uint8_t channel) = 0;

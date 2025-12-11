@@ -9,21 +9,25 @@ OpenControlApp::~OpenControlApp() = default;
 OpenControlApp::OpenControlApp(OpenControlApp&&) noexcept = default;
 OpenControlApp& OpenControlApp::operator=(OpenControlApp&&) noexcept = default;
 
-bool OpenControlApp::begin() {
+core::Result<void> OpenControlApp::begin() {
     // Display is optional
-    if (display_ && !display_->init()) {
-        return false;
+    if (display_) {
+        auto result = display_->init();
+        if (!result) return result;
     }
 
     // Required components
-    if (midi_ && !midi_->init()) {
-        return false;
+    if (midi_) {
+        auto result = midi_->init();
+        if (!result) return result;
     }
-    if (encoders_ && !encoders_->init()) {
-        return false;
+    if (encoders_) {
+        auto result = encoders_->init();
+        if (!result) return result;
     }
-    if (buttons_ && !buttons_->init()) {
-        return false;
+    if (buttons_) {
+        auto result = buttons_->init();
+        if (!result) return result;
     }
 
     // ═══════════════════════════════════════════════════

@@ -1,14 +1,75 @@
 #pragma once
 
+#include <oc/core/Result.hpp>
+
 #include "Types.hpp"
 
 namespace oc::hal {
 
-/// Encoder operating mode
+/**
+ * @brief Encoder operating modes
+ *
+ * Determines how encoder values are processed and reported.
+ * Each mode is suited to different use cases:
+ *
+ * | Mode       | Value Range            | Use Case                    |
+ * |------------|------------------------|-----------------------------|
+ * | NORMALIZED | [min, max] (default 0-1) | Volume, pan, bounded params |
+ * | RAW        | Accumulated ticks      | Scrolling, unbounded values |
+ * | RELATIVE   | ±delta per detent      | Fine adjustments, menus     |
+ */
 enum class EncoderMode : uint8_t {
-    NORMALIZED,  ///< Position [0.0-1.0] based on bounds (default)
-    RAW,         ///< Raw hardware position (ticks as float)
-    RELATIVE     ///< Delta per detent
+    /**
+     * @brief Absolute position normalized to bounds (default)
+     *
+     * Value range: [min, max] as set by setBounds() (default [0.0, 1.0])
+     * Use case: Volume faders, pan pots, any bounded parameter
+     *
+     * Example:
+     * @code
+     * encoders().setMode(id, EncoderMode::NORMALIZED);
+     * encoders().setBounds(id, 0.0f, 1.0f);
+     * onEncoder(id).turn().then([](float v) {
+     *     // v is in [0.0, 1.0]
+     *     setVolume(v);
+     * });
+     * @endcode
+     */
+    NORMALIZED,
+
+    /**
+     * @brief Raw hardware ticks as accumulated position
+     *
+     * Value: Accumulated tick count (can be negative)
+     * Use case: Scrolling, unbounded counters, debugging
+     *
+     * Example:
+     * @code
+     * encoders().setMode(id, EncoderMode::RAW);
+     * onEncoder(id).turn().then([](float ticks) {
+     *     scrollPosition_ += static_cast<int>(ticks);
+     * });
+     * @endcode
+     */
+    RAW,
+
+    /**
+     * @brief Relative delta per detent
+     *
+     * Value: Configured delta (via setDelta()) per detent, signed for direction
+     * Use case: Incremental adjustments, menu navigation, fine control
+     *
+     * Example:
+     * @code
+     * encoders().setMode(id, EncoderMode::RELATIVE);
+     * encoders().setDelta(id, 0.01f);  // 1% per detent
+     * onEncoder(id).turn().then([](float delta) {
+     *     // delta is +0.01 or -0.01 per detent
+     *     value_ = std::clamp(value_ + delta, 0.0f, 1.0f);
+     * });
+     * @endcode
+     */
+    RELATIVE
 };
 
 /**
@@ -20,9 +81,9 @@ public:
 
     /**
      * @brief Initialize encoder hardware
-     * @return true if initialization succeeded, false on failure
+     * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    virtual bool init() = 0;
+    virtual core::Result<void> init() = 0;
 
     virtual void update() = 0;
 

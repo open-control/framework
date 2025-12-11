@@ -1,5 +1,7 @@
 #pragma once
 
+#include <oc/core/Result.hpp>
+
 #include "Types.hpp"
 
 namespace oc::hal {
@@ -13,9 +15,9 @@ public:
 
     /**
      * @brief Initialize button hardware
-     * @return true if initialization succeeded, false on failure
+     * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    virtual bool init() = 0;
+    virtual core::Result<void> init() = 0;
 
     /**
      * @brief Poll button states and trigger callbacks

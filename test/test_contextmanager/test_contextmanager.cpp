@@ -113,9 +113,9 @@ void test_begin_activates_default_context() {
 
     mgr.registerContext<MockContext>(TestContextID::CTX_A, "ContextA");
 
-    bool result = mgr.begin();
+    auto result = mgr.begin();
 
-    TEST_ASSERT_TRUE(result);
+    TEST_ASSERT_TRUE(result.isOk());
     TEST_ASSERT_NOT_NULL(mgr.active());
     TEST_ASSERT_EQUAL(static_cast<uint8_t>(TestContextID::CTX_A), mgr.activeId());
     TEST_ASSERT_TRUE(MockContext::wasInitialized());
@@ -125,9 +125,9 @@ void test_begin_fails_without_registered_contexts() {
     APIs apis(bus);
     ContextManager mgr(apis);
 
-    bool result = mgr.begin();
+    auto result = mgr.begin();
 
-    TEST_ASSERT_FALSE(result);
+    TEST_ASSERT_TRUE(result.isErr());
     TEST_ASSERT_NULL(mgr.active());
 }
 

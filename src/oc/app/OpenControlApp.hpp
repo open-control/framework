@@ -3,6 +3,7 @@
 #include <memory>
 
 #include <oc/api/ButtonAPI.hpp>
+#include <oc/core/Result.hpp>
 #include <oc/api/EncoderAPI.hpp>
 #include <oc/api/MidiAPI.hpp>
 #include <oc/context/APIs.hpp>
@@ -60,9 +61,9 @@ public:
     /**
      * @brief Initialize all hardware and services
      * Must be called once in setup() before update()
-     * @return true if all hardware initialized successfully
+     * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    bool begin();
+    core::Result<void> begin();
 
     /**
      * @brief Main application loop
