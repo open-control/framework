@@ -1,6 +1,6 @@
 {
   "name": "framework",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Open Control Framework - Hardware abstraction for MIDI controllers with optional LVGL UI",
   "keywords": [
     "midi",
