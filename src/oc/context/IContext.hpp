@@ -46,8 +46,8 @@ namespace oc::context {
  *     };
  *
  *     bool initialize() override {
- *         onButton(ButtonID::PLAY).onPress([this] { play(); });
- *         onEncoder(EncoderID::VOLUME).onTurn([this](int v) { setVolume(v); });
+ *         onButton(ButtonID::PLAY).press().then([this] { play(); });
+ *         onEncoder(EncoderID::VOLUME).turn().then([this](float v) { setVolume(v); });
  *         return true;
  *     }
  *
@@ -172,9 +172,8 @@ protected:
      * @return ButtonBuilder for chaining configuration
      *
      * @code
-     * onButton(ButtonID::PLAY)
-     *     .onPress([this] { transport.play(); })
-     *     .onLongPress([this] { transport.stop(); }, 500);
+     * onButton(ButtonID::PLAY).press().then([this] { transport.play(); });
+     * onButton(ButtonID::STOP).longPress(500).then([this] { transport.stop(); });
      * @endcode
      */
     template <typename ID>
@@ -194,9 +193,7 @@ protected:
      * @return EncoderBuilder for chaining configuration
      *
      * @code
-     * onEncoder(EncoderID::VOLUME)
-     *     .withRange(0, 127)
-     *     .onTurn([this](int value) { setVolume(value); });
+     * onEncoder(EncoderID::VOLUME).turn().then([this](float v) { setVolume(v); });
      * @endcode
      */
     template <typename ID>
