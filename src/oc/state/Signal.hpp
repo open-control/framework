@@ -72,8 +72,11 @@ public:
     /// Callback signature: receives const reference to new value
     using Callback = std::function<void(const T&)>;
 
-    /// Construct with initial value
-    explicit Signal(T initial = {}) : value_(std::move(initial)) {}
+    /// Default constructor - value-initializes to T{}
+    Signal() : value_{} {}
+
+    /// Construct with initial value (explicit to prevent implicit conversions)
+    explicit Signal(T initial) : value_(std::move(initial)) {}
 
     // Non-copyable, non-movable (subscribers hold pointers to this Signal)
     Signal(const Signal&) = delete;
