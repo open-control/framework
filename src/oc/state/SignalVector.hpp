@@ -198,6 +198,16 @@ public:
         return std::vector<T>(begin(), end());
     }
 
+    /**
+     * @brief Implicit conversion to std::vector
+     *
+     * Enables seamless usage in APIs expecting std::vector.
+     * Equivalent to toVector().
+     */
+    operator std::vector<T>() const {
+        return toVector();
+    }
+
     // =========================================================================
     // Subscription
     // =========================================================================
