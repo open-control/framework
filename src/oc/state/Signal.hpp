@@ -8,6 +8,7 @@
 #include <functional>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "NotificationQueue.hpp"
 
@@ -311,6 +312,41 @@ Subscription Signal<T, MaxSubscribers>::subscribe(Callback callback) {
 
     // Capture 'this' to call removeSubscriber when Subscription is destroyed
     return Subscription{[this](int s) { removeSubscriber(s); }, slot};
+}
+
+// =============================================================================
+// Utility Functions
+// =============================================================================
+
+/**
+ * @brief Convert array of Signals to vector of values
+ *
+ * Useful when UI components need a snapshot of multiple reactive values.
+ * Use sparingly in embedded contexts (allocates memory).
+ *
+ * @tparam T Value type
+ * @tparam N Array size
+ * @tparam MaxSubs Max subscribers per signal
+ * @param signals Array of Signal<T>
+ * @param count Number of elements to convert (default: full array)
+ * @return std::vector<T> containing current values
+ *
+ * @code
+ * std::array<Signal<bool>, 16> muteStates;
+ * // ...
+ * std::vector<bool> snapshot = toVector(muteStates, activeCount);
+ * @endcode
+ */
+template <typename T, size_t N, size_t MaxSubs = 4>
+[[nodiscard]] std::vector<T> toVector(const std::array<Signal<T, MaxSubs>, N>& signals,
+                                       size_t count = N) {
+    std::vector<T> result;
+    size_t n = (count < N) ? count : N;
+    result.reserve(n);
+    for (size_t i = 0; i < n; ++i) {
+        result.push_back(signals[i].get());
+    }
+    return result;
 }
 
 }  // namespace oc::state
