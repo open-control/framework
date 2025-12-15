@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <vector>
 
 namespace oc::state {
 
@@ -180,6 +181,22 @@ public:
 
     /// Iterator past last element
     [[nodiscard]] const T* end() const { return items_.data() + count_; }
+
+    // =========================================================================
+    // Conversion
+    // =========================================================================
+
+    /**
+     * @brief Convert to std::vector
+     *
+     * Creates a copy of elements in a std::vector for APIs requiring it.
+     * Note: Allocates memory - use sparingly in embedded contexts.
+     *
+     * @return std::vector containing copies of all elements
+     */
+    [[nodiscard]] std::vector<T> toVector() const {
+        return std::vector<T>(begin(), end());
+    }
 
     // =========================================================================
     // Subscription
