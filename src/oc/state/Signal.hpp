@@ -9,6 +9,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "NotificationQueue.hpp"
+
 namespace oc::state {
 
 // Forward declaration
@@ -119,12 +121,43 @@ public:
     }
 
     /**
-     * @brief Force notification to all subscribers
+     * @brief Enqueue notifications to all subscribers (deferred execution)
      *
-     * Useful when the value contains mutable internal state that changed
-     * without going through set().
+     * Notifications are coalesced: if the same callback is already queued,
+     * it won't be added again. This prevents duplicate updates when multiple
+     * signals change in the same tick.
+     *
+     * Actual execution happens when NotificationQueue::flush() is called
+     * (typically at the end of OpenControlApp::update()).
      */
     void notify() {
+        for (size_t i = 0; i < MaxSubscribers; ++i) {
+            if (callbacks_[i]) {
+                // Unique key = (signal address, slot index)
+                auto key = NotificationQueue::Key(static_cast<void*>(this), i);
+
+                // Capture by value to ensure correct execution at flush time
+                // The callback reads value_ at flush time (final value)
+                Signal* self = this;
+                size_t slot = i;
+
+                NotificationQueue::instance().enqueue(key, [self, slot]() {
+                    // Re-check callback validity (could have been unsubscribed)
+                    if (self->callbacks_[slot]) {
+                        self->callbacks_[slot](self->value_);
+                    }
+                });
+            }
+        }
+    }
+
+    /**
+     * @brief Force immediate notification (bypass deferred queue)
+     *
+     * Use sparingly - defeats the purpose of coalescing.
+     * Useful for critical real-time updates that can't wait.
+     */
+    void notifyImmediate() {
         for (auto& cb : callbacks_) {
             if (cb) {
                 cb(value_);

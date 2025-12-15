@@ -34,7 +34,7 @@ AppBuilder& AppBuilder::inputConfig(const core::InputConfig& config) {
 
 AppBuilder& AppBuilder::timeProvider(hal::TimeProvider provider) {
     time_provider_ = provider;
-    log::setTimeProvider(provider);  // Share with Log API
+    // Note: Log API now uses HAL's getTimeMs() directly via weak symbols
     return *this;
 }
 

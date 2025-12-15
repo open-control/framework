@@ -2,6 +2,7 @@
 
 #include <oc/core/event/Events.hpp>
 #include <oc/log/Log.hpp>
+#include <oc/state/NotificationQueue.hpp>
 
 namespace oc::app {
 
@@ -77,6 +78,9 @@ void OpenControlApp::update() {
     }
 
     contexts_->update();
+
+    // Flush deferred signal notifications (coalesced updates)
+    state::NotificationQueue::instance().flush();
 }
 
 }  // namespace oc::app

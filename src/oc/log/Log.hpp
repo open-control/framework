@@ -4,29 +4,105 @@
  * @file Log.hpp
  * @brief Lightweight logging API with colored output and timestamps
  *
+ * Platform-agnostic logging using dependency injection. The HAL provides
+ * the actual output implementation via setOutput() at boot time.
+ *
+ * Architecture:
+ * - Framework defines Output interface (struct of function pointers)
+ * - HAL provides implementation (e.g., TeensyOutput with Serial)
+ * - Consumer configures at boot: oc::log::setOutput(oc::teensy::logOutput())
+ *
  * Features:
  * - Colored output (ANSI) by log level
- * - Automatic timestamps (uses framework TimeProvider)
+ * - Automatic timestamps
  * - Format string interpolation with {}
- * - Zero-cost when disabled (OC_LOG_DISABLED)
- * - No-op fallback when no HAL (OC_LOG_PRINT undefined)
+ * - Zero-cost when disabled (no OC_LOG defined)
+ * - Explicit dependency injection (no linker magic)
  *
  * @code
+ * // In main.cpp setup():
+ * #include <oc/teensy/TeensyOutput.hpp>
+ * oc::log::setOutput(oc::teensy::logOutput());
+ *
+ * // Then anywhere:
  * OC_LOG_DEBUG("Value: {}", x);     // [12ms] DEBUG: Value: 42 (cyan)
  * OC_LOG_INFO("Boot OK");           // [15ms] INFO: Boot OK    (green)
  * OC_LOG_WARN("Low: {}%", p);       // [20ms] WARN: Low: 5%    (yellow)
  * OC_LOG_ERROR("Fail: {}", e);      // [25ms] ERROR: Fail: x   (red)
- *
- * { OC_LOG_SCOPE("init"); code(); } // [init] 45ms
  * @endcode
  */
 
 #include <cstdint>
-#include <type_traits>
-
-#include <oc/hal/Types.hpp>
+#include <cstddef>
+#include <climits>
+#include <utility>
 
 namespace oc::log {
+
+// =============================================================================
+// Output Interface (implemented by HAL, configured via setOutput)
+// =============================================================================
+
+/**
+ * @brief Output interface for logging
+ *
+ * HALs implement this interface to provide platform-specific output.
+ * All function pointers must be non-null when passed to setOutput().
+ */
+struct Output {
+    void (*printChar)(char);
+    void (*printStr)(const char*);
+    void (*printInt32)(int32_t);
+    void (*printUint32)(uint32_t);
+    void (*printFloat)(float);
+    void (*printBool)(bool);
+    uint32_t (*getTimeMs)();
+};
+
+/**
+ * @brief Configure the log output implementation
+ *
+ * Must be called once at boot before any logging.
+ * Typically called in setup() with the HAL's output implementation.
+ *
+ * @param output The output implementation (all pointers must be non-null)
+ */
+void setOutput(const Output& output);
+
+/**
+ * @brief Check if output has been configured
+ * @return true if setOutput() has been called
+ */
+bool isConfigured();
+
+// =============================================================================
+// Internal print functions (use configured output)
+// =============================================================================
+
+void print(char c);
+void print(const char* str);
+void print(int32_t value);
+void print(uint32_t value);
+void print(float value);
+void print(bool value);
+uint32_t getTimeMs();
+
+// Inline overloads for smaller/native integer types (cast to base types)
+inline void print(int8_t value)   { print(static_cast<int32_t>(value)); }
+inline void print(int16_t value)  { print(static_cast<int32_t>(value)); }
+inline void print(uint8_t value)  { print(static_cast<uint32_t>(value)); }
+inline void print(uint16_t value) { print(static_cast<uint32_t>(value)); }
+
+// Handle native int/unsigned if different from int32_t/uint32_t
+#if INT_MAX != INT32_MAX || defined(__arm__)
+inline void print(int value)      { print(static_cast<int32_t>(value)); }
+inline void print(unsigned value) { print(static_cast<uint32_t>(value)); }
+#endif
+
+// Handle size_t if different from uint32_t (64-bit platforms)
+#if SIZE_MAX != UINT32_MAX
+inline void print(size_t value) { print(static_cast<uint32_t>(value)); }
+#endif
 
 // =============================================================================
 // ANSI Color Codes
@@ -42,24 +118,6 @@ constexpr const char* DIM    = "\033[2m";
 }  // namespace color
 
 // =============================================================================
-// Time Provider (set by AppBuilder)
-// =============================================================================
-
-inline hal::TimeProvider timeProvider_ = nullptr;
-
-inline void setTimeProvider(hal::TimeProvider tp) {
-    timeProvider_ = tp;
-}
-
-inline uint32_t getTime() {
-#ifdef OC_LOG_TIMESTAMP
-    return OC_LOG_TIMESTAMP();
-#else
-    return timeProvider_ ? timeProvider_() : 0;
-#endif
-}
-
-// =============================================================================
 // Format Implementation
 // =============================================================================
 
@@ -67,62 +125,43 @@ namespace detail {
 
 // Base case: print remaining string
 inline void formatImpl(const char* fmt) {
-#ifdef OC_LOG_PRINT
     while (*fmt) {
-        OC_LOG_PRINT(*fmt++);
+        print(*fmt++);
     }
-#else
-    (void)fmt;
-#endif
 }
 
 // Recursive case: find {} and replace with value
 template<typename T, typename... Args>
 void formatImpl(const char* fmt, T&& value, Args&&... args) {
-#ifdef OC_LOG_PRINT
     while (*fmt) {
         if (*fmt == '{' && *(fmt + 1) == '}') {
-            // Print the value
-            OC_LOG_PRINT(value);
-            // Continue with rest of format string
+            print(std::forward<T>(value));
             formatImpl(fmt + 2, std::forward<Args>(args)...);
             return;
         }
-        OC_LOG_PRINT(*fmt++);
+        print(*fmt++);
     }
-#else
-    (void)fmt;
-    (void)value;
-    ((void)args, ...);
-#endif
 }
 
 // Log with level prefix and color
 template<typename... Args>
 void log(const char* levelColor, const char* levelName, const char* fmt, Args&&... args) {
-#ifdef OC_LOG_PRINT
     // Timestamp
-    OC_LOG_PRINT(color::DIM);
-    OC_LOG_PRINT("[");
-    OC_LOG_PRINT(getTime());
-    OC_LOG_PRINT("ms] ");
-    OC_LOG_PRINT(color::RESET);
+    print(color::DIM);
+    print("[");
+    print(getTimeMs());
+    print("ms] ");
+    print(color::RESET);
 
     // Level
-    OC_LOG_PRINT(levelColor);
-    OC_LOG_PRINT(levelName);
-    OC_LOG_PRINT(": ");
-    OC_LOG_PRINT(color::RESET);
+    print(levelColor);
+    print(levelName);
+    print(": ");
+    print(color::RESET);
 
     // Message
     formatImpl(fmt, std::forward<Args>(args)...);
-    OC_LOG_PRINT("\n");
-#else
-    (void)levelColor;
-    (void)levelName;
-    (void)fmt;
-    ((void)args, ...);
-#endif
+    print("\n");
 }
 
 }  // namespace detail
@@ -133,20 +172,18 @@ void log(const char* levelColor, const char* levelName, const char* fmt, Args&&.
 
 class ScopeTimer {
 public:
-    explicit ScopeTimer(const char* name) : name_(name), start_(getTime()) {}
+    explicit ScopeTimer(const char* name) : name_(name), start_(getTimeMs()) {}
 
     ~ScopeTimer() {
-#ifdef OC_LOG_PRINT
-        uint32_t elapsed = getTime() - start_;
-        OC_LOG_PRINT(color::DIM);
-        OC_LOG_PRINT("[");
-        OC_LOG_PRINT(name_);
-        OC_LOG_PRINT("] ");
-        OC_LOG_PRINT(elapsed);
-        OC_LOG_PRINT("ms");
-        OC_LOG_PRINT(color::RESET);
-        OC_LOG_PRINT("\n");
-#endif
+        uint32_t elapsed = getTimeMs() - start_;
+        print(color::DIM);
+        print("[");
+        print(name_);
+        print("] ");
+        print(elapsed);
+        print("ms");
+        print(color::RESET);
+        print("\n");
     }
 
 private:
@@ -162,8 +199,6 @@ private:
 
 #ifdef OC_LOG
 
-// Enabled: actual implementation (dev mode)
-// Define -DOC_LOG in platformio.ini build_flags to enable
 #define OC_LOG_DEBUG(...) oc::log::detail::log(oc::log::color::CYAN,   "DEBUG", __VA_ARGS__)
 #define OC_LOG_INFO(...)  oc::log::detail::log(oc::log::color::GREEN,  "INFO",  __VA_ARGS__)
 #define OC_LOG_WARN(...)  oc::log::detail::log(oc::log::color::YELLOW, "WARN",  __VA_ARGS__)
@@ -172,7 +207,6 @@ private:
 
 #else
 
-// Disabled: all macros become no-ops (release mode, zero overhead)
 #define OC_LOG_DEBUG(...) ((void)0)
 #define OC_LOG_INFO(...)  ((void)0)
 #define OC_LOG_WARN(...)  ((void)0)
