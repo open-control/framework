@@ -227,7 +227,6 @@ void InputBinding::onButtonRelease(const Event& event) {
 // ═══════════════════════════════════════════════════
 
 bool InputBinding::triggerScopedButtonBindings(hal::ButtonID buttonId, ButtonBindingType type) {
-    bool anyTriggered = false;
     for (auto& binding : button_bindings_) {
         if (!binding.enabled || binding.buttonId != buttonId || binding.type != type) continue;
         if (binding.scopeId == 0) continue;
@@ -235,10 +234,12 @@ bool InputBinding::triggerScopedButtonBindings(hal::ButtonID buttonId, ButtonBin
 
         if (binding.action) {
             binding.action();
-            anyTriggered = true;
+            // Stop after first scoped binding - prevents race conditions when
+            // the action changes visibility of other scoped elements
+            return true;
         }
     }
-    return anyTriggered;
+    return false;
 }
 
 bool InputBinding::triggerGlobalButtonBindings(hal::ButtonID buttonId, ButtonBindingType type) {
@@ -263,7 +264,6 @@ void InputBinding::triggerMatchingButtonBindings(hal::ButtonID buttonId, ButtonB
 }
 
 bool InputBinding::triggerScopedEncoderBindings(hal::EncoderID encoderId, float encoderValue) {
-    bool anyTriggered = false;
     for (auto& binding : encoder_bindings_) {
         if (!binding.enabled || binding.encoderId != encoderId) continue;
         if (binding.scopeId == 0) continue;
@@ -278,10 +278,12 @@ bool InputBinding::triggerScopedEncoderBindings(hal::EncoderID encoderId, float 
 
         if (binding.action) {
             binding.action(encoderValue);
-            anyTriggered = true;
+            // Stop after first scoped binding - prevents race conditions when
+            // the action changes visibility of other scoped elements
+            return true;
         }
     }
-    return anyTriggered;
+    return false;
 }
 
 bool InputBinding::triggerGlobalEncoderBindings(hal::EncoderID encoderId, float encoderValue) {
