@@ -1,5 +1,6 @@
 #include <unity.h>
 
+#include <oc/state/NotificationQueue.hpp>
 #include <oc/state/SignalVector.hpp>
 
 #include <string>
@@ -11,9 +12,14 @@ static int callCount = 0;
 
 void setUp() {
     callCount = 0;
+    // Use immediate mode for unit tests (bypass deferred queue)
+    NotificationQueue::instance().setDeferredMode(false);
 }
 
-void tearDown() {}
+void tearDown() {
+    // Restore deferred mode
+    NotificationQueue::instance().setDeferredMode(true);
+}
 
 // =============================================================================
 // Basic Construction Tests

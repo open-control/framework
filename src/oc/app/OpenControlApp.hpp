@@ -160,6 +160,56 @@ public:
     /// Switch to the default context
     void switchToDefault() { contexts_->switchToDefault(); }
 
+    // ═══════════════════════════════════════════════════
+    // DEBUG / STATS
+    // ═══════════════════════════════════════════════════
+
+    /**
+     * @brief Timing statistics for update() loop (requires OC_ENABLE_STATS=1)
+     */
+    struct TimingStats {
+        uint32_t lastUpdateUs = 0;   ///< Last update() duration in microseconds
+        uint32_t peakUpdateUs = 0;   ///< Peak update() duration ever seen
+        uint32_t totalUpdates = 0;   ///< Total update() calls
+        uint64_t totalUpdateUs = 0;  ///< Sum of all update() durations
+
+        /// Average update duration in microseconds
+        [[nodiscard]] uint32_t avgUpdateUs() const {
+            return totalUpdates > 0 ? static_cast<uint32_t>(totalUpdateUs / totalUpdates) : 0;
+        }
+    };
+
+    /**
+     * @brief Log framework statistics (requires OC_ENABLE_STATS=1)
+     *
+     * Outputs EventBus, NotificationQueue, and timing stats via OC_LOG_INFO.
+     * Call this periodically or on-demand for debugging.
+     *
+     * @code
+     * // In your debug context or serial command handler
+     * app.dumpStats();
+     * @endcode
+     */
+    void dumpStats() const;
+
+    /**
+     * @brief Reset all framework statistics
+     */
+    void resetStats();
+
+    /**
+     * @brief Get timing statistics for update() loop
+     */
+    [[nodiscard]] const TimingStats& timingStats() const { return timing_stats_; }
+
+    /**
+     * @brief Estimate total framework memory usage in bytes
+     *
+     * Includes: EventBus, NotificationQueue, InputBinding, ContextManager
+     * Does NOT include: HAL drivers, user contexts, Signal storage
+     */
+    [[nodiscard]] size_t estimateMemoryUsage() const;
+
 private:
     OpenControlApp() = default;
 
@@ -197,6 +247,9 @@ private:
     // Configuration (trivial destruction, order doesn't matter)
     core::InputConfig input_config_;
     hal::TimeProvider time_provider_ = nullptr;
+
+    // Statistics (only active when OC_ENABLE_STATS=1)
+    mutable TimingStats timing_stats_{};
 };
 
 }  // namespace oc::app

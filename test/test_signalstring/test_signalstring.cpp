@@ -1,5 +1,6 @@
 #include <unity.h>
 
+#include <oc/state/NotificationQueue.hpp>
 #include <oc/state/SignalString.hpp>
 
 #include <string>
@@ -14,9 +15,14 @@ static const char* lastValue = nullptr;
 void setUp() {
     callCount = 0;
     lastValue = nullptr;
+    // Use immediate mode for unit tests (bypass deferred queue)
+    NotificationQueue::instance().setDeferredMode(false);
 }
 
-void tearDown() {}
+void tearDown() {
+    // Restore deferred mode
+    NotificationQueue::instance().setDeferredMode(true);
+}
 
 // =============================================================================
 // Basic Construction Tests

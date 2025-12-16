@@ -1,7 +1,9 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <type_traits>
 
 #include <oc/core/Result.hpp>
@@ -215,6 +217,10 @@ protected:
         return false;
     }
 
+    hal::IStorageBackend& backend_;
+    uint32_t address_;
+    T data_{};
+
 private:
     uint32_t computeCRC32() const {
         // CRC-32 (IEEE 802.3 polynomial)
@@ -231,10 +237,7 @@ private:
         return ~crc;
     }
 
-    hal::IStorageBackend& backend_;
-    uint32_t address_;
     uint16_t version_;
-    T data_{};
     bool dirty_ = true;
 };
 
@@ -251,5 +254,108 @@ void setString(char (&dest)[N], const char* src) {
         dest[N - 1] = '\0';
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MIGRATION HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * @brief Settings with chainable migration support
+ *
+ * Allows registering migration functions for version upgrades.
+ *
+ * @code
+ * struct MySettingsV1 { int value = 0; };
+ * struct MySettingsV2 { float value = 0.0f; };  // Changed type
+ *
+ * MigratableSettings<MySettingsV2> settings(backend, 0x0000, 2);
+ * settings.onMigrate<MySettingsV1>(1, [](const MySettingsV1& old, MySettingsV2& current) {
+ *     current.value = static_cast<float>(old.value);
+ * });
+ * settings.load();  // Will auto-migrate from v1 if found
+ * @endcode
+ *
+ * @tparam T Current settings struct type (must be trivially copyable)
+ * @tparam MaxMigrations Maximum number of migration handlers (default: 8)
+ */
+template <typename T, size_t MaxMigrations = 8>
+class MigratableSettings : public Settings<T> {
+public:
+    using Settings<T>::Settings;
+
+    /**
+     * @brief Register a migration handler from an older version
+     *
+     * @tparam OldT The old settings struct type
+     * @param fromVersion The version this handler migrates FROM
+     * @param handler Function that converts old data to current format
+     * @return Reference to this for chaining
+     *
+     * @code
+     * settings.onMigrate<V1>(1, [](const V1& old, V2& cur) { cur.x = old.x; })
+     *         .onMigrate<V0>(0, [](const V0& old, V2& cur) { cur.x = old.val; });
+     * @endcode
+     */
+    template <typename OldT, typename Handler>
+    MigratableSettings& onMigrate(uint16_t fromVersion, Handler&& handler) {
+        static_assert(std::is_trivially_copyable_v<OldT>,
+                      "Old settings type must be trivially copyable");
+
+        if (migrationCount_ >= MaxMigrations) {
+            return *this;  // Silent ignore if too many migrations
+        }
+
+        migrations_[migrationCount_++] = {
+            fromVersion,
+            sizeof(OldT),
+            [h = std::forward<Handler>(handler)](const void* oldData, T& current) {
+                h(*static_cast<const OldT*>(oldData), current);
+            }
+        };
+
+        return *this;
+    }
+
+protected:
+    bool migrate(uint16_t oldVersion) override {
+        // Find matching migration handler
+        for (size_t i = 0; i < migrationCount_; ++i) {
+            if (migrations_[i].fromVersion == oldVersion) {
+                // Read old data with the old size
+                std::array<uint8_t, 512> buffer{};  // Max old struct size
+                if (migrations_[i].oldSize > buffer.size()) {
+                    return false;  // Old struct too large
+                }
+
+                size_t readSize = this->backend_.read(
+                    this->address_ + sizeof(SettingsHeader),
+                    buffer.data(),
+                    migrations_[i].oldSize
+                );
+
+                if (readSize != migrations_[i].oldSize) {
+                    return false;  // Read failed
+                }
+
+                // Reset to defaults, then apply migration
+                this->data_ = T{};
+                migrations_[i].handler(buffer.data(), this->data_);
+                return true;
+            }
+        }
+
+        return false;  // No handler found
+    }
+
+private:
+    struct MigrationEntry {
+        uint16_t fromVersion;
+        size_t oldSize;
+        std::function<void(const void*, T&)> handler;
+    };
+
+    std::array<MigrationEntry, MaxMigrations> migrations_{};
+    size_t migrationCount_ = 0;
+};
 
 }  // namespace oc::state

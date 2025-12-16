@@ -11,13 +11,14 @@
 #include "IContextSwitcher.hpp"
 #include "Requirements.hpp"
 
+#include <oc/Config.hpp>
 #include <oc/core/Result.hpp>
 #include <oc/core/Warning.hpp>
 
 namespace oc::context {
 
-/// @brief Maximum number of contexts that can be registered
-inline constexpr size_t MAX_CONTEXTS = 16;
+// Import from central config
+using oc::config::MAX_CONTEXTS;
 
 /// @brief Sentinel value indicating no valid context ID
 inline constexpr uint8_t INVALID_CONTEXT_ID = 0xFF;

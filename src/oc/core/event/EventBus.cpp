@@ -1,5 +1,9 @@
 #include "EventBus.hpp"
 
+#include <algorithm>
+
+#include <oc/log/Log.hpp>
+
 namespace oc::core::event {
 
 EventBus::EventBus() : next_id_(1) {}
@@ -8,21 +12,49 @@ SubscriptionID EventBus::on(EventCategoryType category, EventType type, EventCal
     if (!callback) return 0;
 
     uint32_t key = makeKey(category, type);
-    SubscriptionID id = next_id_++;
+    auto& vec = subscriptions_[key];
 
-    subscriptions_[key].push_back({id, callback});
+    // Count active subscribers for this event type
+    size_t activeCount = 0;
+    for (const auto& sub : vec) {
+        if (sub.alive) ++activeCount;
+    }
+
+    // Check limit
+    if (activeCount >= MAX_SUBSCRIBERS_PER_EVENT) {
+        if constexpr (ENABLE_STATS) {
+            stats_.overflowCount++;
+        }
+        OC_LOG_WARN("EventBus: max subscribers ({}) reached for event type",
+                    MAX_SUBSCRIBERS_PER_EVENT);
+        return 0;
+    }
+
+    SubscriptionID id = next_id_++;
+    vec.push_back({id, std::move(callback), true});
+
+    if constexpr (ENABLE_STATS) {
+        stats_.totalSubscribed++;
+        size_t total = getSubscriberCount();
+        if (total > stats_.peakSubscribers) {
+            stats_.peakSubscribers = total;
+        }
+    }
+
     return id;
 }
 
 void EventBus::emit(const Event& event) {
+    if constexpr (ENABLE_STATS) {
+        stats_.totalEmitted++;
+    }
+
     uint32_t key = makeKey(event.getCategory(), event.getType());
     auto it = subscriptions_.find(key);
     if (it != subscriptions_.end()) {
-        // Copy to allow safe modification during iteration
-        // (callbacks may call off() or trigger nested emit())
-        auto callbacks_copy = it->second;
-        for (const auto& sub : callbacks_copy) {
-            if (sub.callback) {
+        // Iterate directly without copying - safe because off() only marks dead
+        for (auto& sub : it->second) {
+            if (sub.alive && sub.callback) {
                 sub.callback(event);
             }
         }
@@ -30,11 +62,20 @@ void EventBus::emit(const Event& event) {
 }
 
 void EventBus::off(SubscriptionID id) {
+    // Mark as dead instead of erasing - allows safe iteration during emit()
     for (auto& pair : subscriptions_) {
-        auto& list = pair.second;
-        for (auto it = list.begin(); it != list.end(); ++it) {
-            if (it->id == id) {
-                list.erase(it);
+        for (auto& sub : pair.second) {
+            if (sub.id == id) {
+                sub.alive = false;
+                sub.callback = nullptr;  // Release memory
+                dead_count_++;
+
+                if constexpr (ENABLE_STATS) {
+                    stats_.totalUnsubscribed++;
+                }
+
+                // Auto-compact when threshold reached
+                autoCompactIfNeeded();
                 return;
             }
         }
@@ -44,14 +85,37 @@ void EventBus::off(SubscriptionID id) {
 void EventBus::clear() {
     subscriptions_.clear();
     next_id_ = 1;
+    dead_count_ = 0;
 }
 
 size_t EventBus::getSubscriberCount() const {
     size_t count = 0;
     for (const auto& pair : subscriptions_) {
-        count += pair.second.size();
+        for (const auto& sub : pair.second) {
+            if (sub.alive) ++count;
+        }
     }
     return count;
+}
+
+void EventBus::compact() {
+    for (auto& pair : subscriptions_) {
+        auto& vec = pair.second;
+        vec.erase(std::remove_if(vec.begin(), vec.end(),
+                                  [](const Subscription& s) { return !s.alive; }),
+                  vec.end());
+    }
+    dead_count_ = 0;
+
+    if constexpr (ENABLE_STATS) {
+        stats_.totalCompactions++;
+    }
+}
+
+void EventBus::autoCompactIfNeeded() {
+    if (dead_count_ >= EVENTBUS_COMPACT_THRESHOLD) {
+        compact();
+    }
 }
 
 uint32_t EventBus::makeKey(EventCategoryType category, EventType type) const {

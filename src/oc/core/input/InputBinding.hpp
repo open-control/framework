@@ -1,9 +1,10 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
-#include <unordered_map>
 #include <vector>
 
+#include <oc/Config.hpp>
 #include <oc/core/event/IEventBus.hpp>
 #include <oc/core/input/InputConfig.hpp>
 #include <oc/core/struct/Binding.hpp>
@@ -135,12 +136,12 @@ private:
     void checkAndTriggerCombosOnRelease(hal::ButtonID releasedButtonID);
     bool isButtonComboActive(hal::ButtonID btn1, hal::ButtonID btn2) const;
 
-    std::unordered_map<hal::ButtonID, bool> button_states_;
-    std::unordered_map<hal::ButtonID, uint32_t> button_press_time_;
-    std::unordered_map<hal::ButtonID, uint32_t> button_release_time_;
-    std::unordered_map<hal::ButtonID, uint8_t> button_tap_count_;
-    std::unordered_map<hal::ButtonID, bool> long_press_triggered_;
-    std::unordered_map<hal::ButtonID, bool> latch_states_;
+    std::array<bool, MAX_BUTTONS> button_states_{};
+    std::array<uint32_t, MAX_BUTTONS> button_press_time_{};
+    std::array<uint32_t, MAX_BUTTONS> button_release_time_{};
+    std::array<uint8_t, MAX_BUTTONS> button_tap_count_{};
+    std::array<bool, MAX_BUTTONS> long_press_triggered_{};
+    std::array<bool, MAX_BUTTONS> latch_states_{};
 
     event::IEventBus& event_bus_;
     hal::TimeProvider time_provider_;

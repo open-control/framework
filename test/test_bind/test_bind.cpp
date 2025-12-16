@@ -1,6 +1,7 @@
 #include <unity.h>
 
 #include <oc/state/Bind.hpp>
+#include <oc/state/NotificationQueue.hpp>
 #include <oc/state/Signal.hpp>
 #include <oc/state/SignalString.hpp>
 
@@ -9,8 +10,15 @@
 
 using namespace oc::state;
 
-void setUp() {}
-void tearDown() {}
+void setUp() {
+    // Use immediate mode for unit tests (bypass deferred queue)
+    NotificationQueue::instance().setDeferredMode(false);
+}
+
+void tearDown() {
+    // Restore deferred mode
+    NotificationQueue::instance().setDeferredMode(true);
+}
 
 // =============================================================================
 // Basic Bind Tests

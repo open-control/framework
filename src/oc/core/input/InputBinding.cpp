@@ -1,14 +1,23 @@
 #include "InputBinding.hpp"
 
+#include <algorithm>
+
 #include <oc/core/event/Events.hpp>
 #include <oc/core/Warning.hpp>
+#include <oc/log/Log.hpp>
 
 namespace oc::core::input {
 
 using namespace event;
+using oc::config::MAX_BUTTON_BINDINGS;
+using oc::config::MAX_ENCODER_BINDINGS;
 
 InputBinding::InputBinding(IEventBus& eventBus, hal::TimeProvider timeProvider, const InputConfig& config)
     : event_bus_(eventBus), time_provider_(timeProvider), config_(config) {
+    // Pre-allocate to avoid runtime heap growth
+    button_bindings_.reserve(MAX_BUTTON_BINDINGS);
+    encoder_bindings_.reserve(MAX_ENCODER_BINDINGS);
+
     if (!time_provider_) {
         warn("[InputBinding] No TimeProvider - long press and double tap detection disabled");
     }
@@ -54,18 +63,24 @@ void InputBinding::clearScope(ScopeID scope) {
 }
 
 bool InputBinding::isLatched(hal::ButtonID btn) const {
-    auto it = latch_states_.find(btn);
-    return it != latch_states_.end() && it->second;
+    if (btn >= MAX_BUTTONS) return false;
+    return latch_states_[btn];
 }
 
-void InputBinding::setLatch(hal::ButtonID btn, bool latched) { latch_states_[btn] = latched; }
+void InputBinding::setLatch(hal::ButtonID btn, bool latched) {
+    if (btn < MAX_BUTTONS) {
+        latch_states_[btn] = latched;
+    }
+}
 
 void InputBinding::processTick() {
     if (time_provider_) {
         current_time_ = time_provider_();
     }
-    for (const auto& [buttonId, isPressed] : button_states_) {
-        if (isPressed) checkAndTriggerLongPress(buttonId, current_time_);
+    for (size_t i = 0; i < MAX_BUTTONS; ++i) {
+        if (button_states_[i]) {
+            checkAndTriggerLongPress(static_cast<hal::ButtonID>(i), current_time_);
+        }
     }
 }
 
@@ -81,8 +96,8 @@ void InputBinding::setBindingsEnabled(bool enabled) { bindings_enabled_ = enable
 // ═══════════════════════════════════════════════════
 
 bool InputBinding::isButtonPressed(hal::ButtonID id) const {
-    auto it = button_states_.find(id);
-    return it != button_states_.end() && it->second;
+    if (id >= MAX_BUTTONS) return false;
+    return button_states_[id];
 }
 
 void InputBinding::clearButtonBindings() {
@@ -120,18 +135,38 @@ void InputBinding::clearEncoderScope(ScopeID scope) {
 // ═══════════════════════════════════════════════════
 
 BindingID InputBinding::registerButtonBinding(ButtonBinding binding) {
+    // Check limit
+    if (button_bindings_.size() >= MAX_BUTTON_BINDINGS) {
+        OC_LOG_WARN("InputBinding: max button bindings ({}) reached", MAX_BUTTON_BINDINGS);
+        return 0;
+    }
+
     BindingID id = next_binding_id_++;
     if (id == 0) id = next_binding_id_++;  // Skip 0 (invalid ID) on overflow
     binding.id = id;
-    button_bindings_.push_back(std::move(binding));
+
+    // Insert sorted by priority (higher priority first)
+    auto it = std::find_if(button_bindings_.begin(), button_bindings_.end(),
+                           [&](const ButtonBinding& b) { return b.priority < binding.priority; });
+    button_bindings_.insert(it, std::move(binding));
     return id;
 }
 
 BindingID InputBinding::registerEncoderBinding(EncoderBinding binding) {
+    // Check limit
+    if (encoder_bindings_.size() >= MAX_ENCODER_BINDINGS) {
+        OC_LOG_WARN("InputBinding: max encoder bindings ({}) reached", MAX_ENCODER_BINDINGS);
+        return 0;
+    }
+
     BindingID id = next_binding_id_++;
     if (id == 0) id = next_binding_id_++;  // Skip 0 (invalid ID) on overflow
     binding.id = id;
-    encoder_bindings_.push_back(std::move(binding));
+
+    // Insert sorted by priority (higher priority first)
+    auto it = std::find_if(encoder_bindings_.begin(), encoder_bindings_.end(),
+                           [&](const EncoderBinding& b) { return b.priority < binding.priority; });
+    encoder_bindings_.insert(it, std::move(binding));
     return id;
 }
 
@@ -169,6 +204,8 @@ void InputBinding::onEncoderChanged(const Event& event) {
 void InputBinding::onButtonPress(const Event& event) {
     auto& evt = static_cast<const ButtonPressEvent&>(event);
     hal::ButtonID buttonId = evt.buttonId;
+    if (buttonId >= MAX_BUTTONS) return;
+
     const uint32_t now = current_time_;
 
     button_states_[buttonId] = true;
@@ -188,6 +225,8 @@ void InputBinding::onButtonPress(const Event& event) {
 void InputBinding::onButtonRelease(const Event& event) {
     auto& evt = static_cast<const ButtonReleaseEvent&>(event);
     hal::ButtonID buttonId = evt.buttonId;
+    if (buttonId >= MAX_BUTTONS) return;
+
     const uint32_t now = current_time_;
 
     const uint32_t pressDuration = now - button_press_time_[buttonId];
@@ -271,8 +310,8 @@ bool InputBinding::triggerScopedEncoderBindings(hal::EncoderID encoderId, float 
 
         if (binding.type == EncoderBindingType::TURN_WHILE_PRESSED && binding.requiredButton.has_value()) {
             hal::ButtonID btn = *binding.requiredButton;
-            bool isPressed = button_states_.count(btn) && button_states_.at(btn);
-            bool isLatched = latch_states_.count(btn) && latch_states_.at(btn);
+            bool isPressed = btn < MAX_BUTTONS && button_states_[btn];
+            bool isLatched = btn < MAX_BUTTONS && latch_states_[btn];
             if (!isPressed && !isLatched) continue;
         }
 
@@ -295,8 +334,8 @@ bool InputBinding::triggerGlobalEncoderBindings(hal::EncoderID encoderId, float 
 
         if (binding.type == EncoderBindingType::TURN_WHILE_PRESSED && binding.requiredButton.has_value()) {
             hal::ButtonID btn = *binding.requiredButton;
-            bool isPressed = button_states_.count(btn) && button_states_.at(btn);
-            bool isLatched = latch_states_.count(btn) && latch_states_.at(btn);
+            bool isPressed = btn < MAX_BUTTONS && button_states_[btn];
+            bool isLatched = btn < MAX_BUTTONS && latch_states_[btn];
             if (!isPressed && !isLatched) continue;
         }
 
@@ -319,11 +358,10 @@ void InputBinding::triggerMatchingEncoderBindings(hal::EncoderID encoderId, floa
 // ═══════════════════════════════════════════════════
 
 void InputBinding::checkAndTriggerLongPress(hal::ButtonID buttonId, uint32_t now) {
+    if (buttonId >= MAX_BUTTONS) return;
     if (!button_states_[buttonId] || long_press_triggered_[buttonId]) return;
 
-    auto pressTimeIt = button_press_time_.find(buttonId);
-    if (pressTimeIt == button_press_time_.end()) return;
-
+    const uint32_t pressTime = button_press_time_[buttonId];
     bool scopedTriggered = false;
 
     for (auto& binding : button_bindings_) {
@@ -332,7 +370,7 @@ void InputBinding::checkAndTriggerLongPress(hal::ButtonID buttonId, uint32_t now
         if (!isBindingActive(binding)) continue;
 
         const uint32_t duration = binding.longPressMs > 0 ? binding.longPressMs : config_.longPressMs;
-        if ((now - pressTimeIt->second) >= duration) {
+        if ((now - pressTime) >= duration) {
             long_press_triggered_[buttonId] = true;
             if (binding.action) {
                 binding.action();
@@ -348,7 +386,7 @@ void InputBinding::checkAndTriggerLongPress(hal::ButtonID buttonId, uint32_t now
         if (binding.buttonId != buttonId || binding.scopeId != 0) continue;
 
         const uint32_t duration = binding.longPressMs > 0 ? binding.longPressMs : config_.longPressMs;
-        if ((now - pressTimeIt->second) >= duration) {
+        if ((now - pressTime) >= duration) {
             long_press_triggered_[buttonId] = true;
             if (binding.action) binding.action();
         }
@@ -356,11 +394,10 @@ void InputBinding::checkAndTriggerLongPress(hal::ButtonID buttonId, uint32_t now
 }
 
 void InputBinding::checkAndTriggerDoubleTap(hal::ButtonID buttonId, uint32_t now) {
-    auto tapIt = button_tap_count_.find(buttonId);
-    if (tapIt == button_tap_count_.end() || tapIt->second < 2) return;
+    if (buttonId >= MAX_BUTTONS) return;
+    if (button_tap_count_[buttonId] < 2) return;
 
-    auto releaseIt = button_release_time_.find(buttonId);
-    if (releaseIt == button_release_time_.end()) return;
+    const uint32_t releaseTime = button_release_time_[buttonId];
 
     bool anyTriggered = false;
     bool scopedTriggered = false;
@@ -372,7 +409,7 @@ void InputBinding::checkAndTriggerDoubleTap(hal::ButtonID buttonId, uint32_t now
         if (!isBindingActive(binding)) continue;
 
         const uint32_t window = binding.doubleTapWindowMs > 0 ? binding.doubleTapWindowMs : config_.doubleTapWindowMs;
-        if ((now - releaseIt->second) < window) {
+        if ((now - releaseTime) < window) {
             if (binding.action) {
                 binding.action();
                 scopedTriggered = true;
@@ -388,7 +425,7 @@ void InputBinding::checkAndTriggerDoubleTap(hal::ButtonID buttonId, uint32_t now
             if (binding.buttonId != buttonId || binding.scopeId != 0) continue;
 
             const uint32_t window = binding.doubleTapWindowMs > 0 ? binding.doubleTapWindowMs : config_.doubleTapWindowMs;
-            if ((now - releaseIt->second) < window) {
+            if ((now - releaseTime) < window) {
                 if (binding.action) {
                     binding.action();
                     anyTriggered = true;
@@ -438,7 +475,9 @@ void InputBinding::checkAndTriggerCombosOnRelease(hal::ButtonID releasedButtonID
 }
 
 bool InputBinding::isButtonComboActive(hal::ButtonID btn1, hal::ButtonID btn2) const {
-    auto isPressed = [this](hal::ButtonID btn) { return button_states_.count(btn) && button_states_.at(btn); };
+    auto isPressed = [this](hal::ButtonID btn) {
+        return btn < MAX_BUTTONS && button_states_[btn];
+    };
     return isPressed(btn1) && isPressed(btn2);
 }
 

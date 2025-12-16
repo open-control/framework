@@ -2,7 +2,13 @@
 
 #include <cstdint>
 
+#include <oc/Config.hpp>
+
 namespace oc::core {
+
+// Import limits from central config
+using oc::config::MAX_BUTTONS;
+using oc::config::MAX_ENCODERS;
 
 /**
  * @brief Timing configuration for input gesture detection

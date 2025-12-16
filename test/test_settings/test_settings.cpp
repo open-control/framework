@@ -247,6 +247,164 @@ void test_settings_not_saved_when_not_dirty() {
     TEST_ASSERT_TRUE(result.isOk());
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// MigratableSettings Tests
+// ═══════════════════════════════════════════════════════════════════════════════
+
+struct SettingsV1 {
+    int value = 10;
+    char name[8] = "v1";
+};
+
+struct SettingsV2 {
+    float value = 0.0f;  // Changed type from int to float
+    char name[16] = "v2default";  // Increased size
+};
+
+struct SettingsV3 {
+    float value = 0.0f;
+    char name[16] = "v3default";
+    uint8_t newField = 99;  // Added field
+};
+
+void test_migratable_settings_no_migration_needed() {
+    backend.clear();
+
+    // Save V2 data
+    {
+        Settings<SettingsV2> settings(backend, 0, 2);
+        settings.modify([](auto& s) {
+            s.value = 42.5f;
+            setString(s.name, "current");
+        });
+        settings.save();
+    }
+
+    // Load with MigratableSettings (no migration needed)
+    {
+        MigratableSettings<SettingsV2> settings(backend, 0, 2);
+        settings.onMigrate<SettingsV1>(1, [](const SettingsV1&, SettingsV2&) {
+            // Should not be called
+            TEST_FAIL_MESSAGE("Migration should not be called");
+        });
+
+        auto result = settings.load();
+        TEST_ASSERT_TRUE(result.isOk());
+        TEST_ASSERT_FLOAT_WITHIN(0.01f, 42.5f, settings.get().value);
+        TEST_ASSERT_EQUAL_STRING("current", settings.get().name);
+    }
+}
+
+void test_migratable_settings_migrate_from_v1() {
+    backend.clear();
+
+    // Save V1 data
+    {
+        Settings<SettingsV1> settings(backend, 0, 1);
+        settings.modify([](auto& s) {
+            s.value = 100;
+            setString(s.name, "olddata");
+        });
+        settings.save();
+    }
+
+    // Load with V2 and migration handler
+    {
+        MigratableSettings<SettingsV2> settings(backend, 0, 2);
+        settings.onMigrate<SettingsV1>(1, [](const SettingsV1& old, SettingsV2& current) {
+            current.value = static_cast<float>(old.value) * 1.5f;
+            setString(current.name, old.name);
+        });
+
+        auto result = settings.load();
+        TEST_ASSERT_TRUE(result.isOk());
+        TEST_ASSERT_TRUE(settings.isDirty());  // Needs saving after migration
+        TEST_ASSERT_FLOAT_WITHIN(0.01f, 150.0f, settings.get().value);  // 100 * 1.5
+        TEST_ASSERT_EQUAL_STRING("olddata", settings.get().name);
+    }
+}
+
+void test_migratable_settings_no_handler_resets() {
+    backend.clear();
+
+    // Save V1 data
+    {
+        Settings<SettingsV1> settings(backend, 0, 1);
+        settings.modify([](auto& s) { s.value = 100; });
+        settings.save();
+    }
+
+    // Load with V3 without V1 migration handler
+    {
+        MigratableSettings<SettingsV3> settings(backend, 0, 3);
+        // Only register V2 handler, not V1
+        settings.onMigrate<SettingsV2>(2, [](const SettingsV2& old, SettingsV3& current) {
+            current.value = old.value;
+        });
+
+        auto result = settings.load();
+        TEST_ASSERT_TRUE(result.isOk());
+        // Should reset to defaults since no V1 handler
+        TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, settings.get().value);
+        TEST_ASSERT_EQUAL_STRING("v3default", settings.get().name);
+        TEST_ASSERT_EQUAL(99, settings.get().newField);
+    }
+}
+
+void test_migratable_settings_chained_registration() {
+    backend.clear();
+
+    // Save V1 data
+    {
+        Settings<SettingsV1> settings(backend, 0, 1);
+        settings.modify([](auto& s) { s.value = 50; });
+        settings.save();
+    }
+
+    // Use chained registration
+    {
+        MigratableSettings<SettingsV3> settings(backend, 0, 3);
+        settings
+            .onMigrate<SettingsV1>(1, [](const SettingsV1& old, SettingsV3& current) {
+                current.value = static_cast<float>(old.value);
+                current.newField = 11;
+            })
+            .onMigrate<SettingsV2>(2, [](const SettingsV2& old, SettingsV3& current) {
+                current.value = old.value;
+                current.newField = 22;
+            });
+
+        auto result = settings.load();
+        TEST_ASSERT_TRUE(result.isOk());
+        TEST_ASSERT_FLOAT_WITHIN(0.01f, 50.0f, settings.get().value);
+        TEST_ASSERT_EQUAL(11, settings.get().newField);  // V1 handler used
+    }
+}
+
+void test_migratable_settings_max_migrations() {
+    backend.clear();
+
+    // MigratableSettings<SettingsV2, 2> allows only 2 migrations
+    MigratableSettings<SettingsV2, 2> settings(backend, 0, 5);
+
+    // Register 3 migrations (third should be silently ignored)
+    settings
+        .onMigrate<SettingsV1>(1, [](const SettingsV1&, SettingsV2&) {})
+        .onMigrate<SettingsV1>(2, [](const SettingsV1&, SettingsV2&) {})
+        .onMigrate<SettingsV1>(3, [](const SettingsV1&, SettingsV2&) {});  // Ignored
+
+    // Save V1 then try to migrate
+    {
+        Settings<SettingsV1> v1(backend, 0, 1);
+        v1.modify([](auto& s) { s.value = 77; });
+        v1.save();
+    }
+
+    // Migration from version 1 should work
+    auto result = settings.load();
+    TEST_ASSERT_TRUE(result.isOk());
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_settings_default_values);
@@ -262,5 +420,13 @@ int main() {
     RUN_TEST(test_settings_storage_size);
     RUN_TEST(test_settings_reload_discards_changes);
     RUN_TEST(test_settings_not_saved_when_not_dirty);
+
+    // MigratableSettings tests
+    RUN_TEST(test_migratable_settings_no_migration_needed);
+    RUN_TEST(test_migratable_settings_migrate_from_v1);
+    RUN_TEST(test_migratable_settings_no_handler_resets);
+    RUN_TEST(test_migratable_settings_chained_registration);
+    RUN_TEST(test_migratable_settings_max_migrations);
+
     return UNITY_END();
 }

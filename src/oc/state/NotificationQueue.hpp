@@ -39,10 +39,16 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
+#include <oc/Config.hpp>
+
 namespace oc::state {
+
+using oc::config::MAX_PENDING_NOTIFICATIONS;
+using oc::config::ENABLE_STATS;
 
 /**
  * @brief Singleton queue for deferred signal notifications
@@ -56,6 +62,19 @@ public:
 
     /// Notification function (captures signal/slot for deferred execution)
     using NotifyFn = std::function<void()>;
+
+private:
+    /// Hash function for Key (signal_ptr, slot_index)
+    struct KeyHash {
+        size_t operator()(const Key& k) const noexcept {
+            // Combine pointer and slot index into hash
+            auto h1 = std::hash<void*>{}(k.first);
+            auto h2 = std::hash<size_t>{}(k.second);
+            return h1 ^ (h2 << 1);
+        }
+    };
+
+public:
 
     /**
      * @brief Get the singleton instance
@@ -106,6 +125,88 @@ public:
      */
     [[nodiscard]] bool isDeferredMode() const { return deferredMode_; }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Batch Operations
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * @brief RAII guard for batch updates
+     *
+     * Automatically defers notifications during scope and flushes on exit.
+     * Useful for updating multiple signals atomically.
+     *
+     * @code
+     * {
+     *     auto batch = NotificationQueue::instance().batch();
+     *     state.param1.set(1);
+     *     state.param2.set(2);
+     *     state.param3.set(3);
+     * }  // Flush happens here - all callbacks called with final values
+     * @endcode
+     */
+    class BatchGuard {
+    public:
+        explicit BatchGuard(NotificationQueue& queue) : queue_(queue), wasDeferred_(queue.deferredMode_) {
+            queue_.deferredMode_ = true;
+        }
+        ~BatchGuard() {
+            queue_.flush();
+            queue_.deferredMode_ = wasDeferred_;
+        }
+        BatchGuard(const BatchGuard&) = delete;
+        BatchGuard& operator=(const BatchGuard&) = delete;
+    private:
+        NotificationQueue& queue_;
+        bool wasDeferred_;
+    };
+
+    /**
+     * @brief Create a batch guard for scoped deferred updates
+     * @return RAII guard that flushes on destruction
+     */
+    [[nodiscard]] BatchGuard batch() { return BatchGuard(*this); }
+
+    /**
+     * @brief Get maximum allowed pending notifications
+     */
+    [[nodiscard]] static constexpr size_t maxPending() { return MAX_PENDING_NOTIFICATIONS; }
+
+    /**
+     * @brief Check if queue reached capacity (overflow occurred)
+     */
+    [[nodiscard]] bool hasOverflowed() const { return overflowCount_ > 0; }
+
+    /**
+     * @brief Get number of dropped notifications due to overflow
+     */
+    [[nodiscard]] size_t overflowCount() const { return overflowCount_; }
+
+    /**
+     * @brief Reset overflow counter
+     */
+    void resetOverflowCount() { overflowCount_ = 0; }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Statistics (only available when OC_ENABLE_STATS=1)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    struct Stats {
+        size_t peakPending = 0;      ///< Maximum pending count ever seen
+        size_t totalEnqueued = 0;    ///< Total notifications enqueued
+        size_t totalCoalesced = 0;   ///< Total duplicates coalesced
+        size_t totalFlushed = 0;     ///< Total notifications executed
+    };
+
+    /**
+     * @brief Get statistics (only meaningful when ENABLE_STATS=true)
+     */
+    [[nodiscard]] const Stats& stats() const { return stats_; }
+
+    /**
+     * @brief Reset statistics
+     */
+    void resetStats() { stats_ = {}; }
+
 private:
     NotificationQueue() = default;
 
@@ -115,8 +216,11 @@ private:
     };
 
     std::vector<PendingNotification> pending_;
+    std::unordered_set<Key, KeyHash> pending_keys_;  ///< O(1) coalescing lookup
     bool deferredMode_ = true;
-    bool isFlushing_ = false;  // Prevent re-entrancy issues
+    bool isFlushing_ = false;  ///< Prevent re-entrancy issues
+    size_t overflowCount_ = 0; ///< Number of dropped notifications
+    Stats stats_{};            ///< Runtime statistics (when enabled)
 };
 
 }  // namespace oc::state

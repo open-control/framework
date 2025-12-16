@@ -71,6 +71,7 @@ enum class EncoderBindingType : uint8_t {
  * @brief Button input binding definition
  *
  * Scoped bindings (scopeId != 0) have priority over global bindings.
+ * Within the same scope, higher priority bindings are triggered first.
  * The isActive predicate determines if the binding should trigger.
  */
 struct ButtonBinding {
@@ -85,10 +86,14 @@ struct ButtonBinding {
     bool latch = false;  ///< Enable latch/momentary behavior
     IsActiveFn isActive = nullptr;  ///< Activation predicate (nullptr = always active)
     ScopeID scopeId = 0;             ///< 0 = global
+    int8_t priority = 0;             ///< Higher priority = triggered first (default: 0)
 };
 
 /**
  * @brief Encoder input binding definition
+ *
+ * Scoped bindings (scopeId != 0) have priority over global bindings.
+ * Within the same scope, higher priority bindings are triggered first.
  */
 struct EncoderBinding {
     BindingID id = 0;                             ///< Unique ID for removal (0 = unassigned)
@@ -99,6 +104,7 @@ struct EncoderBinding {
     bool enabled = true;
     IsActiveFn isActive = nullptr;  ///< Activation predicate (nullptr = always active)
     ScopeID scopeId = 0;            ///< 0 = global
+    int8_t priority = 0;            ///< Higher priority = triggered first (default: 0)
 };
 
 }  // namespace oc::core

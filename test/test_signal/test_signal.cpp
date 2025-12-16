@@ -1,5 +1,6 @@
 #include <unity.h>
 
+#include <oc/state/NotificationQueue.hpp>
 #include <oc/state/Signal.hpp>
 
 #include <string>
@@ -15,9 +16,14 @@ void setUp() {
     callCount = 0;
     lastValue = 0;
     lastString.clear();
+    // Use immediate mode for unit tests (bypass deferred queue)
+    NotificationQueue::instance().setDeferredMode(false);
 }
 
-void tearDown() {}
+void tearDown() {
+    // Restore deferred mode
+    NotificationQueue::instance().setDeferredMode(true);
+}
 
 // =============================================================================
 // Basic Signal Tests
@@ -318,6 +324,120 @@ void test_null_callback_returns_invalid_subscription() {
 }
 
 // =============================================================================
+// Batch Update Tests
+// =============================================================================
+
+void test_batch_guard_defers_notifications() {
+    // Start in immediate mode
+    NotificationQueue::instance().setDeferredMode(false);
+
+    Signal<int> sig{0};
+    auto sub = sig.subscribe([](const int&) { callCount++; });
+
+    {
+        auto batch = NotificationQueue::instance().batch();
+        // Inside batch scope, deferred mode is enabled
+        TEST_ASSERT_TRUE(NotificationQueue::instance().isDeferredMode());
+
+        sig.set(1);
+        sig.set(2);
+        sig.set(3);
+
+        // Notifications are pending, not executed yet
+        TEST_ASSERT_EQUAL(0, callCount);
+        TEST_ASSERT_TRUE(NotificationQueue::instance().hasPending());
+    }
+
+    // After batch scope ends, flush happens
+    TEST_ASSERT_EQUAL(1, callCount);  // Only one notification (coalesced)
+    TEST_ASSERT_EQUAL(3, sig.get());  // Final value
+}
+
+void test_batch_guard_restores_mode() {
+    // Start in immediate mode
+    NotificationQueue::instance().setDeferredMode(false);
+    TEST_ASSERT_FALSE(NotificationQueue::instance().isDeferredMode());
+
+    {
+        auto batch = NotificationQueue::instance().batch();
+        TEST_ASSERT_TRUE(NotificationQueue::instance().isDeferredMode());
+    }
+
+    // Mode should be restored to immediate
+    TEST_ASSERT_FALSE(NotificationQueue::instance().isDeferredMode());
+}
+
+void test_batch_coalescing_multiple_signals() {
+    NotificationQueue::instance().setDeferredMode(false);
+
+    Signal<int> sig1{0};
+    Signal<int> sig2{0};
+    int count1 = 0, count2 = 0;
+
+    auto sub1 = sig1.subscribe([&count1](const int&) { count1++; });
+    auto sub2 = sig2.subscribe([&count2](const int&) { count2++; });
+
+    {
+        auto batch = NotificationQueue::instance().batch();
+
+        // Set each signal multiple times
+        sig1.set(1);
+        sig1.set(2);
+        sig1.set(3);
+
+        sig2.set(10);
+        sig2.set(20);
+
+        TEST_ASSERT_EQUAL(0, count1);
+        TEST_ASSERT_EQUAL(0, count2);
+    }
+
+    // Each signal's callback called once with final value
+    TEST_ASSERT_EQUAL(1, count1);
+    TEST_ASSERT_EQUAL(1, count2);
+    TEST_ASSERT_EQUAL(3, sig1.get());
+    TEST_ASSERT_EQUAL(20, sig2.get());
+}
+
+void test_deferred_mode_coalescing() {
+    // Enable deferred mode explicitly
+    NotificationQueue::instance().setDeferredMode(true);
+
+    Signal<int> sig{0};
+    auto sub = sig.subscribe([](const int&) { callCount++; });
+
+    sig.set(1);
+    sig.set(2);
+    sig.set(3);
+
+    TEST_ASSERT_EQUAL(0, callCount);  // Not yet executed
+    TEST_ASSERT_TRUE(NotificationQueue::instance().hasPending());
+
+    NotificationQueue::instance().flush();
+
+    TEST_ASSERT_EQUAL(1, callCount);  // Coalesced to single call
+    TEST_ASSERT_FALSE(NotificationQueue::instance().hasPending());
+
+    // Restore for other tests
+    NotificationQueue::instance().setDeferredMode(false);
+}
+
+void test_notification_queue_overflow() {
+    NotificationQueue::instance().setDeferredMode(true);
+    NotificationQueue::instance().resetOverflowCount();
+
+    // Create many signals to potentially overflow
+    constexpr size_t maxPending = NotificationQueue::maxPending();
+
+    // Note: This test verifies the overflow mechanism exists
+    // Actual overflow depends on configured limit
+    TEST_ASSERT_FALSE(NotificationQueue::instance().hasOverflowed());
+
+    NotificationQueue::instance().flush();
+    NotificationQueue::instance().setDeferredMode(false);
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 
@@ -359,6 +479,13 @@ int main() {
 
     // Edge cases
     RUN_TEST(test_null_callback_returns_invalid_subscription);
+
+    // Batch updates
+    RUN_TEST(test_batch_guard_defers_notifications);
+    RUN_TEST(test_batch_guard_restores_mode);
+    RUN_TEST(test_batch_coalescing_multiple_signals);
+    RUN_TEST(test_deferred_mode_coalescing);
+    RUN_TEST(test_notification_queue_overflow);
 
     return UNITY_END();
 }

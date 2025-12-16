@@ -280,6 +280,24 @@ buttons().clearScope(MENU_SCOPE);
 
 ---
 
+## Configuration
+
+Override compile-time limits via PlatformIO build flags:
+
+```ini
+; platformio.ini
+build_flags =
+    -DOC_MAX_BUTTONS=32
+    -DOC_MAX_ENCODERS=8
+    -DOC_MAX_BUTTON_BINDINGS=64
+    -DOC_MAX_ENCODER_BINDINGS=32
+    -DOC_ENABLE_STATS=1
+```
+
+See [Configuration](https://github.com/open-control/framework/wiki/Configuration) for all options.
+
+---
+
 ## Testing
 
 ```bash
@@ -287,7 +305,7 @@ cd framework
 pio test -e native
 ```
 
-74 unit tests covering core components.
+203 unit tests covering core components.
 
 ---
 

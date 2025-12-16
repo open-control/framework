@@ -1,4 +1,6 @@
 #include <unity.h>
+#include <vector>
+
 #include <oc/core/input/InputBinding.hpp>
 #include <oc/core/event/Events.hpp>
 #include "../mocks/MockEventBus.hpp"
@@ -417,12 +419,13 @@ void test_clear_scope() {
     binding.registerButtonBinding(btn);
 
     bus.emit(ButtonPressEvent{1, true});
-    TEST_ASSERT_EQUAL(2, actionCount);
+    // Only 1 trigger: scoped bindings stop after first match to prevent race conditions
+    TEST_ASSERT_EQUAL(1, actionCount);
 
     binding.clearScope(42);
 
     bus.emit(ButtonPressEvent{1, true});
-    TEST_ASSERT_EQUAL(2, actionCount);  // No more triggers
+    TEST_ASSERT_EQUAL(1, actionCount);  // No more triggers
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -505,6 +508,138 @@ void test_latch_state() {
     TEST_ASSERT_FALSE(binding.isLatched(1));
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// Binding Priority Tests
+// ═══════════════════════════════════════════════════════════════════
+
+void test_priority_higher_triggers_first() {
+    InputBinding binding(bus, fakeTime.provider());
+    std::vector<int> order;
+
+    // Register low priority first
+    ButtonBinding low{};
+    low.type = ButtonBindingType::PRESS;
+    low.buttonId = 1;
+    low.scopeId = 1;  // Same scope
+    low.priority = 0;
+    low.action = [&]() { order.push_back(0); };
+    binding.registerButtonBinding(low);
+
+    // Register high priority second
+    ButtonBinding high{};
+    high.type = ButtonBindingType::PRESS;
+    high.buttonId = 1;
+    high.scopeId = 1;  // Same scope
+    high.priority = 10;
+    high.action = [&]() { order.push_back(10); };
+    binding.registerButtonBinding(high);
+
+    bus.emit(ButtonPressEvent{1, true});
+
+    // Only highest priority triggers (scoped bindings stop after first match)
+    TEST_ASSERT_EQUAL(1, order.size());
+    TEST_ASSERT_EQUAL(10, order[0]);
+}
+
+void test_priority_negative_lower() {
+    InputBinding binding(bus, fakeTime.provider());
+    std::vector<int> order;
+
+    // Register normal priority
+    ButtonBinding normal{};
+    normal.type = ButtonBindingType::PRESS;
+    normal.buttonId = 1;
+    normal.scopeId = 1;
+    normal.priority = 0;
+    normal.action = [&]() { order.push_back(0); };
+    binding.registerButtonBinding(normal);
+
+    // Register negative (lower) priority
+    ButtonBinding negative{};
+    negative.type = ButtonBindingType::PRESS;
+    negative.buttonId = 1;
+    negative.scopeId = 1;
+    negative.priority = -5;
+    negative.action = [&]() { order.push_back(-5); };
+    binding.registerButtonBinding(negative);
+
+    bus.emit(ButtonPressEvent{1, true});
+
+    // Normal priority (0) triggers first
+    TEST_ASSERT_EQUAL(1, order.size());
+    TEST_ASSERT_EQUAL(0, order[0]);
+}
+
+void test_priority_encoder_bindings() {
+    InputBinding binding(bus, fakeTime.provider());
+    std::vector<int> order;
+
+    // Low priority encoder
+    EncoderBinding low{};
+    low.type = EncoderBindingType::TURN;
+    low.encoderId = 0;
+    low.scopeId = 1;
+    low.priority = 0;
+    low.action = [&](float) { order.push_back(0); };
+    binding.registerEncoderBinding(low);
+
+    // High priority encoder
+    EncoderBinding high{};
+    high.type = EncoderBindingType::TURN;
+    high.encoderId = 0;
+    high.scopeId = 1;
+    high.priority = 5;
+    high.action = [&](float) { order.push_back(5); };
+    binding.registerEncoderBinding(high);
+
+    bus.emit(EncoderChangedEvent{0, 0.5f});
+
+    // Higher priority triggers first
+    TEST_ASSERT_EQUAL(1, order.size());
+    TEST_ASSERT_EQUAL(5, order[0]);
+}
+
+void test_priority_global_bindings_all_trigger() {
+    InputBinding binding(bus, fakeTime.provider());
+    int count = 0;
+
+    // Global bindings (scopeId = 0) all trigger regardless of priority
+    ButtonBinding btn1{};
+    btn1.type = ButtonBindingType::PRESS;
+    btn1.buttonId = 1;
+    btn1.scopeId = 0;  // Global
+    btn1.priority = 0;
+    btn1.action = [&]() { count++; };
+    binding.registerButtonBinding(btn1);
+
+    ButtonBinding btn2{};
+    btn2.type = ButtonBindingType::PRESS;
+    btn2.buttonId = 1;
+    btn2.scopeId = 0;  // Global
+    btn2.priority = 10;
+    btn2.action = [&]() { count++; };
+    binding.registerButtonBinding(btn2);
+
+    bus.emit(ButtonPressEvent{1, true});
+
+    // Both global bindings trigger
+    TEST_ASSERT_EQUAL(2, count);
+}
+
+void test_priority_default_is_zero() {
+    ButtonBinding btn{};
+    btn.type = ButtonBindingType::PRESS;
+    btn.buttonId = 1;
+
+    TEST_ASSERT_EQUAL(0, btn.priority);
+
+    EncoderBinding enc{};
+    enc.type = EncoderBindingType::TURN;
+    enc.encoderId = 0;
+
+    TEST_ASSERT_EQUAL(0, enc.priority);
+}
+
 int main(int argc, char **argv) {
     UNITY_BEGIN();
 
@@ -552,6 +687,13 @@ int main(int argc, char **argv) {
     // State
     RUN_TEST(test_is_button_pressed);
     RUN_TEST(test_latch_state);
+
+    // Priority
+    RUN_TEST(test_priority_higher_triggers_first);
+    RUN_TEST(test_priority_negative_lower);
+    RUN_TEST(test_priority_encoder_bindings);
+    RUN_TEST(test_priority_global_bindings_all_trigger);
+    RUN_TEST(test_priority_default_is_zero);
 
     UNITY_END();
     return 0;
