@@ -139,6 +139,45 @@ public:
     }
 
     /**
+     * @brief Set element at specific index
+     *
+     * Sets the value at the given index. If index >= current size,
+     * extends the vector to include that index (fills gaps with default values).
+     * If index >= MaxN, the operation is ignored.
+     *
+     * Notifies subscribers if the value changed or size increased.
+     *
+     * Useful for windowed/incremental loading patterns where elements
+     * arrive out of order or in chunks.
+     *
+     * @param index Index to set (0-based)
+     * @param value Value to assign
+     * @return true if the value was set, false if index >= MaxN
+     */
+    bool setAt(size_t index, const T& value) {
+        if (index >= MaxN) return false;
+
+        bool changed = false;
+
+        // Extend size if needed
+        if (index >= count_) {
+            count_ = static_cast<uint8_t>(index + 1);
+            changed = true;
+        }
+
+        // Check if value changed
+        if (!(items_[index] == value)) {
+            items_[index] = value;
+            changed = true;
+        }
+
+        if (changed) {
+            notify();
+        }
+        return true;
+    }
+
+    /**
      * @brief Force notification without changing content
      *
      * Useful for initial synchronization after subscribing.
