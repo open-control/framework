@@ -11,6 +11,7 @@
 #include <oc/context/IContextSwitcher.hpp>
 #include <oc/core/input/ButtonBuilder.hpp>
 #include <oc/core/input/EncoderBuilder.hpp>
+#include <oc/hal/ISerialTransport.hpp>
 
 namespace oc::context {
 
@@ -268,6 +269,16 @@ protected:
     }
 
     /**
+     * @brief Access the serial transport for Serial8 protocol
+     * @return Reference to ISerialTransport
+     */
+    hal::ISerialTransport& serial() {
+        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        assert(apis_->serial && "ISerialTransport not available");
+        return *apis_->serial;
+    }
+
+    /**
      * @brief Access the event bus for pub/sub messaging
      * @return Reference to IEventBus
      */
@@ -416,6 +427,12 @@ protected:
      * @return true if MIDI can be used
      */
     bool hasMidi() const { return apis_->midi != nullptr; }
+
+    /**
+     * @brief Check if ISerialTransport is available
+     * @return true if serial can be used
+     */
+    bool hasSerial() const { return apis_->serial != nullptr; }
 
 private:
     const APIs* apis_ = nullptr;  ///< Injected API references (set by ContextManager)

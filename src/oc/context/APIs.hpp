@@ -8,6 +8,10 @@ class EncoderAPI;
 class MidiAPI;
 }  // namespace oc::api
 
+namespace oc::hal {
+class ISerialTransport;
+}  // namespace oc::hal
+
 namespace oc::context {
 
 class IContextSwitcher;
@@ -71,6 +75,14 @@ struct APIs {
      * May be nullptr if MIDI is not configured.
      */
     api::MidiAPI* midi = nullptr;
+
+    /**
+     * @brief Serial transport API (optional)
+     *
+     * Provides serial communication with COBS framing.
+     * May be nullptr if serial is not configured.
+     */
+    hal::ISerialTransport* serial = nullptr;
 
     /**
      * @brief Context switching interface (optional)

@@ -15,6 +15,7 @@
 #include <oc/hal/IDisplayDriver.hpp>
 #include <oc/hal/IEncoderController.hpp>
 #include <oc/hal/IMidiTransport.hpp>
+#include <oc/hal/ISerialTransport.hpp>
 #include <oc/hal/Types.hpp>
 
 namespace oc::app {
@@ -228,6 +229,7 @@ private:
     // Hardware (owned via unique_ptr)
     std::unique_ptr<hal::IDisplayDriver> display_;
     std::unique_ptr<hal::IMidiTransport> midi_;
+    std::unique_ptr<hal::ISerialTransport> serial_;
     std::unique_ptr<hal::IEncoderController> encoders_;
     std::unique_ptr<hal::IButtonController> buttons_;
 
