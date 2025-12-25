@@ -125,6 +125,8 @@ private:
 
     bool triggerScopedButtonBindings(hal::ButtonID buttonId, ButtonBindingType type);
     bool triggerGlobalButtonBindings(hal::ButtonID buttonId, ButtonBindingType type);
+    ScopeID triggerPressWithOwnership(hal::ButtonID buttonId);
+    bool triggerReleaseForOwner(hal::ButtonID buttonId, ScopeID owner);
     bool triggerScopedEncoderBindings(hal::EncoderID encoderId, float encoderValue);
     bool triggerGlobalEncoderBindings(hal::EncoderID encoderId, float encoderValue);
 
@@ -142,6 +144,7 @@ private:
     std::array<uint8_t, MAX_BUTTONS> button_tap_count_{};
     std::array<bool, MAX_BUTTONS> long_press_triggered_{};
     std::array<bool, MAX_BUTTONS> latch_states_{};
+    std::array<ScopeID, MAX_BUTTONS> button_press_owner_{};  ///< Scope that owns each button's press
 
     event::IEventBus& event_bus_;
     hal::TimeProvider time_provider_;
