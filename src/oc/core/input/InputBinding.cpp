@@ -61,22 +61,25 @@ void InputBinding::clearScope(ScopeID scope) {
         }
     }
 
-    // Clear ownership for buttons owned by this scope
+    // Clear ownership and latches for buttons owned by this scope
     for (size_t i = 0; i < MAX_BUTTONS; ++i) {
         if (button_press_owner_[i] == scope) {
             button_press_owner_[i] = 0;
+        }
+        if (latch_owner_[i] == scope) {
+            latch_owner_[i] = 0;
         }
     }
 }
 
 bool InputBinding::isLatched(hal::ButtonID btn) const {
     if (btn >= MAX_BUTTONS) return false;
-    return latch_states_[btn];
+    return latch_owner_[btn] != 0;
 }
 
-void InputBinding::setLatch(hal::ButtonID btn, bool latched) {
+void InputBinding::clearLatch(hal::ButtonID btn) {
     if (btn < MAX_BUTTONS) {
-        latch_states_[btn] = latched;
+        latch_owner_[btn] = 0;
     }
 }
 
@@ -95,6 +98,7 @@ void InputBinding::clearBindings() {
     button_bindings_.clear();
     encoder_bindings_.clear();
     button_press_owner_.fill(0);
+    latch_owner_.fill(0);
 }
 
 void InputBinding::setBindingsEnabled(bool enabled) { bindings_enabled_ = enabled; }
@@ -111,6 +115,7 @@ bool InputBinding::isButtonPressed(hal::ButtonID id) const {
 void InputBinding::clearButtonBindings() {
     button_bindings_.clear();
     button_press_owner_.fill(0);
+    latch_owner_.fill(0);
 }
 
 void InputBinding::clearEncoderBindings() {
@@ -126,10 +131,13 @@ void InputBinding::clearButtonScope(ScopeID scope) {
             ++it;
         }
     }
-    // Clear ownership for buttons owned by this scope
+    // Clear ownership and latches for buttons owned by this scope
     for (size_t i = 0; i < MAX_BUTTONS; ++i) {
         if (button_press_owner_[i] == scope) {
             button_press_owner_[i] = 0;
+        }
+        if (latch_owner_[i] == scope) {
+            latch_owner_[i] = 0;
         }
     }
 }
@@ -232,10 +240,9 @@ void InputBinding::onButtonPress(const Event& event) {
         button_tap_count_[buttonId] = 1;
     }
 
-    if (!latch_states_[buttonId]) {
-        // Capture ownership: the scope that handles press owns the button until release
-        button_press_owner_[buttonId] = triggerPressWithOwnership(buttonId);
-    }
+    // Scope-aware latch: exclude the scope that owns the latch, allow other scopes
+    ScopeID latchOwner = latch_owner_[buttonId];
+    button_press_owner_[buttonId] = triggerPressExcludingScope(buttonId, latchOwner);
 }
 
 void InputBinding::onButtonRelease(const Event& event) {
@@ -244,15 +251,13 @@ void InputBinding::onButtonRelease(const Event& event) {
     if (buttonId >= MAX_BUTTONS) return;
 
     const uint32_t now = current_time_;
-
     const uint32_t pressDuration = now - button_press_time_[buttonId];
-    const bool wasLatched = latch_states_[buttonId];
 
-    if (wasLatched) {
-        latch_states_[buttonId] = false;
-    }
+    ScopeID latchOwner = latch_owner_[buttonId];
+    ScopeID pressOwner = button_press_owner_[buttonId];
 
-    if (!wasLatched) {
+    // Combo detection only if not latched
+    if (latchOwner == 0) {
         checkAndTriggerCombosOnRelease(buttonId);
     }
 
@@ -260,33 +265,38 @@ void InputBinding::onButtonRelease(const Event& event) {
     button_release_time_[buttonId] = now;
     long_press_triggered_[buttonId] = false;
 
-    // Check if the owner scope has a latch binding for this button
-    // Use owner scope instead of isBindingActive() because the binding may have become
-    // inactive after press (e.g., press opened a new overlay that changed isActive state)
-    ScopeID owner = button_press_owner_[buttonId];
-    bool hasLatchBinding = false;
-    for (const auto& binding : button_bindings_) {
-        if (binding.buttonId == buttonId && binding.type == ButtonBindingType::PRESS && binding.latch &&
-            binding.enabled && (owner == 0 ? isBindingActive(binding) : binding.scopeId == owner)) {
-            hasLatchBinding = true;
-            break;
+    if (pressOwner != 0) {
+        // A scope handled the press - check if it should latch
+        bool shouldLatch = false;
+        for (const auto& binding : button_bindings_) {
+            if (binding.buttonId == buttonId && binding.type == ButtonBindingType::PRESS &&
+                binding.latch && binding.enabled && binding.scopeId == pressOwner) {
+                shouldLatch = true;
+                break;
+            }
         }
-    }
 
-    if (hasLatchBinding && !wasLatched && pressDuration < config_.latchThresholdMs) {
-        latch_states_[buttonId] = true;
-    } else {
-        // Respect ownership: release goes to the scope that handled the press
-        ScopeID owner = button_press_owner_[buttonId];
-        if (owner != 0 && triggerReleaseForOwner(buttonId, owner)) {
-            // Owner handled the release
+        if (shouldLatch && pressDuration < config_.latchThresholdMs) {
+            // Short press with latch binding - activate latch for this scope
+            latch_owner_[buttonId] = pressOwner;
         } else {
-            // No owner OR owner has no release handler - standard dispatch
-            // This handles: latch unlatch, press that opens new scope, global press
+            // Long press or no latch - trigger release
+            if (!triggerReleaseForOwner(buttonId, pressOwner)) {
+                triggerMatchingButtonBindings(buttonId, ButtonBindingType::RELEASE);
+            }
+        }
+    } else if (latchOwner != 0) {
+        // No press was triggered (was blocked by latch) - this is a latch release
+        if (!triggerReleaseForOwner(buttonId, latchOwner)) {
+            // Fallback: try any active release binding (e.g., child overlay with when())
             triggerMatchingButtonBindings(buttonId, ButtonBindingType::RELEASE);
         }
+        latch_owner_[buttonId] = 0;
+    } else {
+        // No press owner and no latch - global binding or nothing
+        triggerMatchingButtonBindings(buttonId, ButtonBindingType::RELEASE);
     }
-    // Clear ownership after release
+
     button_press_owner_[buttonId] = 0;
     checkAndTriggerDoubleTap(buttonId, now);
 }
@@ -327,14 +337,19 @@ bool InputBinding::triggerGlobalButtonBindings(hal::ButtonID buttonId, ButtonBin
 }
 
 ScopeID InputBinding::triggerPressWithOwnership(hal::ButtonID buttonId) {
+    return triggerPressExcludingScope(buttonId, 0);
+}
+
+ScopeID InputBinding::triggerPressExcludingScope(hal::ButtonID buttonId, ScopeID excludeScope) {
     if (!bindings_enabled_) return 0;
 
-    // Try scoped bindings first - return the scope that handled it
+    // Try scoped bindings first, excluding the latched scope
     for (auto& binding : button_bindings_) {
         if (!binding.enabled || binding.buttonId != buttonId) continue;
         if (binding.type != ButtonBindingType::PRESS) continue;
         if (binding.scopeId == 0) continue;
         if (!isBindingActive(binding)) continue;
+        if (excludeScope != 0 && binding.scopeId == excludeScope) continue;  // Skip latched scope
 
         if (binding.action) {
             binding.action();
@@ -353,7 +368,7 @@ bool InputBinding::triggerReleaseForOwner(hal::ButtonID buttonId, ScopeID owner)
         if (!binding.enabled || binding.buttonId != buttonId) continue;
         if (binding.type != ButtonBindingType::RELEASE) continue;
         if (binding.scopeId != owner) continue;
-        // Note: skip isActive check - owner always receives release
+        if (!isBindingActive(binding)) continue;  // Respect when() for fallback support
 
         if (binding.action) {
             binding.action();
@@ -378,8 +393,8 @@ bool InputBinding::triggerScopedEncoderBindings(hal::EncoderID encoderId, float 
         if (binding.type == EncoderBindingType::TURN_WHILE_PRESSED && binding.requiredButton.has_value()) {
             hal::ButtonID btn = *binding.requiredButton;
             bool isPressed = btn < MAX_BUTTONS && button_states_[btn];
-            bool isLatched = btn < MAX_BUTTONS && latch_states_[btn];
-            if (!isPressed && !isLatched) continue;
+            bool isLatchedBtn = btn < MAX_BUTTONS && latch_owner_[btn] != 0;
+            if (!isPressed && !isLatchedBtn) continue;
         }
 
         if (binding.action) {
@@ -402,8 +417,8 @@ bool InputBinding::triggerGlobalEncoderBindings(hal::EncoderID encoderId, float 
         if (binding.type == EncoderBindingType::TURN_WHILE_PRESSED && binding.requiredButton.has_value()) {
             hal::ButtonID btn = *binding.requiredButton;
             bool isPressed = btn < MAX_BUTTONS && button_states_[btn];
-            bool isLatched = btn < MAX_BUTTONS && latch_states_[btn];
-            if (!isPressed && !isLatched) continue;
+            bool isLatchedBtn = btn < MAX_BUTTONS && latch_owner_[btn] != 0;
+            if (!isPressed && !isLatchedBtn) continue;
         }
 
         if (binding.action) {

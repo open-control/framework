@@ -31,8 +31,8 @@ bool ButtonAPI::isLatched(hal::ButtonID id) const {
     return binding_.isLatched(id);
 }
 
-void ButtonAPI::setLatch(hal::ButtonID id, bool latched) {
-    binding_.setLatch(id, latched);
+void ButtonAPI::clearLatch(hal::ButtonID id) {
+    binding_.clearLatch(id);
 }
 
 }  // namespace oc::api

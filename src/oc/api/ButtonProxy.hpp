@@ -12,7 +12,7 @@ namespace oc::api {
  *
  * @code
  * // Via IContext:
- * button(BTN_1).setLatch(true);
+ * button(BTN_1).clearLatch();
  * if (button(BTN_1).isPressed()) { ... }
  *
  * // For when() predicates:
@@ -28,8 +28,8 @@ public:
     /// Check if button is in latched state
     bool isLatched() const { return api_.isLatched(id_); }
 
-    /// Set button latch state
-    void setLatch(bool latched) { api_.setLatch(id_, latched); }
+    /// Clear button latch state
+    void clearLatch() { api_.clearLatch(id_); }
 
     /// Check if button is currently pressed
     bool isPressed() const { return api_.isPressed(id_); }

@@ -54,9 +54,11 @@ public:
     /// Remove all bindings associated with a scope
     void clearScope(ScopeID scope);
 
-    /// Check if a button is in latched state
+    /// Check if a button is in latched state (by any scope)
     bool isLatched(hal::ButtonID btn) const;
-    void setLatch(hal::ButtonID btn, bool latched);
+
+    /// Clear latch for a button (regardless of which scope owns it)
+    void clearLatch(hal::ButtonID btn);
 
     /// Must be called periodically for long press detection
     void processTick();
@@ -126,6 +128,7 @@ private:
     bool triggerScopedButtonBindings(hal::ButtonID buttonId, ButtonBindingType type);
     bool triggerGlobalButtonBindings(hal::ButtonID buttonId, ButtonBindingType type);
     ScopeID triggerPressWithOwnership(hal::ButtonID buttonId);
+    ScopeID triggerPressExcludingScope(hal::ButtonID buttonId, ScopeID excludeScope);
     bool triggerReleaseForOwner(hal::ButtonID buttonId, ScopeID owner);
     bool triggerScopedEncoderBindings(hal::EncoderID encoderId, float encoderValue);
     bool triggerGlobalEncoderBindings(hal::EncoderID encoderId, float encoderValue);
@@ -143,7 +146,7 @@ private:
     std::array<uint32_t, MAX_BUTTONS> button_release_time_{};
     std::array<uint8_t, MAX_BUTTONS> button_tap_count_{};
     std::array<bool, MAX_BUTTONS> long_press_triggered_{};
-    std::array<bool, MAX_BUTTONS> latch_states_{};
+    std::array<ScopeID, MAX_BUTTONS> latch_owner_{};  ///< Scope that owns the latch (0 = not latched)
     std::array<ScopeID, MAX_BUTTONS> button_press_owner_{};  ///< Scope that owns each button's press
 
     event::IEventBus& event_bus_;

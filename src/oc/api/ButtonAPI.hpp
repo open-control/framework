@@ -39,7 +39,7 @@ inline constexpr bool is_button_id_v = detail::is_uint16_enum<T>::value;
  * @code
  * // Via IContext accessors:
  * onButton(BTN_1).press().then([this]{ doAction(); });
- * button(BTN_1).setLatch(true);
+ * button(BTN_1).clearLatch();  // Clear latch for a button
  * buttons().clearBindings();
  * @endcode
  */
@@ -107,10 +107,10 @@ public:
     template <typename EnumT, typename = std::enable_if_t<is_button_id_v<EnumT>>>
     bool isLatched(EnumT id) const { return isLatched(static_cast<hal::ButtonID>(id)); }
 
-    /// Set button latch state
-    void setLatch(hal::ButtonID id, bool latched);
+    /// Clear button latch state
+    void clearLatch(hal::ButtonID id);
     template <typename EnumT, typename = std::enable_if_t<is_button_id_v<EnumT>>>
-    void setLatch(EnumT id, bool latched) { setLatch(static_cast<hal::ButtonID>(id), latched); }
+    void clearLatch(EnumT id) { clearLatch(static_cast<hal::ButtonID>(id)); }
 
 private:
     core::input::InputBinding& binding_;
