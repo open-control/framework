@@ -139,6 +139,24 @@ public:
     }
 
     /**
+     * @brief Resize the vector to n elements
+     *
+     * If n < current size, truncates (elements beyond n are logically removed).
+     * If n > current size, extends with default-constructed elements.
+     * If n > MaxN, caps at MaxN.
+     *
+     * Notifies subscribers if size changed.
+     *
+     * @param n New size
+     */
+    void resize(size_t n) {
+        size_t newCount = (n > MaxN) ? MaxN : n;
+        if (newCount == count_) return;
+        count_ = static_cast<uint8_t>(newCount);
+        notify();
+    }
+
+    /**
      * @brief Set element at specific index
      *
      * Sets the value at the given index. If index >= current size,
