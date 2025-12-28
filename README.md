@@ -2,7 +2,7 @@
 
 **Hardware abstraction framework for building embedded controllers**
 
-[![Version](https://img.shields.io/badge/version-0.1.0--alpha-blue)]()
+[![Version](https://img.shields.io/badge/version-0.1.3-blue)]()
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)]()
 
 > **Alpha Software** - API may change.
@@ -13,7 +13,8 @@
 
 Provide a structured, portable foundation for building hardware controllers:
 - **Hardware agnostic** - HAL abstracts platform specifics
-- **Protocol flexible** - MIDI supported, OSC planned
+- **Protocol flexible** - MIDI and Serial8 (via bridge)
+- **Reactive state** - Signal-based state management with RAII subscriptions
 - **Scalable** - From simple 4-encoder boxes to complex instruments
 
 ---
@@ -30,6 +31,7 @@ Provide a structured, portable foundation for building hardware controllers:
 
 See [hal-teensy](https://github.com/open-control/hal-teensy):
 - USB MIDI native
+- USB Serial for high-bandwidth (via [oc-bridge](https://github.com/open-control/bridge))
 - ILI9341 display via [ILI9341_T4](https://github.com/vindar/ILI9341_T4) (DMA)
 - Rotary encoders via [EncoderTool](https://github.com/luni64/EncoderTool)
 
@@ -37,13 +39,18 @@ See [hal-teensy](https://github.com/open-control/hal-teensy):
 
 ## Features
 
-- **HAL Interfaces** - Abstract encoders, buttons, display, transport
-- **Multi-Protocol** - MIDI supported, OSC planned
+- **HAL Interfaces** - Abstract encoders, buttons, display, MIDI, serial transport
+- **Multi-Protocol** - MIDI SysEx and Serial8 (8-bit binary via bridge)
+- **Reactive State** - Signal<T>, SignalVector<T>, SignalWatcher with RAII subscriptions
+- **Result<T>** - Typed error handling (no exceptions)
+- **Settings<T>** - Persistent configuration with checksum and migration
+- **Logging** - Colored output with timestamps and {} formatting
 - **LVGL Integration** - Hardware-independent UI helpers ([ui-lvgl](https://github.com/open-control/ui-lvgl))
 - **Input Binding** - Fluent API with gestures (long press, double tap, combos)
 - **Encoder Modes** - Normalized, relative, raw with bounds and quantization
 - **Context System** - Application modes with clean lifecycle management
 - **Event Bus** - Typed, decoupled component communication
+- **COBS Codec** - Framing for serial communication
 
 ---
 
@@ -52,9 +59,21 @@ See [hal-teensy](https://github.com/open-control/hal-teensy):
 ```
 oc::
 ├── hal/          # Hardware abstraction interfaces
+│   ├── IButtonController, IEncoderController
+│   ├── IMidiTransport, ISerialTransport
+│   ├── IDisplayDriver, IStorageBackend
+│   └── Types.hpp
 ├── core/
 │   ├── event/    # EventBus, typed events
-│   └── input/    # InputBinding, EncoderLogic, Builders
+│   ├── input/    # InputBinding, EncoderLogic, Builders
+│   └── Result.hpp
+├── state/        # Reactive state management
+│   ├── Signal.hpp, SignalVector.hpp, SignalString.hpp
+│   ├── SignalWatcher.hpp, Bind.hpp
+│   └── Settings.hpp
+├── codec/        # Protocol codecs
+│   └── CobsCodec.hpp
+├── log/          # Logging API
 ├── context/      # IContext, ContextManager
 ├── api/          # ButtonAPI, EncoderAPI, MidiAPI
 └── app/          # OpenControlApp, AppBuilder
@@ -89,6 +108,192 @@ void loop() {
 ```
 
 > **Teensy users**: See [hal-teensy](https://github.com/open-control/hal-teensy) for a simplified `oc::teensy::AppBuilder` that auto-configures drivers.
+
+---
+
+## Reactive State (Signal)
+
+Signal<T> is the core reactive primitive for state management.
+
+### Basic Usage
+
+```cpp
+#include <oc/state/Signal.hpp>
+
+Signal<int> counter{0};
+
+// Subscribe (RAII auto-unsubscribe)
+auto sub = counter.subscribe([](const int& val) {
+    updateDisplay(val);
+});
+
+counter.set(42);  // Triggers callback
+// sub goes out of scope → auto-unsubscribe
+```
+
+### SignalVector
+
+Fixed-capacity reactive collection (zero heap allocation after construction):
+
+```cpp
+#include <oc/state/SignalVector.hpp>
+
+SignalVector<std::string, 32> deviceNames;
+
+auto sub = deviceNames.subscribe([]() {
+    rebuildList();  // Called on any structural change
+});
+
+// Update from handler
+deviceNames.set(names.data(), names.size());
+```
+
+### SignalWatcher
+
+Coalesce multiple signal changes into one callback:
+
+```cpp
+#include <oc/state/SignalWatcher.hpp>
+
+SignalWatcher watcher;
+
+// Watch multiple signals → one callback
+watcher.watchAll(
+    [this]() { updateUI(); },
+    state.name,
+    state.type,
+    state.enabled
+);
+
+// Or with groups for arrays
+auto& group = watcher.group([this]() { updateList(); });
+for (auto& signal : state.items) {
+    group.watch(signal);
+}
+```
+
+---
+
+## Result Error Handling
+
+Result<T> provides typed error handling without exceptions:
+
+```cpp
+#include <oc/core/Result.hpp>
+
+Result<void> initHardware() {
+    if (!device.detect()) {
+        return Result<void>::err(ErrorCode::HARDWARE_NOT_FOUND);
+    }
+    return Result<void>::ok();
+}
+
+// Usage
+auto result = initHardware();
+if (result.isErr()) {
+    OC_LOG_ERROR("Init failed: {}", errorCodeToString(result.error()));
+}
+```
+
+### Error Codes
+
+```cpp
+ErrorCode::HARDWARE_NOT_FOUND    // Device not detected
+ErrorCode::HARDWARE_INIT_FAILED  // Initialization failed
+ErrorCode::RESOURCE_EXHAUSTED    // No more capacity
+ErrorCode::INVALID_ARGUMENT      // Parameter out of range
+ErrorCode::STORAGE_CORRUPT       // Data integrity check failed
+// ... and more
+```
+
+---
+
+## Settings Persistence
+
+Settings<T> provides persistent configuration with checksum validation:
+
+```cpp
+#include <oc/state/Settings.hpp>
+
+struct MySettings {
+    uint8_t midiChannel = 1;
+    float volume = 0.5f;
+    char presetName[32] = "Default";
+};
+
+EEPROMBackend eeprom;
+Settings<MySettings> settings(eeprom, 0x0000, /*version=*/1);
+
+// Load (returns defaults on corruption/version mismatch)
+settings.load();
+
+// Read
+settings.get().midiChannel;
+
+// Modify (dirty tracking)
+settings.modify([](auto& s) { s.volume = 0.75f; });
+
+// Save (only if dirty)
+settings.save();
+```
+
+---
+
+## Logging
+
+Lightweight logging with colored output and timestamps:
+
+```cpp
+// In setup():
+#include <oc/teensy/TeensyOutput.hpp>
+oc::log::setOutput(oc::teensy::logOutput());
+
+// Anywhere:
+OC_LOG_DEBUG("Value: {}", x);   // [12ms] DEBUG: Value: 42  (cyan)
+OC_LOG_INFO("Boot OK");         // [15ms] INFO: Boot OK     (green)
+OC_LOG_WARN("Low: {}%", pct);   // [20ms] WARN: Low: 5%     (yellow)
+OC_LOG_ERROR("Fail: {}", msg);  // [25ms] ERROR: Fail: ...  (red)
+```
+
+Enable/disable via build flag: `-DOC_LOG`
+
+---
+
+## Serial Transport & COBS
+
+For high-bandwidth communication via [oc-bridge](https://github.com/open-control/bridge):
+
+### ISerialTransport
+
+```cpp
+#include <oc/hal/ISerialTransport.hpp>
+
+class MySerialTransport : public oc::hal::ISerialTransport {
+    void send(const uint8_t* data, size_t length) override {
+        // COBS-encode and transmit
+    }
+
+    void setOnReceive(ReceiveCallback cb) override {
+        onReceive_ = std::move(cb);
+    }
+};
+```
+
+### COBS Codec
+
+```cpp
+#include <oc/codec/CobsCodec.hpp>
+
+// Encode
+uint8_t encoded[oc::codec::cobsMaxEncodedSize(dataLen)];
+size_t encodedLen = oc::codec::cobsEncode(data, dataLen, encoded);
+
+// Streaming decode
+oc::codec::CobsDecoder<4096> decoder;
+decoder.feed(byte, [](const uint8_t* data, size_t len) {
+    processFrame(data, len);
+});
+```
 
 ---
 
@@ -163,6 +368,7 @@ onButton(BTN_1).press().scope(MENU_SCOPE).then([]{ /* scoped */ });
 button(BTN_1).isPressed();
 button(BTN_1).isLatched();
 button(BTN_1).setLatch(true);
+button(BTN_1).clearLatch();
 
 // Predicate for conditional bindings
 onEncoder(ENC_1).turn()
@@ -292,6 +498,7 @@ build_flags =
     -DOC_MAX_BUTTON_BINDINGS=64
     -DOC_MAX_ENCODER_BINDINGS=32
     -DOC_ENABLE_STATS=1
+    -DOC_LOG              ; Enable logging
 ```
 
 See [Configuration](https://github.com/open-control/framework/wiki/Configuration) for all options.
@@ -305,7 +512,17 @@ cd framework
 pio test -e native
 ```
 
-203 unit tests covering core components.
+200+ unit tests covering core components.
+
+---
+
+## Related Projects
+
+- [hal-teensy](https://github.com/open-control/hal-teensy) - Teensy 4.x HAL implementation
+- [ui-lvgl](https://github.com/open-control/ui-lvgl) - LVGL UI integration
+- [ui-lvgl-components](https://github.com/open-control/ui-lvgl-components) - Custom LVGL widgets
+- [protocol-codegen](https://github.com/open-control/protocol-codegen) - Protocol code generator
+- [bridge](https://github.com/open-control/bridge) - Serial-to-UDP bridge (Rust)
 
 ---
 
