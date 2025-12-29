@@ -496,16 +496,74 @@ void test_is_button_pressed() {
 // Latch State
 // ═══════════════════════════════════════════════════════════════════
 
-void test_latch_state() {
+void test_latch_state_via_binding() {
     InputBinding binding(bus, fakeTime.provider());
 
+    // Initially not latched
     TEST_ASSERT_FALSE(binding.isLatched(1));
 
-    binding.setLatch(1, true);
+    // Register a latch binding
+    ButtonBinding btn{};
+    btn.type = ButtonBindingType::PRESS;
+    btn.buttonId = 1;
+    btn.latch = true;
+    btn.scopeId = 100;  // Scoped binding
+    btn.action = []() { actionCount++; };
+    binding.registerButtonBinding(btn);
+
+    // Press and quick release (< latchThresholdMs) should activate latch
+    fakeTime.set(0);
+    bus.emit(ButtonPressEvent{1, true});
+
+    fakeTime.set(100);  // 100ms < 300ms threshold
+    bus.emit(ButtonReleaseEvent{1});
+
     TEST_ASSERT_TRUE(binding.isLatched(1));
 
-    binding.setLatch(1, false);
+    // clearLatch should release it
+    binding.clearLatch(1);
     TEST_ASSERT_FALSE(binding.isLatched(1));
+}
+
+void test_clearLatchesForScope() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    // Register latch bindings for two different scopes
+    ButtonBinding btn1{};
+    btn1.type = ButtonBindingType::PRESS;
+    btn1.buttonId = 1;
+    btn1.latch = true;
+    btn1.scopeId = 100;
+    btn1.action = []() {};
+    binding.registerButtonBinding(btn1);
+
+    ButtonBinding btn2{};
+    btn2.type = ButtonBindingType::PRESS;
+    btn2.buttonId = 2;
+    btn2.latch = true;
+    btn2.scopeId = 200;
+    btn2.action = []() {};
+    binding.registerButtonBinding(btn2);
+
+    // Activate both latches
+    fakeTime.set(0);
+    bus.emit(ButtonPressEvent{1, true});
+    fakeTime.set(100);
+    bus.emit(ButtonReleaseEvent{1});
+
+    fakeTime.set(200);
+    bus.emit(ButtonPressEvent{2, true});
+    fakeTime.set(300);
+    bus.emit(ButtonReleaseEvent{2});
+
+    TEST_ASSERT_TRUE(binding.isLatched(1));
+    TEST_ASSERT_TRUE(binding.isLatched(2));
+
+    // Clear latches for scope 100 only
+    binding.clearLatchesForScope(100);
+
+    TEST_ASSERT_FALSE(binding.isLatched(1));  // Cleared
+    TEST_ASSERT_TRUE(binding.isLatched(2));   // Still latched (different scope)
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -686,7 +744,8 @@ int main(int argc, char **argv) {
 
     // State
     RUN_TEST(test_is_button_pressed);
-    RUN_TEST(test_latch_state);
+    RUN_TEST(test_latch_state_via_binding);
+    RUN_TEST(test_clearLatchesForScope);
 
     // Priority
     RUN_TEST(test_priority_higher_triggers_first);

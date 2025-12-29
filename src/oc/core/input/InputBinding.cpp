@@ -83,6 +83,14 @@ void InputBinding::clearLatch(hal::ButtonID btn) {
     }
 }
 
+void InputBinding::clearLatchesForScope(ScopeID scope) {
+    for (size_t i = 0; i < MAX_BUTTONS; ++i) {
+        if (latch_owner_[i] == scope) {
+            latch_owner_[i] = 0;
+        }
+    }
+}
+
 void InputBinding::processTick() {
     if (time_provider_) {
         current_time_ = time_provider_();

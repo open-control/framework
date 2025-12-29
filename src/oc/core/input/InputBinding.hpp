@@ -60,6 +60,9 @@ public:
     /// Clear latch for a button (regardless of which scope owns it)
     void clearLatch(hal::ButtonID btn);
 
+    /// Clear all latches owned by a specific scope
+    void clearLatchesForScope(ScopeID scope);
+
     /// Must be called periodically for long press detection
     void processTick();
     void clearBindings();
