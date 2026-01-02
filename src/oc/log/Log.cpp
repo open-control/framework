@@ -7,6 +7,7 @@
  */
 
 #include <oc/log/Log.hpp>
+#include <oc/time/Time.hpp>
 
 namespace oc::log {
 
@@ -82,6 +83,10 @@ void print(bool value) {
 }
 
 uint32_t getTimeMs() {
+    // Prefer oc::time if configured, fallback to Output for backwards compatibility
+    if (oc::time::isConfigured()) {
+        return oc::time::millis();
+    }
     return g_output.getTimeMs();
 }
 
