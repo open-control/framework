@@ -2,6 +2,7 @@
 
 #include <type_traits>
 
+#include <oc/core/input/AuthorityResolver.hpp>
 #include <oc/core/input/ButtonBuilder.hpp>
 #include <oc/core/struct/Binding.hpp>
 #include <oc/hal/IButtonController.hpp>
@@ -73,6 +74,16 @@ public:
 
     /// Clear button bindings in a specific scope
     void clearScope(core::ScopeID scope);
+
+    /**
+     * @brief Set the authority resolver for scope-based input filtering
+     *
+     * When set, scoped bindings will only trigger if their scope has authority.
+     * This prevents multiple overlays from receiving the same input events.
+     *
+     * @param resolver Pointer to the authority resolver (nullptr to disable)
+     */
+    void setAuthorityResolver(const core::input::AuthorityResolver* resolver);
 
     // ═══════════════════════════════════════════════════
     // Button state

@@ -6,6 +6,7 @@
 
 #include <oc/Config.hpp>
 #include <oc/core/event/IEventBus.hpp>
+#include <oc/core/input/AuthorityResolver.hpp>
 #include <oc/core/input/InputConfig.hpp>
 #include <oc/core/struct/Binding.hpp>
 #include <oc/hal/Types.hpp>
@@ -67,6 +68,17 @@ public:
     void processTick();
     void clearBindings();
     void setBindingsEnabled(bool enabled);
+
+    /**
+     * @brief Set the authority resolver for scope-based input filtering
+     *
+     * When set, scoped bindings will only trigger if their scope has authority
+     * according to the resolver. This prevents multiple overlays from receiving
+     * the same input events.
+     *
+     * @param resolver Pointer to the authority resolver (nullptr to disable)
+     */
+    void setAuthorityResolver(const AuthorityResolver* resolver);
 
     // ═══════════════════════════════════════════════════
     // Separate button/encoder operations (for ButtonAPI/EncoderAPI)
@@ -138,6 +150,7 @@ private:
 
     bool isBindingActive(const ButtonBinding& binding) const;
     bool isBindingActive(const EncoderBinding& binding) const;
+    bool hasAuthority(ScopeID scope) const;
 
     void checkAndTriggerLongPress(hal::ButtonID buttonId, uint32_t now);
     void checkAndTriggerDoubleTap(hal::ButtonID buttonId, uint32_t now);
@@ -162,6 +175,7 @@ private:
     bool bindings_enabled_ = true;
     uint32_t current_time_ = 0;
     BindingID next_binding_id_ = 1;  ///< Next ID to assign (0 = invalid)
+    const AuthorityResolver* authority_resolver_ = nullptr;  ///< Optional authority check
 };
 
 }  // namespace oc::core::input

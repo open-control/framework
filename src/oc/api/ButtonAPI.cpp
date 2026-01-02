@@ -19,6 +19,10 @@ void ButtonAPI::clearScope(core::ScopeID scope) {
     binding_.clearButtonScope(scope);
 }
 
+void ButtonAPI::setAuthorityResolver(const core::input::AuthorityResolver* resolver) {
+    binding_.setAuthorityResolver(resolver);
+}
+
 bool ButtonAPI::isPressed(hal::ButtonID id) const {
     return hw_.isPressed(id);
 }

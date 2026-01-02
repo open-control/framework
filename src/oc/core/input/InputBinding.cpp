@@ -111,6 +111,10 @@ void InputBinding::clearBindings() {
 
 void InputBinding::setBindingsEnabled(bool enabled) { bindings_enabled_ = enabled; }
 
+void InputBinding::setAuthorityResolver(const AuthorityResolver* resolver) {
+    authority_resolver_ = resolver;
+}
+
 // ═══════════════════════════════════════════════════
 // Separate button/encoder operations
 // ═══════════════════════════════════════════════════
@@ -318,6 +322,7 @@ bool InputBinding::triggerScopedButtonBindings(hal::ButtonID buttonId, ButtonBin
         if (!binding.enabled || binding.buttonId != buttonId || binding.type != type) continue;
         if (binding.scopeId == 0) continue;
         if (!isBindingActive(binding)) continue;
+        if (!hasAuthority(binding.scopeId)) continue;  // Skip if scope lacks authority
 
         if (binding.action) {
             binding.action();
@@ -357,6 +362,7 @@ ScopeID InputBinding::triggerPressExcludingScope(hal::ButtonID buttonId, ScopeID
         if (binding.type != ButtonBindingType::PRESS) continue;
         if (binding.scopeId == 0) continue;
         if (!isBindingActive(binding)) continue;
+        if (!hasAuthority(binding.scopeId)) continue;  // Skip if scope lacks authority
         if (excludeScope != 0 && binding.scopeId == excludeScope) continue;  // Skip latched scope
 
         if (binding.action) {
@@ -377,6 +383,7 @@ bool InputBinding::triggerReleaseForOwner(hal::ButtonID buttonId, ScopeID owner)
         if (binding.type != ButtonBindingType::RELEASE) continue;
         if (binding.scopeId != owner) continue;
         if (!isBindingActive(binding)) continue;  // Respect when() for fallback support
+        if (!hasAuthority(binding.scopeId)) continue;  // Skip if scope lacks authority
 
         if (binding.action) {
             binding.action();
@@ -397,6 +404,7 @@ bool InputBinding::triggerScopedEncoderBindings(hal::EncoderID encoderId, float 
         if (!binding.enabled || binding.encoderId != encoderId) continue;
         if (binding.scopeId == 0) continue;
         if (!isBindingActive(binding)) continue;
+        if (!hasAuthority(binding.scopeId)) continue;  // Skip if scope lacks authority
 
         if (binding.type == EncoderBindingType::TURN_WHILE_PRESSED && binding.requiredButton.has_value()) {
             hal::ButtonID btn = *binding.requiredButton;
@@ -581,6 +589,21 @@ bool InputBinding::isBindingActive(const EncoderBinding& binding) const {
     // when() predicate is respected for both scoped and global bindings
     if (!binding.isActive) return true;  // nullptr = always active
     return binding.isActive();
+}
+
+bool InputBinding::hasAuthority(ScopeID scope) const {
+    // If no resolver configured, all scopes have authority (backwards compatible)
+    if (!authority_resolver_) return true;
+
+    // Get current authority (top overlay scope, or 0 if none)
+    ScopeID authority = authority_resolver_->getAuthority();
+
+    // If no overlay has authority (authority == 0), all scopes can receive input
+    // This allows view-level and global bindings to work when no overlay is active
+    if (authority == 0) return true;
+
+    // When an overlay is active, only bindings in that scope can receive input
+    return scope == authority;
 }
 
 }  // namespace oc::core::input
