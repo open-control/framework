@@ -138,6 +138,20 @@ public:
     }
 
     /**
+     * @brief Register a context with a custom factory function
+     * @tparam ID Enum type convertible to uint8_t
+     * @param id Context identifier
+     * @param name Human-readable name
+     * @param factory Factory function that creates the context
+     * @return true if registration succeeded
+     */
+    template <typename ID>
+    bool registerContextWithFactory(ID id, const char* name,
+                                    context::ContextManager::ContextFactory factory) {
+        return contexts_->registerContextWithFactory(id, name, std::move(factory));
+    }
+
+    /**
      * @brief Switch to a context by ID
      * @tparam ID Enum type convertible to uint8_t
      * @param id Context identifier

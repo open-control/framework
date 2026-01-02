@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <type_traits>
@@ -84,7 +85,8 @@ struct has_load_resources<T, std::void_t<decltype(T::loadResources())>> : std::t
 class ContextManager : public IContextSwitcher {
 public:
     /// @brief Factory function type for creating context instances
-    using ContextFactory = std::unique_ptr<IContext> (*)();
+    /// Uses std::function to support lambdas with captures
+    using ContextFactory = std::function<std::unique_ptr<IContext>()>;
 
     /**
      * @brief Construct a ContextManager with API references
@@ -157,6 +159,45 @@ public:
         factories_[idx] = []() -> std::unique_ptr<IContext> {
             return std::make_unique<T>();
         };
+        names_[idx] = name;
+
+        registered_count_++;
+        if (default_id_ == INVALID_CONTEXT_ID) {
+            default_id_ = idx;
+        }
+        return true;
+    }
+
+    /**
+     * @brief Register a context with a custom factory function
+     *
+     * Use this variant when the context requires constructor arguments
+     * (e.g., external state references).
+     *
+     * @tparam ID Enum class or integral type for context IDs
+     * @param id Unique identifier for this context (0-15)
+     * @param name Human-readable name for UI/debugging
+     * @param factory Factory function that creates the context instance
+     * @return true if registration succeeded
+     *
+     * @code
+     * manager.registerContextWithFactory(
+     *     ContextID::STANDALONE,
+     *     "Standalone",
+     *     [&state]() { return std::make_unique<StandaloneContext>(state); }
+     * );
+     * @endcode
+     */
+    template <typename ID>
+    bool registerContextWithFactory(ID id, const char* name, ContextFactory factory) {
+        static_assert(std::is_enum_v<ID> || std::is_integral_v<ID>,
+                      "ID must be an enum or integral type");
+
+        const uint8_t idx = static_cast<uint8_t>(id);
+        if (idx >= MAX_CONTEXTS) return false;
+        if (factories_[idx] != nullptr) return false;
+
+        factories_[idx] = std::move(factory);
         names_[idx] = name;
 
         registered_count_++;
