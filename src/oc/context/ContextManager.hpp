@@ -149,6 +149,10 @@ public:
                 core::warn("[ContextManager] Context requires MidiAPI but none provided");
                 return false;
             }
+            if (T::REQUIRES.serial && !apis_.serial) {
+                core::warn("[ContextManager] Context requires ISerialTransport but none provided");
+                return false;
+            }
         }
 
         // Load static resources if context defines loadResources()
