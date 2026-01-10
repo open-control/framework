@@ -51,6 +51,14 @@ class AppBuilder {
 public:
     AppBuilder() = default;
 
+    // Non-copyable (contains unique_ptrs)
+    AppBuilder(const AppBuilder&) = delete;
+    AppBuilder& operator=(const AppBuilder&) = delete;
+
+    // Moveable
+    AppBuilder(AppBuilder&&) = default;
+    AppBuilder& operator=(AppBuilder&&) = default;
+
     AppBuilder& display(std::unique_ptr<hal::IDisplayDriver> driver);
     AppBuilder& midi(std::unique_ptr<hal::IMidiTransport> transport);
     AppBuilder& serial(std::unique_ptr<hal::ISerialTransport> transport);
