@@ -17,8 +17,8 @@ AppBuilder& AppBuilder::midi(std::unique_ptr<hal::IMidiTransport> transport) {
     return *this;
 }
 
-AppBuilder& AppBuilder::serial(std::unique_ptr<hal::ISerialTransport> transport) {
-    serial_ = std::move(transport);
+AppBuilder& AppBuilder::frames(std::unique_ptr<hal::IFrameTransport> transport) {
+    frames_ = std::move(transport);
     return *this;
 }
 
@@ -51,7 +51,7 @@ OpenControlApp AppBuilder::build() {
     // Transfer hardware ownership
     app.display_ = std::move(display_);
     app.midi_ = std::move(midi_);
-    app.serial_ = std::move(serial_);
+    app.frames_ = std::move(frames_);
     app.encoders_ = std::move(encoders_);
     app.buttons_ = std::move(buttons_);
     app.input_config_ = input_config_;
@@ -82,7 +82,7 @@ OpenControlApp AppBuilder::build() {
     app.apis_->button = app.button_api_.get();
     app.apis_->encoder = app.encoder_api_.get();
     app.apis_->midi = app.midi_api_.get();
-    app.apis_->serial = app.serial_.get();
+    app.apis_->frames = app.frames_.get();
 
     // Create ContextManager with APIs reference
     app.contexts_ = std::make_unique<context::ContextManager>(*app.apis_);

@@ -9,7 +9,7 @@ class MidiAPI;
 }  // namespace oc::api
 
 namespace oc::hal {
-class ISerialTransport;
+class IFrameTransport;
 }  // namespace oc::hal
 
 namespace oc::context {
@@ -77,12 +77,12 @@ struct APIs {
     api::MidiAPI* midi = nullptr;
 
     /**
-     * @brief Serial transport API (optional)
+     * @brief Frame transport API (optional)
      *
-     * Provides serial communication with COBS framing.
-     * May be nullptr if serial is not configured.
+     * Provides frame-based communication for protocols.
+     * May be nullptr if frame transport is not configured.
      */
-    hal::ISerialTransport* serial = nullptr;
+    hal::IFrameTransport* frames = nullptr;
 
     /**
      * @brief Context switching interface (optional)

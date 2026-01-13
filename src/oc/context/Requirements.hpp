@@ -25,7 +25,7 @@ struct Requirements {
     bool button = false;
     bool encoder = false;
     bool midi = false;
-    bool serial = false;
+    bool frames = false;
 };
 
 /**

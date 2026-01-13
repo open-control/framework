@@ -24,7 +24,7 @@ void OpenControlApp::begin() {
     // Initialize hardware components
     if (display_) check(display_->init(), "Display");
     if (midi_) check(midi_->init(), "MIDI");
-    if (serial_) check(serial_->init(), "Serial");
+    if (frames_) check(frames_->init(), "Serial");
     if (encoders_) check(encoders_->init(), "Encoders");
     if (buttons_) check(buttons_->init(), "Buttons");
 
@@ -74,8 +74,8 @@ void OpenControlApp::update() {
     if (midi_) {
         midi_->update();
     }
-    if (serial_) {
-        serial_->update();
+    if (frames_) {
+        frames_->update();
     }
     if (encoders_) {
         encoders_->update();

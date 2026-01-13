@@ -9,24 +9,25 @@
 namespace oc::hal {
 
 /**
- * @brief Interface for Serial I/O abstraction
+ * @brief Interface for frame-based transport abstraction
  *
- * Provides a platform-agnostic interface for serial communication.
- * Used by Serial8Protocol for binary message transport.
+ * Provides a platform-agnostic interface for sending and receiving
+ * complete binary frames. Used by protocol layers (e.g., BitwigProtocol)
+ * for structured communication.
  *
- * The implementation handles:
- * - COBS framing (encode on send, decode on receive)
- * - Buffering and packetization
+ * Implementations handle their own framing internally:
+ * - Stream transports (Serial, UART): use COBS encoding
+ * - Datagram transports (UDP): frames are datagrams (no encoding needed)
  *
- * @note This is for raw byte transport. Protocol encoding (8-bit binary)
+ * @note This is for raw frame transport. Protocol encoding
  *       is handled by the protocol layer above.
  */
-class ISerialTransport {
+class IFrameTransport {
 public:
-    virtual ~ISerialTransport() = default;
+    virtual ~IFrameTransport() = default;
 
     /**
-     * @brief Initialize serial hardware
+     * @brief Initialize transport hardware
      * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
     virtual core::Result<void> init() = 0;
@@ -35,7 +36,7 @@ public:
      * @brief Poll for incoming data
      *
      * Should be called regularly (e.g., in main loop).
-     * Reads available bytes, decodes COBS frames, and invokes callbacks.
+     * Reads available data and invokes callbacks for complete frames.
      */
     virtual void update() = 0;
 
@@ -46,7 +47,7 @@ public:
     /**
      * @brief Send a complete frame
      *
-     * The implementation will COBS-encode the data and transmit.
+     * The implementation handles framing as needed for the transport.
      *
      * @param data Pointer to frame data
      * @param length Number of bytes to send
@@ -62,9 +63,9 @@ public:
     /**
      * @brief Set callback for received frames
      *
-     * Called when a complete COBS frame is decoded.
+     * Called when a complete frame is received.
      *
-     * @param cb Callback function receiving decoded frame data
+     * @param cb Callback function receiving frame data
      */
     virtual void setOnReceive(ReceiveCallback cb) = 0;
 };

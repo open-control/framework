@@ -10,7 +10,7 @@
  * Architecture:
  * - Framework defines Output interface (struct of function pointers)
  * - HAL provides implementation (e.g., TeensyOutput with Serial)
- * - Consumer configures at boot: oc::log::setOutput(oc::teensy::logOutput())
+ * - Consumer configures at boot: oc::log::setOutput(oc::hal::teensy::logOutput())
  *
  * Features:
  * - Colored output (ANSI) by log level
@@ -21,8 +21,8 @@
  *
  * @code
  * // In main.cpp setup():
- * #include <oc/teensy/TeensyOutput.hpp>
- * oc::log::setOutput(oc::teensy::logOutput());
+ * #include <oc/hal/teensy/TeensyOutput.hpp>
+ * oc::log::setOutput(oc::hal::teensy::logOutput());
  *
  * // Then anywhere:
  * OC_LOG_DEBUG("Value: {}", x);     // [12ms] DEBUG: Value: 42 (cyan)
