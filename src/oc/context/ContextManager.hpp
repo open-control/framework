@@ -150,7 +150,7 @@ public:
                 return false;
             }
             if (T::REQUIRES.frames && !apis_.frames) {
-                core::warn("[ContextManager] Context requires IFrameTransport but none provided");
+                core::warn("[ContextManager] Context requires IMessageTransport but none provided");
                 return false;
             }
         }

@@ -9,7 +9,7 @@ class MidiAPI;
 }  // namespace oc::api
 
 namespace oc::hal {
-class IFrameTransport;
+class IMessageTransport;
 }  // namespace oc::hal
 
 namespace oc::context {
@@ -82,7 +82,7 @@ struct APIs {
      * Provides frame-based communication for protocols.
      * May be nullptr if frame transport is not configured.
      */
-    hal::IFrameTransport* frames = nullptr;
+    hal::IMessageTransport* frames = nullptr;
 
     /**
      * @brief Context switching interface (optional)

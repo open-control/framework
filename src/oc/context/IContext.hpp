@@ -11,7 +11,7 @@
 #include <oc/context/IContextSwitcher.hpp>
 #include <oc/core/input/ButtonBuilder.hpp>
 #include <oc/core/input/EncoderBuilder.hpp>
-#include <oc/hal/IFrameTransport.hpp>
+#include <oc/hal/IMessageTransport.hpp>
 
 namespace oc::context {
 
@@ -270,11 +270,11 @@ protected:
 
     /**
      * @brief Access the frame transport for protocol communication
-     * @return Reference to IFrameTransport
+     * @return Reference to IMessageTransport
      */
-    hal::IFrameTransport& frames() {
+    hal::IMessageTransport& frames() {
         assert(apis_ && "setAPIs() not called - context not properly initialized");
-        assert(apis_->frames && "IFrameTransport not available");
+        assert(apis_->frames && "IMessageTransport not available");
         return *apis_->frames;
     }
 
@@ -429,7 +429,7 @@ protected:
     bool hasMidi() const { return apis_->midi != nullptr; }
 
     /**
-     * @brief Check if IFrameTransport is available
+     * @brief Check if IMessageTransport is available
      * @return true if frames can be used
      */
     bool hasFrames() const { return apis_->frames != nullptr; }

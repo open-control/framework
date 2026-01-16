@@ -22,9 +22,9 @@ namespace oc::hal {
  * @note This is for raw frame transport. Protocol encoding
  *       is handled by the protocol layer above.
  */
-class IFrameTransport {
+class IMessageTransport {
 public:
-    virtual ~IFrameTransport() = default;
+    virtual ~IMessageTransport() = default;
 
     /**
      * @brief Initialize transport hardware
@@ -68,6 +68,20 @@ public:
      * @param cb Callback function receiving frame data
      */
     virtual void setOnReceive(ReceiveCallback cb) = 0;
+
+    // ═══════════════════════════════════════════════════
+    // Connection state (optional, with defaults for retrocompat)
+    // ═══════════════════════════════════════════════════
+
+    /**
+     * @brief Check if transport is ready to send/receive
+     *
+     * For connection-oriented transports (WebSocket), indicates if connected.
+     * For connectionless transports (UDP, Serial), always returns true.
+     *
+     * @return true if transport is operational
+     */
+    virtual bool isReady() const { return true; }
 };
 
 }  // namespace oc::hal

@@ -104,6 +104,13 @@ inline void print(unsigned value) { print(static_cast<uint32_t>(value)); }
 inline void print(size_t value) { print(static_cast<uint32_t>(value)); }
 #endif
 
+// Handle long/unsigned long - distinct types from int32_t/uint32_t on some platforms
+// (e.g., Emscripten WASM, some 32-bit Unix systems)
+#if LONG_MAX == INT32_MAX && !defined(__arm__)
+inline void print(long value)          { print(static_cast<int32_t>(value)); }
+inline void print(unsigned long value) { print(static_cast<uint32_t>(value)); }
+#endif
+
 // =============================================================================
 // ANSI Color Codes
 // =============================================================================
