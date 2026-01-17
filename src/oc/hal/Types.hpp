@@ -40,19 +40,6 @@ struct Rect {
 };
 
 /**
- * @brief GPIO pin configuration
- */
-struct GpioPin {
-    enum class Source : uint8_t {
-        MCU,  ///< Direct MCU GPIO
-        MUX   ///< Via multiplexer
-    };
-
-    uint8_t pin{};
-    Source source = Source::MCU;
-};
-
-/**
  * @brief Callback for button events
  */
 using ButtonCallback = std::function<void(ButtonID, ButtonEvent)>;
