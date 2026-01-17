@@ -7,7 +7,7 @@
 #include <oc/hal/IDisplayDriver.hpp>
 #include <oc/hal/IEncoderController.hpp>
 #include <oc/hal/IMidiTransport.hpp>
-#include <oc/hal/IMessageTransport.hpp>
+#include <oc/hal/IFrameTransport.hpp>
 #include <oc/hal/Types.hpp>
 
 namespace oc::app {
@@ -61,7 +61,7 @@ public:
 
     AppBuilder& display(std::unique_ptr<hal::IDisplayDriver> driver);
     AppBuilder& midi(std::unique_ptr<hal::IMidiTransport> transport);
-    AppBuilder& frames(std::unique_ptr<hal::IMessageTransport> transport);
+    AppBuilder& frames(std::unique_ptr<hal::IFrameTransport> transport);
     AppBuilder& encoders(std::unique_ptr<hal::IEncoderController> controller);
     AppBuilder& buttons(std::unique_ptr<hal::IButtonController> controller);
     AppBuilder& inputConfig(const core::InputConfig& config);
@@ -77,7 +77,7 @@ public:
 private:
     std::unique_ptr<hal::IDisplayDriver> display_;
     std::unique_ptr<hal::IMidiTransport> midi_;
-    std::unique_ptr<hal::IMessageTransport> frames_;
+    std::unique_ptr<hal::IFrameTransport> frames_;
     std::unique_ptr<hal::IEncoderController> encoders_;
     std::unique_ptr<hal::IButtonController> buttons_;
     core::InputConfig input_config_;

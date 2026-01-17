@@ -17,7 +17,7 @@ AppBuilder& AppBuilder::midi(std::unique_ptr<hal::IMidiTransport> transport) {
     return *this;
 }
 
-AppBuilder& AppBuilder::frames(std::unique_ptr<hal::IMessageTransport> transport) {
+AppBuilder& AppBuilder::frames(std::unique_ptr<hal::IFrameTransport> transport) {
     frames_ = std::move(transport);
     return *this;
 }

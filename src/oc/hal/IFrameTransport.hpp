@@ -22,9 +22,9 @@ namespace oc::hal {
  * @note This is for raw frame transport. Protocol encoding
  *       is handled by the protocol layer above.
  */
-class IMessageTransport {
+class IFrameTransport {
 public:
-    virtual ~IMessageTransport() = default;
+    virtual ~IFrameTransport() = default;
 
     /**
      * @brief Initialize transport hardware
