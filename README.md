@@ -13,7 +13,7 @@
 
 Provide a structured, portable foundation for building hardware controllers:
 - **Hardware agnostic** - HAL abstracts platform specifics
-- **Protocol flexible** - MIDI and Serial8 (via bridge)
+- **Protocol flexible** - MIDI and Binary (via bridge)
 - **Reactive state** - Signal-based state management with RAII subscriptions
 - **Scalable** - From simple 4-encoder boxes to complex instruments
 
@@ -40,7 +40,7 @@ See [hal-teensy](https://github.com/open-control/hal-teensy):
 ## Features
 
 - **HAL Interfaces** - Abstract encoders, buttons, display, MIDI, serial transport
-- **Multi-Protocol** - MIDI SysEx and Serial8 (8-bit binary via bridge)
+- **Multi-Protocol** - MIDI SysEx and Binary (8-bit via bridge)
 - **Reactive State** - Signal<T>, SignalVector<T>, SignalWatcher with RAII subscriptions
 - **Result<T>** - Typed error handling (no exceptions)
 - **Settings<T>** - Persistent configuration with checksum and migration
