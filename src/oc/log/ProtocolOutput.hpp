@@ -5,7 +5,7 @@
  * @brief Log output that sends messages via protocol transport
  *
  * Buffers log output and sends complete lines via a callback.
- * Compatible with any protocol transport (SysEx, Serial8, etc.).
+ * Compatible with any protocol transport (SysEx, Binary, etc.).
  *
  * Usage:
  * @code
