@@ -17,6 +17,8 @@ public:
     bool failWrite_ = false;
     bool failCommit_ = false;
 
+    bool begin() override { return true; }
+
     bool available() const override { return available_; }
 
     size_t read(uint32_t address, uint8_t* buffer, size_t size) override {

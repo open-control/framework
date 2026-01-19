@@ -29,6 +29,8 @@ public:
     std::array<uint8_t, 1024> storage{};
     int saveCount = 0;
 
+    bool begin() override { return true; }
+
     bool available() const override { return true; }
 
     size_t read(uint32_t address, uint8_t* buffer, size_t size) override {
