@@ -7,8 +7,12 @@
 #include <oc/Config.hpp>
 #include <oc/interface/IEventBus.hpp>
 #include <oc/core/input/AuthorityResolver.hpp>
+#include <oc/core/input/BindingRegistry.hpp>
+#include <oc/core/input/GestureDetector.hpp>
 #include <oc/core/input/InputConfig.hpp>
-#include <oc/core/struct/Binding.hpp>
+#include <oc/core/input/LatchManager.hpp>
+#include <oc/core/input/OwnershipTracker.hpp>
+#include <oc/core/input/Binding.hpp>
 #include <oc/types/Ids.hpp>
 #include <oc/types/Callbacks.hpp>
 #include <oc/types/Event.hpp>
@@ -132,40 +136,39 @@ public:
     const InputConfig& config() const { return config_; }
 
 private:
-    std::vector<ButtonBinding> button_bindings_;
-    std::vector<EncoderBinding> encoder_bindings_;
+    BindingRegistry<ButtonBinding> button_registry_;
+    BindingRegistry<EncoderBinding> encoder_registry_;
 
     void onEncoderChanged(const oc::Event& event);
     void onButtonPress(const oc::Event& event);
     void onButtonRelease(const oc::Event& event);
 
-    void triggerMatchingButtonBindings(ButtonID buttonId, ButtonBindingType type);
-    void triggerMatchingEncoderBindings(EncoderID encoderId, float encoderValue);
+    // Event dispatch
+    void dispatchButtonEvent(ButtonID id, ButtonBindingType type);
+    void dispatchEncoderEvent(EncoderID id, float value);
+    ScopeID dispatchPress(ButtonID id, ScopeID excludeScope = 0);
+    bool dispatchReleaseToScope(ButtonID id, ScopeID scope);
 
-    bool triggerScopedButtonBindings(ButtonID buttonId, ButtonBindingType type);
-    bool triggerGlobalButtonBindings(ButtonID buttonId, ButtonBindingType type);
-    ScopeID triggerPressWithOwnership(ButtonID buttonId);
-    ScopeID triggerPressExcludingScope(ButtonID buttonId, ScopeID excludeScope);
-    bool triggerReleaseForOwner(ButtonID buttonId, ScopeID owner);
-    bool triggerScopedEncoderBindings(EncoderID encoderId, float encoderValue);
-    bool triggerGlobalEncoderBindings(EncoderID encoderId, float encoderValue);
-
-    bool isBindingActive(const ButtonBinding& binding) const;
-    bool isBindingActive(const EncoderBinding& binding) const;
+    // Binding filters
+    template <typename BindingType>
+    bool isBindingActive(const BindingType& binding) const;
     bool hasAuthority(ScopeID scope) const;
+    bool checkRequiredButton(const EncoderBinding& binding) const;
 
-    void checkAndTriggerLongPress(ButtonID buttonId, uint32_t now);
-    void checkAndTriggerDoubleTap(ButtonID buttonId, uint32_t now);
-    void checkAndTriggerCombosOnRelease(ButtonID releasedButtonID);
-    bool isButtonComboActive(ButtonID btn1, ButtonID btn2) const;
+    // Gesture triggers
+    void checkLongPress(ButtonID id, uint32_t now);
+    void checkDoubleTap(ButtonID id, uint32_t now);
+    void checkCombo(ButtonID releasedId);
 
-    std::array<bool, MAX_BUTTONS> button_states_{};
-    std::array<uint32_t, MAX_BUTTONS> button_press_time_{};
-    std::array<uint32_t, MAX_BUTTONS> button_release_time_{};
-    std::array<uint8_t, MAX_BUTTONS> button_tap_count_{};
-    std::array<bool, MAX_BUTTONS> long_press_triggered_{};
-    std::array<ScopeID, MAX_BUTTONS> latch_owner_{};  ///< Scope that owns the latch (0 = not latched)
-    std::array<ScopeID, MAX_BUTTONS> button_press_owner_{};  ///< Scope that owns each button's press
+    // Release handling (decomposed from onButtonRelease)
+    void handleScopedRelease(ButtonID id, ScopeID pressOwner, uint32_t pressDuration);
+    void handleLatchedRelease(ButtonID id, ScopeID latchOwner);
+    bool shouldActivateLatch(ButtonID id, ScopeID pressOwner, uint32_t pressDuration) const;
+
+    // Subsystems
+    GestureDetector gesture_;
+    LatchManager latch_;
+    OwnershipTracker ownership_;
 
     interface::IEventBus& event_bus_;
     TimeProvider time_provider_;

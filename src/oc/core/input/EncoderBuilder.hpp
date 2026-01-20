@@ -1,11 +1,8 @@
 #pragma once
 
-#include <type_traits>
-#include <utility>
-
-#include <oc/core/Warning.hpp>
 #include <oc/core/input/BindingHandle.hpp>
-#include <oc/core/struct/Binding.hpp>
+#include <oc/core/input/Traits.hpp>
+#include <oc/core/input/Binding.hpp>
 #include <oc/types/Ids.hpp>
 #include <oc/types/Callbacks.hpp>
 
@@ -13,14 +10,6 @@ namespace oc::core::input {
 
 // Forward declaration
 class InputBinding;
-
-// SFINAE helper (same as in ButtonBuilder)
-template <typename T, typename = void>
-struct has_getIsActive_encoder : std::false_type {};
-
-template <typename T>
-struct has_getIsActive_encoder<T, std::void_t<decltype(std::declval<const T&>().getIsActive())>>
-    : std::true_type {};
 
 /**
  * @brief Fluent builder for encoder bindings
@@ -88,7 +77,7 @@ public:
     template <typename T>
     EncoderBuilder& scope(const T& provider) {
         scope_ = provider.getScopeID();
-        if constexpr (has_getIsActive_encoder<T>::value) {
+        if constexpr (has_getIsActive<T>::value) {
             isActive_ = provider.getIsActive();
         }
         return *this;

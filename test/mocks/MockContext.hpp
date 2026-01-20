@@ -2,6 +2,7 @@
 
 #include <oc/interface/IContext.hpp>
 #include <oc/context/Requirements.hpp>
+#include <oc/types/Result.hpp>
 
 namespace oc::test {
 
@@ -16,10 +17,13 @@ public:
         .midi = false
     };
 
-    bool initialize() override {
+    oc::Result<void> init() override {
         initialized_ = true;
         initialize_count_++;
-        return should_init_succeed_;
+        if (should_init_succeed_) {
+            return oc::Result<void>::ok();
+        }
+        return oc::Result<void>::err({oc::ErrorCode::CONTEXT_INIT_FAILED, "Mock init failed"});
     }
 
     void update() override {
@@ -71,7 +75,7 @@ public:
         .midi = false
     };
 
-    bool initialize() override { return true; }
+    oc::Result<void> init() override { return oc::Result<void>::ok(); }
     void update() override {}
     void cleanup() override {}
     const char* getName() const override { return "MockContextRequiresButton"; }
@@ -88,9 +92,9 @@ public:
         .midi = false
     };
 
-    bool initialize() override {
+    oc::Result<void> init() override {
         initialized_ = true;
-        return true;
+        return oc::Result<void>::ok();
     }
 
     void update() override {}

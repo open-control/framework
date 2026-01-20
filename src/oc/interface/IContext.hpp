@@ -8,6 +8,8 @@
  * onButton(), onEncoder(), etc., use ContextBase from context/ContextBase.hpp.
  */
 
+#include <oc/types/Result.hpp>
+
 // Forward declaration to avoid circular dependency
 namespace oc::context { struct APIs; }
 
@@ -29,7 +31,7 @@ namespace oc::interface {
  *
  * 1. **Construction**: Factory creates instance
  * 2. **setAPIs()**: Framework injects API references (on ContextBase)
- * 3. **initialize()**: Context sets up bindings and initial state
+ * 3. **init()**: Context sets up bindings and initial state
  * 4. **onConnected()**: Called after successful initialization
  * 5. **update()**: Called every frame while active
  * 6. **onDisconnected()**: Called before cleanup
@@ -62,9 +64,9 @@ public:
 
     /**
      * @brief Initialize the context
-     * @return true if initialization succeeded, false to trigger fallback
+     * @return Result<void> - ok() if initialization succeeded, err() to trigger fallback
      */
-    virtual bool initialize() = 0;
+    virtual oc::Result<void> init() = 0;
 
     /**
      * @brief Update the context (called every frame while active)

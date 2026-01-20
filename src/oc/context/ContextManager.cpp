@@ -5,7 +5,7 @@
 #include <oc/api/MidiAPI.hpp>
 #include <oc/core/event/Events.hpp>
 #include <oc/interface/IEventBus.hpp>
-#include <oc/core/Warning.hpp>
+#include <oc/log/Log.hpp>
 
 namespace oc::context {
 
@@ -65,19 +65,20 @@ bool ContextManager::switchToImpl(uint8_t id) {
         if (id != default_id_ && default_id_ != INVALID_CONTEXT_ID) {
             return switchToImpl(default_id_);
         }
-        core::warn("[ContextManager] CRITICAL: Default context failed to create");
+        OC_LOG_WARN("{}", "[ContextManager] CRITICAL: Default context failed to create");
         return false;
     }
 
     active_->setAPIs(apis_);
-    if (!active_->initialize()) {
+    auto initResult = active_->init();
+    if (!initResult) {
         emitError(id);
         active_.reset();
         active_id_ = INVALID_CONTEXT_ID;
         if (id != default_id_ && default_id_ != INVALID_CONTEXT_ID) {
             return switchToImpl(default_id_);
         }
-        core::warn("[ContextManager] CRITICAL: Default context failed to initialize");
+        OC_LOG_WARN("{}", "[ContextManager] CRITICAL: Default context failed to initialize");
         return false;
     }
 

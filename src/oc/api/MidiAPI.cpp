@@ -1,6 +1,6 @@
 #include "MidiAPI.hpp"
 
-#include <oc/core/Warning.hpp>
+#include <oc/log/Log.hpp>
 
 namespace oc::api {
 
@@ -9,7 +9,7 @@ namespace {
 /// Validate MIDI channel (0-15 for USB MIDI convention)
 bool validateChannel(uint8_t channel) {
     if (channel > 15) {
-        core::warn("[MidiAPI] Invalid channel (expected 0-15)");
+        OC_LOG_WARN("{}", "[MidiAPI] Invalid channel (expected 0-15)");
         return false;
     }
     return true;
@@ -18,7 +18,7 @@ bool validateChannel(uint8_t channel) {
 /// Validate 7-bit MIDI value (0-127)
 bool validate7bit(uint8_t value, const char* name) {
     if (value > 127) {
-        core::warn("[MidiAPI] Invalid value (expected 0-127)");
+        OC_LOG_WARN("{}", "[MidiAPI] Invalid value (expected 0-127)");
         return false;
     }
     return true;
@@ -27,7 +27,7 @@ bool validate7bit(uint8_t value, const char* name) {
 /// Validate pitch bend range (-8192 to 8191)
 bool validatePitchBend(int16_t value) {
     if (value < -8192 || value > 8191) {
-        core::warn("[MidiAPI] Invalid pitch bend (expected -8192 to 8191)");
+        OC_LOG_WARN("{}", "[MidiAPI] Invalid pitch bend (expected -8192 to 8191)");
         return false;
     }
     return true;
@@ -64,7 +64,7 @@ void MidiAPI::sendNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
 
 void MidiAPI::sendSysEx(const uint8_t* data, size_t length) {
     if (!data || length == 0) {
-        core::warn("[MidiAPI] Invalid SysEx data");
+        OC_LOG_WARN("{}", "[MidiAPI] Invalid SysEx data");
         return;
     }
     transport_.sendSysEx(data, length);

@@ -17,7 +17,7 @@ public:
     bool failWrite_ = false;
     bool failCommit_ = false;
 
-    bool begin() override { return true; }
+    oc::Result<void> init() override { return oc::Result<void>::ok(); }
 
     bool available() const override { return available_; }
 

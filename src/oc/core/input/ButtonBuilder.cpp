@@ -2,6 +2,7 @@
 
 #include "ComboBuilder.hpp"
 #include "InputBinding.hpp"
+#include <oc/log/Log.hpp>
 
 namespace oc::core::input {
 
@@ -10,7 +11,7 @@ ButtonBuilder::ButtonBuilder(InputBinding* registry, ButtonID buttonId)
 
 ButtonBuilder::~ButtonBuilder() {
     if (registry_ && !finalized_) {
-        warn("[ButtonBuilder] then() was never called - binding discarded");
+        OC_LOG_WARN("{}", "[ButtonBuilder] then() was never called - binding discarded");
     }
 }
 
@@ -47,7 +48,7 @@ ButtonBuilder& ButtonBuilder::operator=(ButtonBuilder&& other) noexcept {
 
 ButtonBuilder& ButtonBuilder::press() {
     if (gestureSet_) {
-        warn("[ButtonBuilder] Gesture already set - ignoring press()");
+        OC_LOG_WARN("{}", "[ButtonBuilder] Gesture already set - ignoring press()");
         return *this;
     }
     type_ = ButtonBindingType::PRESS;
@@ -57,7 +58,7 @@ ButtonBuilder& ButtonBuilder::press() {
 
 ButtonBuilder& ButtonBuilder::release() {
     if (gestureSet_) {
-        warn("[ButtonBuilder] Gesture already set - ignoring release()");
+        OC_LOG_WARN("{}", "[ButtonBuilder] Gesture already set - ignoring release()");
         return *this;
     }
     type_ = ButtonBindingType::RELEASE;
@@ -67,7 +68,7 @@ ButtonBuilder& ButtonBuilder::release() {
 
 ButtonBuilder& ButtonBuilder::longPress(uint32_t ms) {
     if (gestureSet_) {
-        warn("[ButtonBuilder] Gesture already set - ignoring longPress()");
+        OC_LOG_WARN("{}", "[ButtonBuilder] Gesture already set - ignoring longPress()");
         return *this;
     }
     type_ = ButtonBindingType::LONG_PRESS;
@@ -78,7 +79,7 @@ ButtonBuilder& ButtonBuilder::longPress(uint32_t ms) {
 
 ButtonBuilder& ButtonBuilder::doubleTap(uint32_t ms) {
     if (gestureSet_) {
-        warn("[ButtonBuilder] Gesture already set - ignoring doubleTap()");
+        OC_LOG_WARN("{}", "[ButtonBuilder] Gesture already set - ignoring doubleTap()");
         return *this;
     }
     type_ = ButtonBindingType::DOUBLE_TAP;
@@ -111,17 +112,17 @@ BindingHandle ButtonBuilder::then(ActionCallback cb) {
     finalized_ = true;
 
     if (!registry_) {
-        warn("[ButtonBuilder] Invalid registry - returning invalid handle");
+        OC_LOG_WARN("{}", "[ButtonBuilder] Invalid registry - returning invalid handle");
         return BindingHandle::invalid();
     }
 
     if (!gestureSet_) {
-        warn("[ButtonBuilder] No gesture set before then() - returning invalid handle");
+        OC_LOG_WARN("{}", "[ButtonBuilder] No gesture set before then() - returning invalid handle");
         return BindingHandle::invalid();
     }
 
     if (!cb) {
-        warn("[ButtonBuilder] Null callback - returning invalid handle");
+        OC_LOG_WARN("{}", "[ButtonBuilder] Null callback - returning invalid handle");
         return BindingHandle::invalid();
     }
 

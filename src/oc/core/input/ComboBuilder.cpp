@@ -1,6 +1,7 @@
 #include "ComboBuilder.hpp"
 
 #include "InputBinding.hpp"
+#include <oc/log/Log.hpp>
 
 namespace oc::core::input {
 
@@ -8,14 +9,14 @@ ComboBuilder::ComboBuilder(InputBinding* registry, ButtonID btn1, ButtonID btn2)
     : registry_(registry), btn1_(btn1), btn2_(btn2) {
     // Validate: combo with same button is invalid
     if (btn1 == btn2) {
-        warn("[ComboBuilder] Combo with same button is invalid");
+        OC_LOG_WARN("{}", "[ComboBuilder] Combo with same button is invalid");
         registry_ = nullptr;  // Mark as invalid
     }
 }
 
 ComboBuilder::~ComboBuilder() {
     if (registry_ && !finalized_) {
-        warn("[ComboBuilder] then() was never called - binding discarded");
+        OC_LOG_WARN("{}", "[ComboBuilder] then() was never called - binding discarded");
     }
 }
 
@@ -58,12 +59,12 @@ BindingHandle ComboBuilder::then(ActionCallback cb) {
     finalized_ = true;
 
     if (!registry_) {
-        warn("[ComboBuilder] Invalid registry - returning invalid handle");
+        OC_LOG_WARN("{}", "[ComboBuilder] Invalid registry - returning invalid handle");
         return BindingHandle::invalid();
     }
 
     if (!cb) {
-        warn("[ComboBuilder] Null callback - returning invalid handle");
+        OC_LOG_WARN("{}", "[ComboBuilder] Null callback - returning invalid handle");
         return BindingHandle::invalid();
     }
 

@@ -4,7 +4,7 @@
 
 #include <oc/core/input/AuthorityResolver.hpp>
 #include <oc/core/input/ButtonBuilder.hpp>
-#include <oc/core/struct/Binding.hpp>
+#include <oc/core/input/Binding.hpp>
 #include <oc/interface/IButton.hpp>
 #include <oc/types/Ids.hpp>
 #include <oc/types/Callbacks.hpp>

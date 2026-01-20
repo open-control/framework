@@ -3,7 +3,7 @@
 #include <type_traits>
 
 #include <oc/core/input/EncoderBuilder.hpp>
-#include <oc/core/struct/Binding.hpp>
+#include <oc/core/input/Binding.hpp>
 #include <oc/interface/IEncoder.hpp>
 #include <oc/types/Ids.hpp>
 #include <oc/types/Callbacks.hpp>

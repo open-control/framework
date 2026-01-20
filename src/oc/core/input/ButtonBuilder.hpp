@@ -1,11 +1,8 @@
 #pragma once
 
-#include <type_traits>
-#include <utility>
-
-#include <oc/core/Warning.hpp>
 #include <oc/core/input/BindingHandle.hpp>
-#include <oc/core/struct/Binding.hpp>
+#include <oc/core/input/Traits.hpp>
+#include <oc/core/input/Binding.hpp>
 #include <oc/types/Ids.hpp>
 #include <oc/types/Callbacks.hpp>
 
@@ -14,17 +11,6 @@ namespace oc::core::input {
 // Forward declarations
 class InputBinding;
 class ComboBuilder;
-
-// ═══════════════════════════════════════════════════
-// SFINAE helper for duck-typed scope providers
-// ═══════════════════════════════════════════════════
-
-template <typename T, typename = void>
-struct has_getIsActive : std::false_type {};
-
-template <typename T>
-struct has_getIsActive<T, std::void_t<decltype(std::declval<const T&>().getIsActive())>>
-    : std::true_type {};
 
 /**
  * @brief Fluent builder for button bindings

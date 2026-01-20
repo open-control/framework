@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <oc/types/Result.hpp>
+
 namespace oc::interface {
 
 /**
@@ -20,7 +22,7 @@ namespace oc::interface {
  * Usage:
  * @code
  * SDCardBackend storage("/settings.bin");
- * if (!storage.begin()) {
+ * if (!storage.init()) {
  *     // Handle init failure
  * }
  * storage.write(0x0000, data, size);
@@ -33,7 +35,7 @@ public:
 
     /**
      * @brief Initialize the storage backend
-     * @return true if initialization successful
+     * @return Result<void> - ok() if successful, err() with ErrorCode on failure
      *
      * Must be called before any read/write operations.
      * May mount filesystem, open files, or initialize hardware.
@@ -44,7 +46,7 @@ public:
      * - SD Card: Initializes SDIO, opens/creates file
      * - Native filesystem: Opens/creates file
      */
-    virtual bool begin() = 0;
+    virtual oc::Result<void> init() = 0;
 
     /**
      * @brief Check if storage is initialized and available

@@ -7,7 +7,7 @@ namespace oc::impl {
 
 class NullStorage : public interface::IStorage {
 public:
-    bool begin() override { return true; }
+    oc::Result<void> init() override { return oc::Result<void>::ok(); }
     bool available() const override { return true; }
 
     size_t read(uint32_t, uint8_t* buffer, size_t size) override {

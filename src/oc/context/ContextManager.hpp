@@ -14,7 +14,7 @@
 
 #include <oc/Config.hpp>
 #include <oc/types/Result.hpp>
-#include <oc/core/Warning.hpp>
+#include <oc/log/Log.hpp>
 
 namespace oc::context {
 
@@ -138,19 +138,19 @@ public:
         // Validate requirements if context defines them
         if constexpr (has_requirements<T>::value) {
             if (T::REQUIRES.button && !apis_.button) {
-                core::warn("[ContextManager] Context requires ButtonAPI but none provided");
+                OC_LOG_WARN("{}", "[ContextManager] Context requires ButtonAPI but none provided");
                 return false;
             }
             if (T::REQUIRES.encoder && !apis_.encoder) {
-                core::warn("[ContextManager] Context requires EncoderAPI but none provided");
+                OC_LOG_WARN("{}", "[ContextManager] Context requires EncoderAPI but none provided");
                 return false;
             }
             if (T::REQUIRES.midi && !apis_.midi) {
-                core::warn("[ContextManager] Context requires MidiAPI but none provided");
+                OC_LOG_WARN("{}", "[ContextManager] Context requires MidiAPI but none provided");
                 return false;
             }
             if (T::REQUIRES.frames && !apis_.frames) {
-                core::warn("[ContextManager] Context requires ITransport but none provided");
+                OC_LOG_WARN("{}", "[ContextManager] Context requires ITransport but none provided");
                 return false;
             }
         }

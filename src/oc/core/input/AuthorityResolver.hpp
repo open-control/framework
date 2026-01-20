@@ -18,7 +18,7 @@
 #include <functional>
 #include <vector>
 
-#include <oc/core/struct/Binding.hpp>
+#include <oc/core/input/Binding.hpp>
 
 namespace oc::core::input {
 

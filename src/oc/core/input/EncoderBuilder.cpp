@@ -1,6 +1,7 @@
 #include "EncoderBuilder.hpp"
 
 #include "InputBinding.hpp"
+#include <oc/log/Log.hpp>
 
 namespace oc::core::input {
 
@@ -9,7 +10,7 @@ EncoderBuilder::EncoderBuilder(InputBinding* registry, EncoderID encoderId)
 
 EncoderBuilder::~EncoderBuilder() {
     if (registry_ && !finalized_) {
-        warn("[EncoderBuilder] then() was never called - binding discarded");
+        OC_LOG_WARN("{}", "[EncoderBuilder] then() was never called - binding discarded");
     }
 }
 
@@ -40,7 +41,7 @@ EncoderBuilder& EncoderBuilder::operator=(EncoderBuilder&& other) noexcept {
 
 EncoderBuilder& EncoderBuilder::turn() {
     if (gestureSet_) {
-        warn("[EncoderBuilder] Gesture already set - ignoring turn()");
+        OC_LOG_WARN("{}", "[EncoderBuilder] Gesture already set - ignoring turn()");
         return *this;
     }
     gestureSet_ = true;
@@ -61,17 +62,17 @@ BindingHandle EncoderBuilder::then(EncoderActionCallback cb) {
     finalized_ = true;
 
     if (!registry_) {
-        warn("[EncoderBuilder] Invalid registry - returning invalid handle");
+        OC_LOG_WARN("{}", "[EncoderBuilder] Invalid registry - returning invalid handle");
         return BindingHandle::invalid();
     }
 
     if (!gestureSet_) {
-        warn("[EncoderBuilder] No gesture set before then() - returning invalid handle");
+        OC_LOG_WARN("{}", "[EncoderBuilder] No gesture set before then() - returning invalid handle");
         return BindingHandle::invalid();
     }
 
     if (!cb) {
-        warn("[EncoderBuilder] Null callback - returning invalid handle");
+        OC_LOG_WARN("{}", "[EncoderBuilder] Null callback - returning invalid handle");
         return BindingHandle::invalid();
     }
 

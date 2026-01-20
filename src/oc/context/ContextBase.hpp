@@ -36,10 +36,10 @@ namespace oc::context {
  *         .midi = false
  *     };
  *
- *     bool initialize() override {
+ *     oc::Result<void> init() override {
  *         onButton(ButtonID::PLAY).press().then([this] { play(); });
  *         onEncoder(EncoderID::VOLUME).turn().then([this](float v) { setVolume(v); });
- *         return true;
+ *         return oc::Result<void>::ok();
  *     }
  *
  *     void update() override {}
