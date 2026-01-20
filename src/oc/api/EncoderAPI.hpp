@@ -5,7 +5,8 @@
 #include <oc/core/input/EncoderBuilder.hpp>
 #include <oc/core/struct/Binding.hpp>
 #include <oc/interface/IEncoder.hpp>
-#include <oc/interface/Types.hpp>
+#include <oc/types/Ids.hpp>
+#include <oc/types/Callbacks.hpp>
 
 namespace oc::core::input {
 class InputBinding;
@@ -72,7 +73,7 @@ public:
     void clearBindings();
 
     /// Clear encoder bindings in a specific scope
-    void clearScope(core::ScopeID scope);
+    void clearScope(oc::ScopeID scope);
 
     // ═══════════════════════════════════════════════════
     // Hardware state

@@ -5,7 +5,8 @@
 #include <optional>
 
 #include <oc/interface/IEncoder.hpp>
-#include <oc/interface/Types.hpp>
+#include <oc/types/Ids.hpp>
+#include <oc/types/Callbacks.hpp>
 
 namespace oc::core::input {
 

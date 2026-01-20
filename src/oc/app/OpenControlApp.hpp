@@ -3,7 +3,7 @@
 #include <memory>
 
 #include <oc/api/ButtonAPI.hpp>
-#include <oc/core/Result.hpp>
+#include <oc/types/Result.hpp>
 #include <oc/api/EncoderAPI.hpp>
 #include <oc/api/MidiAPI.hpp>
 #include <oc/context/APIs.hpp>
@@ -16,7 +16,8 @@
 #include <oc/interface/IEncoder.hpp>
 #include <oc/interface/IMidi.hpp>
 #include <oc/interface/ITransport.hpp>
-#include <oc/interface/Types.hpp>
+#include <oc/types/Ids.hpp>
+#include <oc/types/Callbacks.hpp>
 
 namespace oc::app {
 
@@ -261,7 +262,7 @@ private:
     std::unique_ptr<context::ContextManager> contexts_;
 
     // Configuration (trivial destruction, order doesn't matter)
-    core::InputConfig input_config_;
+    core::input::InputConfig input_config_;
     TimeProvider time_provider_ = nullptr;
 
     // Statistics (only active when OC_ENABLE_STATS=1)

@@ -2,7 +2,7 @@
 
 #include "InputBinding.hpp"
 
-namespace oc::core {
+namespace oc::core::input {
 
 void BindingHandle::unbind() {
     if (isValid()) {
@@ -12,4 +12,4 @@ void BindingHandle::unbind() {
     }
 }
 
-}  // namespace oc::core
+}  // namespace oc::core::input

@@ -4,11 +4,12 @@
 
 namespace oc::core::event {
 
-// Re-export types from oc:: for backwards compatibility
+// Re-export types from oc:: for use within this namespace
+using oc::Event;
 using oc::EventType;
 using oc::EventCategoryType;
 
-// Event categories are now in oc::EventCategory, re-export for compatibility
+// Import event categories from oc::EventCategory
 namespace EventCategory {
 using namespace oc::EventCategory;
 }  // namespace EventCategory

@@ -6,7 +6,8 @@
 #include <oc/core/Warning.hpp>
 #include <oc/core/input/BindingHandle.hpp>
 #include <oc/core/struct/Binding.hpp>
-#include <oc/interface/Types.hpp>
+#include <oc/types/Ids.hpp>
+#include <oc/types/Callbacks.hpp>
 
 namespace oc::core::input {
 

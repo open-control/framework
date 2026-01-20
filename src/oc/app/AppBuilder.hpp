@@ -8,7 +8,8 @@
 #include <oc/interface/IEncoder.hpp>
 #include <oc/interface/IMidi.hpp>
 #include <oc/interface/ITransport.hpp>
-#include <oc/interface/Types.hpp>
+#include <oc/types/Ids.hpp>
+#include <oc/types/Callbacks.hpp>
 
 namespace oc::app {
 
@@ -64,7 +65,7 @@ public:
     AppBuilder& frames(std::unique_ptr<interface::ITransport> transport);
     AppBuilder& encoders(std::unique_ptr<interface::IEncoder> controller);
     AppBuilder& buttons(std::unique_ptr<interface::IButton> controller);
-    AppBuilder& inputConfig(const core::InputConfig& config);
+    AppBuilder& inputConfig(const core::input::InputConfig& config);
     AppBuilder& timeProvider(TimeProvider provider);
 
     /**
@@ -80,7 +81,7 @@ private:
     std::unique_ptr<interface::ITransport> frames_;
     std::unique_ptr<interface::IEncoder> encoders_;
     std::unique_ptr<interface::IButton> buttons_;
-    core::InputConfig input_config_;
+    core::input::InputConfig input_config_;
     TimeProvider time_provider_ = nullptr;
 };
 

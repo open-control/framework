@@ -9,7 +9,7 @@
 
 namespace oc::core {
 
-// Re-export types from oc:: for backwards compatibility within core::
+// Import types from oc:: for use in this namespace
 using oc::BindingID;
 using oc::ScopeID;
 using oc::IsActiveFn;

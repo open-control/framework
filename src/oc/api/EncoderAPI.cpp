@@ -15,7 +15,7 @@ void EncoderAPI::clearBindings() {
     binding_.clearEncoderBindings();
 }
 
-void EncoderAPI::clearScope(core::ScopeID scope) {
+void EncoderAPI::clearScope(oc::ScopeID scope) {
     binding_.clearEncoderScope(scope);
 }
 

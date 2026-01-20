@@ -2,10 +2,11 @@
 
 #include <cstdint>
 
-#include "Event.hpp"
+#include <oc/types/Event.hpp>
 #include "EventTypes.hpp"
 
-#include <oc/interface/Types.hpp>
+#include <oc/types/Ids.hpp>
+#include <oc/types/Callbacks.hpp>
 
 namespace oc::core::event {
 

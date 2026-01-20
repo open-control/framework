@@ -15,7 +15,7 @@ void ButtonAPI::clearBindings() {
     binding_.clearButtonBindings();
 }
 
-void ButtonAPI::clearScope(core::ScopeID scope) {
+void ButtonAPI::clearScope(oc::ScopeID scope) {
     binding_.clearButtonScope(scope);
 }
 

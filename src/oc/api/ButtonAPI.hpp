@@ -6,7 +6,8 @@
 #include <oc/core/input/ButtonBuilder.hpp>
 #include <oc/core/struct/Binding.hpp>
 #include <oc/interface/IButton.hpp>
-#include <oc/interface/Types.hpp>
+#include <oc/types/Ids.hpp>
+#include <oc/types/Callbacks.hpp>
 
 namespace oc::core::input {
 class InputBinding;
@@ -73,7 +74,7 @@ public:
     void clearBindings();
 
     /// Clear button bindings in a specific scope
-    void clearScope(core::ScopeID scope);
+    void clearScope(oc::ScopeID scope);
 
     /**
      * @brief Set the authority resolver for scope-based input filtering

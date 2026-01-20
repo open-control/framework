@@ -134,7 +134,7 @@ void test_settings_corrupt_checksum_resets() {
         Settings<TestSettings> settings(backend, 0, 1);
         auto result = settings.load();
         TEST_ASSERT_TRUE(result.isErr());
-        TEST_ASSERT_EQUAL(oc::core::ErrorCode::STORAGE_CORRUPT, result.error().code);
+        TEST_ASSERT_EQUAL(oc::ErrorCode::STORAGE_CORRUPT, result.error().code);
         TEST_ASSERT_EQUAL(42, settings.get().value1);  // Reset to default
     }
 }
@@ -184,7 +184,7 @@ void test_settings_write_failure() {
     auto result = settings.save();
 
     TEST_ASSERT_TRUE(result.isErr());
-    TEST_ASSERT_EQUAL(oc::core::ErrorCode::STORAGE_WRITE_FAILED, result.error().code);
+    TEST_ASSERT_EQUAL(oc::ErrorCode::STORAGE_WRITE_FAILED, result.error().code);
 }
 
 void test_settings_commit_failure() {
@@ -195,7 +195,7 @@ void test_settings_commit_failure() {
     auto result = settings.save();
 
     TEST_ASSERT_TRUE(result.isErr());
-    TEST_ASSERT_EQUAL(oc::core::ErrorCode::STORAGE_WRITE_FAILED, result.error().code);
+    TEST_ASSERT_EQUAL(oc::ErrorCode::STORAGE_WRITE_FAILED, result.error().code);
 }
 
 void test_set_string_helper() {

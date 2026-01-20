@@ -2,12 +2,10 @@
 
 #include <oc/core/struct/Binding.hpp>
 
-namespace oc::core {
+namespace oc::core::input {
 
 // Forward declaration
-namespace input {
 class InputBinding;
-}
 
 /**
  * @brief Handle returned by fluent API for optional unbinding
@@ -37,7 +35,7 @@ public:
      * @param registry Pointer to InputBinding that owns this binding
      * @param id Unique ID of the binding
      */
-    BindingHandle(input::InputBinding* registry, BindingID id)
+    BindingHandle(InputBinding* registry, BindingID id)
         : registry_(registry), id_(id) {}
 
     /**
@@ -70,8 +68,8 @@ public:
     static BindingHandle invalid() { return BindingHandle(); }
 
 private:
-    input::InputBinding* registry_ = nullptr;
+    InputBinding* registry_ = nullptr;
     BindingID id_ = 0;
 };
 
-}  // namespace oc::core
+}  // namespace oc::core::input

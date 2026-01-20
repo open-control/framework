@@ -21,10 +21,3 @@ struct InputConfig {
 };
 
 }  // namespace oc::core::input
-
-// Backwards compatibility alias
-namespace oc::core {
-using input::InputConfig;
-using input::MAX_BUTTONS;
-using input::MAX_ENCODERS;
-}  // namespace oc::core

@@ -32,7 +32,7 @@ AppBuilder& AppBuilder::buttons(std::unique_ptr<interface::IButton> controller) 
     return *this;
 }
 
-AppBuilder& AppBuilder::inputConfig(const core::InputConfig& config) {
+AppBuilder& AppBuilder::inputConfig(const core::input::InputConfig& config) {
     input_config_ = config;
     return *this;
 }

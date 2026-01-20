@@ -18,9 +18,9 @@ ContextManager::~ContextManager() {
     }
 }
 
-core::Result<void> ContextManager::begin() {
-    using R = core::Result<void>;
-    using E = core::ErrorCode;
+oc::Result<void> ContextManager::begin() {
+    using R = oc::Result<void>;
+    using E = oc::ErrorCode;
 
     if (default_id_ == INVALID_CONTEXT_ID) {
         return R::err({E::CONTEXT_NOT_REGISTERED, "no default context"});

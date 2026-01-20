@@ -1,8 +1,8 @@
 #include <unity.h>
 
-#include <oc/core/Result.hpp>
+#include <oc/types/Result.hpp>
 
-using namespace oc::core;
+using namespace oc;
 
 void test_result_void_ok() {
     auto result = Result<void>::ok();

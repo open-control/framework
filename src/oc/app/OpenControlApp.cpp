@@ -14,7 +14,7 @@ OpenControlApp& OpenControlApp::operator=(OpenControlApp&&) noexcept = default;
 
 void OpenControlApp::begin() {
     // Helper: check result and halt on error
-    auto check = [](const core::Result<void>& result, const char* component) {
+    auto check = [](const oc::Result<void>& result, const char* component) {
         if (!result) {
             OC_LOG_ERROR("{} init failed: {}", component, core::errorCodeToString(result.error().code));
             while (true) {}  // Halt - no recovery in embedded
