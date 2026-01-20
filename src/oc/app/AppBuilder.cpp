@@ -7,27 +7,27 @@
 
 namespace oc::app {
 
-AppBuilder& AppBuilder::display(std::unique_ptr<hal::IDisplayDriver> driver) {
+AppBuilder& AppBuilder::display(std::unique_ptr<interface::IDisplay> driver) {
     display_ = std::move(driver);
     return *this;
 }
 
-AppBuilder& AppBuilder::midi(std::unique_ptr<hal::IMidiTransport> transport) {
+AppBuilder& AppBuilder::midi(std::unique_ptr<interface::IMidi> transport) {
     midi_ = std::move(transport);
     return *this;
 }
 
-AppBuilder& AppBuilder::frames(std::unique_ptr<hal::IFrameTransport> transport) {
+AppBuilder& AppBuilder::frames(std::unique_ptr<interface::ITransport> transport) {
     frames_ = std::move(transport);
     return *this;
 }
 
-AppBuilder& AppBuilder::encoders(std::unique_ptr<hal::IEncoderController> controller) {
+AppBuilder& AppBuilder::encoders(std::unique_ptr<interface::IEncoder> controller) {
     encoders_ = std::move(controller);
     return *this;
 }
 
-AppBuilder& AppBuilder::buttons(std::unique_ptr<hal::IButtonController> controller) {
+AppBuilder& AppBuilder::buttons(std::unique_ptr<interface::IButton> controller) {
     buttons_ = std::move(controller);
     return *this;
 }
@@ -37,7 +37,7 @@ AppBuilder& AppBuilder::inputConfig(const core::InputConfig& config) {
     return *this;
 }
 
-AppBuilder& AppBuilder::timeProvider(hal::TimeProvider provider) {
+AppBuilder& AppBuilder::timeProvider(TimeProvider provider) {
     time_provider_ = provider;
     // Note: Log API now uses HAL's getTimeMs() directly via weak symbols
     return *this;

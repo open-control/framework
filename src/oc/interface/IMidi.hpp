@@ -4,22 +4,22 @@
 #include <cstdint>
 #include <functional>
 
-#include <oc/core/Result.hpp>
+#include <oc/types/Result.hpp>
 
-namespace oc::hal {
+namespace oc::interface {
 
 /**
  * @brief Interface for MIDI I/O abstraction
  */
-class IMidiTransport {
+class IMidi {
 public:
-    virtual ~IMidiTransport() = default;
+    virtual ~IMidi() = default;
 
     /**
      * @brief Initialize MIDI hardware
      * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    virtual core::Result<void> init() = 0;
+    virtual oc::Result<void> init() = 0;
 
     virtual void update() = 0;
 
@@ -57,4 +57,4 @@ public:
     virtual void setOnSysEx(SysExCallback cb) = 0;
 };
 
-}  // namespace oc::hal
+}  // namespace oc::interface

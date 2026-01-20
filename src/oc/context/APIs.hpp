@@ -1,6 +1,7 @@
 #pragma once
 
-#include <oc/core/event/IEventBus.hpp>
+#include <oc/interface/IEventBus.hpp>
+#include <oc/interface/ITransport.hpp>
 
 namespace oc::api {
 class ButtonAPI;
@@ -8,13 +9,11 @@ class EncoderAPI;
 class MidiAPI;
 }  // namespace oc::api
 
-namespace oc::hal {
-class IFrameTransport;
-}  // namespace oc::hal
+namespace oc::interface {
+class IContextSwitcher;
+}  // namespace oc::interface
 
 namespace oc::context {
-
-class IContextSwitcher;
 
 /**
  * @brief Service container providing API access to contexts
@@ -82,7 +81,7 @@ struct APIs {
      * Provides frame-based communication for protocols.
      * May be nullptr if frame transport is not configured.
      */
-    hal::IFrameTransport* frames = nullptr;
+    interface::ITransport* frames = nullptr;
 
     /**
      * @brief Context switching interface (optional)
@@ -91,9 +90,9 @@ struct APIs {
      * Set automatically by AppBuilder after ContextManager is created.
      * May be nullptr during early initialization.
      *
-     * @see IContextSwitcher
+     * @see interface::IContextSwitcher
      */
-    IContextSwitcher* contexts = nullptr;
+    interface::IContextSwitcher* contexts = nullptr;
 
     /**
      * @brief Event bus for pub/sub messaging (required)
@@ -101,13 +100,13 @@ struct APIs {
      * Central event bus for decoupled communication between components.
      * Always valid - passed at construction.
      */
-    core::event::IEventBus& events;
+    interface::IEventBus& events;
 
     /**
      * @brief Construct APIs with required event bus reference
      * @param e Reference to the application event bus
      */
-    explicit APIs(core::event::IEventBus& e) : events(e) {}
+    explicit APIs(interface::IEventBus& e) : events(e) {}
 };
 
 }  // namespace oc::context

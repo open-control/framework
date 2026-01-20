@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace oc::hal {
+namespace oc::interface {
 
 /**
  * @brief GPIO pin modes
@@ -30,4 +30,4 @@ public:
     virtual uint16_t analogRead(uint8_t pin) = 0;
 };
 
-}  // namespace oc::hal
+}  // namespace oc::interface

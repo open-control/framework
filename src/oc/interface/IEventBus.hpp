@@ -3,12 +3,12 @@
 #include <cstdint>
 #include <functional>
 
-#include "Event.hpp"
+#include <oc/types/Event.hpp>
 
-namespace oc::core::event {
+namespace oc::interface {
 
 using SubscriptionID = uint16_t;
-using EventCallback = std::function<void(const Event&)>;
+using EventCallback = std::function<void(const oc::Event&)>;
 
 /**
  * @brief Interface for decoupled pub/sub event communication
@@ -21,12 +21,12 @@ public:
      * @brief Subscribe to events of a specific category and type
      * @return Subscription ID for later unsubscription
      */
-    virtual SubscriptionID on(EventCategoryType category, EventType type, EventCallback callback) = 0;
+    virtual SubscriptionID on(oc::EventCategoryType category, oc::EventType type, EventCallback callback) = 0;
 
     /**
      * @brief Emit an event to all subscribers
      */
-    virtual void emit(const Event& event) = 0;
+    virtual void emit(const oc::Event& event) = 0;
 
     /**
      * @brief Unsubscribe using the subscription ID
@@ -34,4 +34,4 @@ public:
     virtual void off(SubscriptionID id) = 0;
 };
 
-}  // namespace oc::core::event
+}  // namespace oc::interface

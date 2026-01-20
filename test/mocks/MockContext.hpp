@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oc/context/IContext.hpp>
+#include <oc/interface/IContext.hpp>
 #include <oc/context/Requirements.hpp>
 
 namespace oc::test {
@@ -8,7 +8,7 @@ namespace oc::test {
 /**
  * @brief Mock context for testing ContextManager
  */
-class MockContext : public context::IContext {
+class MockContext : public interface::IContext {
 public:
     static constexpr context::Requirements REQUIRES{
         .button = false,
@@ -63,7 +63,7 @@ private:
 /**
  * @brief Mock context that requires ButtonAPI
  */
-class MockContextRequiresButton : public context::IContext {
+class MockContextRequiresButton : public interface::IContext {
 public:
     static constexpr context::Requirements REQUIRES{
         .button = true,
@@ -80,7 +80,7 @@ public:
 /**
  * @brief Another mock context for testing switching
  */
-class MockContextB : public context::IContext {
+class MockContextB : public interface::IContext {
 public:
     static constexpr context::Requirements REQUIRES{
         .button = false,

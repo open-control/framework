@@ -3,7 +3,8 @@
 #include <oc/core/input/EncoderLogic.hpp>
 
 using namespace oc::core::input;
-using namespace oc::hal;
+using namespace oc;
+using oc::interface::EncoderMode;
 
 // Default config for tests
 static EncoderConfig makeConfig(EncoderID id = 0, uint16_t ppr = 24, uint16_t rangeAngle = 270) {

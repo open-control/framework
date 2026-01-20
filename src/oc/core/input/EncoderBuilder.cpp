@@ -4,7 +4,7 @@
 
 namespace oc::core::input {
 
-EncoderBuilder::EncoderBuilder(InputBinding* registry, hal::EncoderID encoderId)
+EncoderBuilder::EncoderBuilder(InputBinding* registry, EncoderID encoderId)
     : registry_(registry), encoderId_(encoderId) {}
 
 EncoderBuilder::~EncoderBuilder() {

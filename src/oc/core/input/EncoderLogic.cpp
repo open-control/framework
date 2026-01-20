@@ -24,13 +24,13 @@ void EncoderLogic::processDelta(int32_t delta) {
     }
 
     switch (mode_) {
-        case hal::EncoderMode::RELATIVE:
+        case interface::EncoderMode::RELATIVE:
             handleRelativeMode(delta);
             break;
-        case hal::EncoderMode::NORMALIZED:
+        case interface::EncoderMode::NORMALIZED:
             handleNormalizedMode(delta);
             break;
-        case hal::EncoderMode::RAW:
+        case interface::EncoderMode::RAW:
             // RAW mode: accumulate position directly
             position_ += delta;
             handleRawMode(position_);
@@ -158,10 +158,10 @@ void EncoderLogic::recalculateVirtualRangeForDiscreteSteps() {
 // Configuration
 // ═══════════════════════════════════════════════════
 
-void EncoderLogic::setMode(hal::EncoderMode mode) {
+void EncoderLogic::setMode(interface::EncoderMode mode) {
     mode_ = mode;
 
-    if (mode == hal::EncoderMode::RELATIVE) {
+    if (mode == interface::EncoderMode::RELATIVE) {
         accumulated_delta_ = 0;
     } else {
         position_ = virtual_range_ / 2;
@@ -181,7 +181,7 @@ void EncoderLogic::setDelta(float delta) {
 }
 
 void EncoderLogic::setDiscreteSteps(uint8_t steps) {
-    if (mode_ != hal::EncoderMode::NORMALIZED) return;
+    if (mode_ != interface::EncoderMode::NORMALIZED) return;
 
     discrete_steps_ = steps;
     last_quantized_value_ = -1.0f;
@@ -194,7 +194,7 @@ void EncoderLogic::setContinuous() {
 }
 
 int32_t EncoderLogic::setPosition(float value) {
-    if (mode_ == hal::EncoderMode::NORMALIZED) {
+    if (mode_ == interface::EncoderMode::NORMALIZED) {
         // Clamp value to bounds for consistency with handleNormalizedMode
         float clampedValue = std::clamp(value, bounds_min_, bounds_max_);
         last_value_ = clampedValue;
@@ -205,7 +205,7 @@ int32_t EncoderLogic::setPosition(float value) {
     } else {
         // RAW and RELATIVE modes: no bounds, store value directly
         last_value_ = value;
-        if (mode_ == hal::EncoderMode::RAW) {
+        if (mode_ == interface::EncoderMode::RAW) {
             position_ = static_cast<int32_t>(value);
         }
     }

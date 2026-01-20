@@ -5,6 +5,7 @@
 
 using namespace oc::context;
 using namespace oc::test;
+using oc::interface::ContextInfo;
 
 enum class TestContextID : uint8_t {
     CTX_A = 0,

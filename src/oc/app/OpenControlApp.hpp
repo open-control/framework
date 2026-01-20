@@ -11,12 +11,12 @@
 #include <oc/core/event/EventBus.hpp>
 #include <oc/core/input/InputBinding.hpp>
 #include <oc/core/input/InputConfig.hpp>
-#include <oc/hal/IButtonController.hpp>
-#include <oc/hal/IDisplayDriver.hpp>
-#include <oc/hal/IEncoderController.hpp>
-#include <oc/hal/IMidiTransport.hpp>
-#include <oc/hal/IFrameTransport.hpp>
-#include <oc/hal/Types.hpp>
+#include <oc/interface/IButton.hpp>
+#include <oc/interface/IDisplay.hpp>
+#include <oc/interface/IEncoder.hpp>
+#include <oc/interface/IMidi.hpp>
+#include <oc/interface/ITransport.hpp>
+#include <oc/interface/Types.hpp>
 
 namespace oc::app {
 
@@ -114,7 +114,7 @@ public:
      * );
      * @endcode
      */
-    core::event::IEventBus& eventBus() { return event_bus_; }
+    interface::IEventBus& eventBus() { return event_bus_; }
 
     // ═══════════════════════════════════════════════════
     // CONTEXT SHORTCUTS
@@ -241,11 +241,11 @@ private:
     // ═══════════════════════════════════════════════════════════════════════
 
     // Hardware (owned via unique_ptr)
-    std::unique_ptr<hal::IDisplayDriver> display_;
-    std::unique_ptr<hal::IMidiTransport> midi_;
-    std::unique_ptr<hal::IFrameTransport> frames_;
-    std::unique_ptr<hal::IEncoderController> encoders_;
-    std::unique_ptr<hal::IButtonController> buttons_;
+    std::unique_ptr<interface::IDisplay> display_;
+    std::unique_ptr<interface::IMidi> midi_;
+    std::unique_ptr<interface::ITransport> frames_;
+    std::unique_ptr<interface::IEncoder> encoders_;
+    std::unique_ptr<interface::IButton> buttons_;
 
     // Core services - event_bus_ MUST be declared before input_binding_
     core::event::EventBus event_bus_;
@@ -262,7 +262,7 @@ private:
 
     // Configuration (trivial destruction, order doesn't matter)
     core::InputConfig input_config_;
-    hal::TimeProvider time_provider_ = nullptr;
+    TimeProvider time_provider_ = nullptr;
 
     // Statistics (only active when OC_ENABLE_STATS=1)
     mutable TimingStats timing_stats_{};

@@ -3,12 +3,12 @@
 #include <memory>
 
 #include <oc/core/input/InputConfig.hpp>
-#include <oc/hal/IButtonController.hpp>
-#include <oc/hal/IDisplayDriver.hpp>
-#include <oc/hal/IEncoderController.hpp>
-#include <oc/hal/IMidiTransport.hpp>
-#include <oc/hal/IFrameTransport.hpp>
-#include <oc/hal/Types.hpp>
+#include <oc/interface/IButton.hpp>
+#include <oc/interface/IDisplay.hpp>
+#include <oc/interface/IEncoder.hpp>
+#include <oc/interface/IMidi.hpp>
+#include <oc/interface/ITransport.hpp>
+#include <oc/interface/Types.hpp>
 
 namespace oc::app {
 
@@ -59,13 +59,13 @@ public:
     AppBuilder(AppBuilder&&) = default;
     AppBuilder& operator=(AppBuilder&&) = default;
 
-    AppBuilder& display(std::unique_ptr<hal::IDisplayDriver> driver);
-    AppBuilder& midi(std::unique_ptr<hal::IMidiTransport> transport);
-    AppBuilder& frames(std::unique_ptr<hal::IFrameTransport> transport);
-    AppBuilder& encoders(std::unique_ptr<hal::IEncoderController> controller);
-    AppBuilder& buttons(std::unique_ptr<hal::IButtonController> controller);
+    AppBuilder& display(std::unique_ptr<interface::IDisplay> driver);
+    AppBuilder& midi(std::unique_ptr<interface::IMidi> transport);
+    AppBuilder& frames(std::unique_ptr<interface::ITransport> transport);
+    AppBuilder& encoders(std::unique_ptr<interface::IEncoder> controller);
+    AppBuilder& buttons(std::unique_ptr<interface::IButton> controller);
     AppBuilder& inputConfig(const core::InputConfig& config);
-    AppBuilder& timeProvider(hal::TimeProvider provider);
+    AppBuilder& timeProvider(TimeProvider provider);
 
     /**
      * @brief Build the OpenControlApp with configured components
@@ -75,13 +75,13 @@ public:
     OpenControlApp build();
 
 private:
-    std::unique_ptr<hal::IDisplayDriver> display_;
-    std::unique_ptr<hal::IMidiTransport> midi_;
-    std::unique_ptr<hal::IFrameTransport> frames_;
-    std::unique_ptr<hal::IEncoderController> encoders_;
-    std::unique_ptr<hal::IButtonController> buttons_;
+    std::unique_ptr<interface::IDisplay> display_;
+    std::unique_ptr<interface::IMidi> midi_;
+    std::unique_ptr<interface::ITransport> frames_;
+    std::unique_ptr<interface::IEncoder> encoders_;
+    std::unique_ptr<interface::IButton> buttons_;
     core::InputConfig input_config_;
-    hal::TimeProvider time_provider_ = nullptr;
+    TimeProvider time_provider_ = nullptr;
 };
 
 }  // namespace oc::app

@@ -3,9 +3,9 @@
 #include <cstdint>
 #include <memory>
 
-#include <oc/core/Result.hpp>
+#include <oc/types/Result.hpp>
 
-namespace oc::hal {
+namespace oc::interface {
 
 /**
  * @brief Callback signature for encoder delta events
@@ -36,7 +36,7 @@ public:
      * @brief Initialize encoder hardware (pins, ISR, etc.)
      * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    virtual core::Result<void> init() = 0;
+    virtual oc::Result<void> init() = 0;
 
     /**
      * @brief Configure the delta callback
@@ -67,4 +67,4 @@ public:
     virtual std::unique_ptr<IEncoderHardware> create(uint8_t pinA, uint8_t pinB) = 0;
 };
 
-}  // namespace oc::hal
+}  // namespace oc::interface

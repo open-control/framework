@@ -4,8 +4,8 @@
 
 #include <oc/core/input/EncoderBuilder.hpp>
 #include <oc/core/struct/Binding.hpp>
-#include <oc/hal/IEncoderController.hpp>
-#include <oc/hal/Types.hpp>
+#include <oc/interface/IEncoder.hpp>
+#include <oc/interface/Types.hpp>
 
 namespace oc::core::input {
 class InputBinding;
@@ -39,13 +39,13 @@ inline constexpr bool is_encoder_id_v = detail::is_uint16_encoder_enum<T>::value
  * // Via IContext accessors:
  * onEncoder(ENC_1).turn().then([](float v){ updateValue(v); });
  * encoder(ENC_1).setPosition(0.5f);
- * encoder(ENC_1).setMode(EncoderMode::RELATIVE);
+ * encoder(ENC_1).setMode(interface::EncoderMode::RELATIVE);
  * encoders().clearBindings();
  * @endcode
  */
 class EncoderAPI {
 public:
-    EncoderAPI(core::input::InputBinding& binding, hal::IEncoderController& hw);
+    EncoderAPI(core::input::InputBinding& binding, interface::IEncoder& hw);
 
     // ═══════════════════════════════════════════════════
     // Binding fluent API
@@ -56,12 +56,12 @@ public:
      * @param id The encoder to bind (uint16_t or enum class : uint16_t)
      * @return EncoderBuilder for chained configuration
      */
-    [[nodiscard]] core::input::EncoderBuilder encoder(hal::EncoderID id);
+    [[nodiscard]] core::input::EncoderBuilder encoder(EncoderID id);
 
     /// @brief Template overload for enum class encoder IDs
     template <typename EnumT, typename = std::enable_if_t<is_encoder_id_v<EnumT>>>
     [[nodiscard]] core::input::EncoderBuilder encoder(EnumT id) {
-        return encoder(static_cast<hal::EncoderID>(id));
+        return encoder(static_cast<EncoderID>(id));
     }
 
     // ═══════════════════════════════════════════════════
@@ -79,43 +79,43 @@ public:
     // ═══════════════════════════════════════════════════
 
     /// Get current encoder position (value depends on mode)
-    float getPosition(hal::EncoderID id) const;
+    float getPosition(EncoderID id) const;
     template <typename EnumT, typename = std::enable_if_t<is_encoder_id_v<EnumT>>>
-    float getPosition(EnumT id) const { return getPosition(static_cast<hal::EncoderID>(id)); }
+    float getPosition(EnumT id) const { return getPosition(static_cast<EncoderID>(id)); }
 
     /// Set encoder position (value depends on mode)
-    void setPosition(hal::EncoderID id, float value);
+    void setPosition(EncoderID id, float value);
     template <typename EnumT, typename = std::enable_if_t<is_encoder_id_v<EnumT>>>
-    void setPosition(EnumT id, float value) { setPosition(static_cast<hal::EncoderID>(id), value); }
+    void setPosition(EnumT id, float value) { setPosition(static_cast<EncoderID>(id), value); }
 
     /// Set encoder operating mode (NORMALIZED, RAW, RELATIVE)
-    void setMode(hal::EncoderID id, hal::EncoderMode mode);
+    void setMode(EncoderID id, interface::EncoderMode mode);
     template <typename EnumT, typename = std::enable_if_t<is_encoder_id_v<EnumT>>>
-    void setMode(EnumT id, hal::EncoderMode mode) { setMode(static_cast<hal::EncoderID>(id), mode); }
+    void setMode(EnumT id, interface::EncoderMode mode) { setMode(static_cast<EncoderID>(id), mode); }
 
     /// Set encoder bounds for absolute mode
-    void setBounds(hal::EncoderID id, float min, float max);
+    void setBounds(EncoderID id, float min, float max);
     template <typename EnumT, typename = std::enable_if_t<is_encoder_id_v<EnumT>>>
-    void setBounds(EnumT id, float min, float max) { setBounds(static_cast<hal::EncoderID>(id), min, max); }
+    void setBounds(EnumT id, float min, float max) { setBounds(static_cast<EncoderID>(id), min, max); }
 
     /// Set delta per detent for relative mode
-    void setDelta(hal::EncoderID id, float delta);
+    void setDelta(EncoderID id, float delta);
     template <typename EnumT, typename = std::enable_if_t<is_encoder_id_v<EnumT>>>
-    void setDelta(EnumT id, float delta) { setDelta(static_cast<hal::EncoderID>(id), delta); }
+    void setDelta(EnumT id, float delta) { setDelta(static_cast<EncoderID>(id), delta); }
 
     /// Configure encoder for discrete steps
-    void setDiscreteSteps(hal::EncoderID id, uint8_t steps);
+    void setDiscreteSteps(EncoderID id, uint8_t steps);
     template <typename EnumT, typename = std::enable_if_t<is_encoder_id_v<EnumT>>>
-    void setDiscreteSteps(EnumT id, uint8_t steps) { setDiscreteSteps(static_cast<hal::EncoderID>(id), steps); }
+    void setDiscreteSteps(EnumT id, uint8_t steps) { setDiscreteSteps(static_cast<EncoderID>(id), steps); }
 
     /// Configure encoder for continuous mode
-    void setContinuous(hal::EncoderID id);
+    void setContinuous(EncoderID id);
     template <typename EnumT, typename = std::enable_if_t<is_encoder_id_v<EnumT>>>
-    void setContinuous(EnumT id) { setContinuous(static_cast<hal::EncoderID>(id)); }
+    void setContinuous(EnumT id) { setContinuous(static_cast<EncoderID>(id)); }
 
 private:
     core::input::InputBinding& binding_;
-    hal::IEncoderController& hw_;
+    interface::IEncoder& hw_;
 };
 
 }  // namespace oc::api

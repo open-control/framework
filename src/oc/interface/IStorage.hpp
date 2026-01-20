@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace oc::hal {
+namespace oc::interface {
 
 /**
  * @brief Interface for persistent storage backends
@@ -27,9 +27,9 @@ namespace oc::hal {
  * storage.commit();  // Persist to SD
  * @endcode
  */
-class IStorageBackend {
+class IStorage {
 public:
-    virtual ~IStorageBackend() = default;
+    virtual ~IStorage() = default;
 
     /**
      * @brief Initialize the storage backend
@@ -122,4 +122,4 @@ public:
     virtual bool isDirty() const { return false; }
 };
 
-}  // namespace oc::hal
+}  // namespace oc::interface

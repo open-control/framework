@@ -4,8 +4,8 @@
 #include <cstdint>
 #include <optional>
 
-#include <oc/hal/IEncoderController.hpp>
-#include <oc/hal/Types.hpp>
+#include <oc/interface/IEncoder.hpp>
+#include <oc/interface/Types.hpp>
 
 namespace oc::core::input {
 
@@ -25,7 +25,7 @@ constexpr uint8_t FULL_QUADRATURE_MULTIPLIER = 4;
  *       - Pull-up/pull-down configuration
  */
 struct EncoderConfig {
-    hal::EncoderID id;              ///< Unique encoder identifier
+    EncoderID id;              ///< Unique encoder identifier
     uint16_t ppr = 24;              ///< Pulses per revolution (physical encoder spec)
     uint16_t rangeAngle = 270;      ///< Degrees of rotation for full [0..1] range
     uint8_t ticksPerEvent = 4;      ///< Ticks before event emission (4 = one detent)
@@ -95,16 +95,16 @@ public:
     // Getters
     // ═══════════════════════════════════════════════════
 
-    hal::EncoderID getId() const { return config_.id; }
+    EncoderID getId() const { return config_.id; }
     float getLastValue() const { return last_value_; }
-    hal::EncoderMode getMode() const { return mode_; }
+    interface::EncoderMode getMode() const { return mode_; }
     int32_t getPosition() const { return position_; }
 
     // ═══════════════════════════════════════════════════
     // Configuration
     // ═══════════════════════════════════════════════════
 
-    void setMode(hal::EncoderMode mode);
+    void setMode(interface::EncoderMode mode);
     void setBounds(float min, float max);
     void setDelta(float delta);
     void setDiscreteSteps(uint8_t steps);
@@ -165,7 +165,7 @@ private:
     int32_t virtual_range_ = 0;
 
     // State
-    hal::EncoderMode mode_ = hal::EncoderMode::NORMALIZED;
+    interface::EncoderMode mode_ = interface::EncoderMode::NORMALIZED;
     int32_t position_ = 0;              ///< Virtual position for NORMALIZED, raw for others
     int32_t last_raw_position_ = 0;     ///< Last raw position (for processNewPosition)
     float last_value_ = 0.5f;

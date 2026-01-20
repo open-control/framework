@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oc/core/event/IEventBus.hpp>
+#include <oc/interface/IEventBus.hpp>
 #include <oc/core/event/Events.hpp>
 #include <vector>
 #include <functional>
@@ -13,10 +13,10 @@ namespace oc::test {
  * Records all subscriptions and emitted events.
  * Can replay events to subscribers.
  */
-class MockEventBus : public core::event::IEventBus {
+class MockEventBus : public interface::IEventBus {
 public:
-    using EventCallback = core::event::EventCallback;
-    using SubscriptionID = core::event::SubscriptionID;
+    using EventCallback = interface::EventCallback;
+    using SubscriptionID = interface::SubscriptionID;
     using EventCategoryType = core::event::EventCategoryType;
     using EventType = core::event::EventType;
     using Event = core::event::Event;

@@ -1,10 +1,10 @@
 #pragma once
 
-#include <oc/core/Result.hpp>
+#include <oc/types/Result.hpp>
+#include <oc/types/Ids.hpp>
+#include <oc/types/Callbacks.hpp>
 
-#include "Types.hpp"
-
-namespace oc::hal {
+namespace oc::interface {
 
 /**
  * @brief Encoder operating modes
@@ -75,28 +75,28 @@ enum class EncoderMode : uint8_t {
 /**
  * @brief Interface for encoder hardware abstraction
  */
-class IEncoderController {
+class IEncoder {
 public:
-    virtual ~IEncoderController() = default;
+    virtual ~IEncoder() = default;
 
     /**
      * @brief Initialize encoder hardware
      * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    virtual core::Result<void> init() = 0;
+    virtual oc::Result<void> init() = 0;
 
     virtual void update() = 0;
 
-    virtual float getPosition(EncoderID id) const = 0;       ///< Value depends on mode
-    virtual void setPosition(EncoderID id, float value) = 0;  ///< Value depends on mode
+    virtual float getPosition(oc::EncoderID id) const = 0;       ///< Value depends on mode
+    virtual void setPosition(oc::EncoderID id, float value) = 0;  ///< Value depends on mode
 
-    virtual void setMode(EncoderID id, EncoderMode mode) = 0;
-    virtual void setBounds(EncoderID id, float min, float max) = 0;
-    virtual void setDelta(EncoderID id, float delta) = 0;  ///< Set delta per detent (relative mode)
-    virtual void setDiscreteSteps(EncoderID id, uint8_t steps) = 0;
-    virtual void setContinuous(EncoderID id) = 0;
+    virtual void setMode(oc::EncoderID id, EncoderMode mode) = 0;
+    virtual void setBounds(oc::EncoderID id, float min, float max) = 0;
+    virtual void setDelta(oc::EncoderID id, float delta) = 0;  ///< Set delta per detent (relative mode)
+    virtual void setDiscreteSteps(oc::EncoderID id, uint8_t steps) = 0;
+    virtual void setContinuous(oc::EncoderID id) = 0;
 
-    virtual void setCallback(EncoderCallback cb) = 0;
+    virtual void setCallback(oc::EncoderCallback cb) = 0;
 };
 
-}  // namespace oc::hal
+}  // namespace oc::interface

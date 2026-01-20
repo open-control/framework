@@ -30,8 +30,8 @@ void OpenControlApp::begin() {
 
     // Wire HAL callbacks to EventBus
     if (buttons_) {
-        buttons_->setCallback([this](hal::ButtonID id, hal::ButtonEvent evt) {
-            if (evt == hal::ButtonEvent::PRESSED) {
+        buttons_->setCallback([this](ButtonID id, ButtonEvent evt) {
+            if (evt == ButtonEvent::PRESSED) {
                 event_bus_.emit(core::event::ButtonPressEvent(id, true));
             } else {
                 event_bus_.emit(core::event::ButtonReleaseEvent(id));
@@ -40,7 +40,7 @@ void OpenControlApp::begin() {
     }
 
     if (encoders_) {
-        encoders_->setCallback([this](hal::EncoderID id, float value) {
+        encoders_->setCallback([this](EncoderID id, float value) {
             event_bus_.emit(core::event::EncoderChangedEvent(id, value));
         });
     }

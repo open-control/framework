@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <type_traits>
 
-namespace oc::context {
+namespace oc::interface {
 
 /**
  * @brief Information about a registered context for iteration
@@ -202,4 +202,4 @@ protected:
     virtual void forEachContextImpl(ContextCallback fn, void* userData) const = 0;
 };
 
-}  // namespace oc::context
+}  // namespace oc::interface

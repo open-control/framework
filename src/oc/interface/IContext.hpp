@@ -8,12 +8,12 @@
 #include <oc/api/EncoderProxy.hpp>
 #include <oc/api/MidiAPI.hpp>
 #include <oc/context/APIs.hpp>
-#include <oc/context/IContextSwitcher.hpp>
+#include <oc/interface/IContextSwitcher.hpp>
 #include <oc/core/input/ButtonBuilder.hpp>
 #include <oc/core/input/EncoderBuilder.hpp>
-#include <oc/hal/IFrameTransport.hpp>
+#include <oc/interface/ITransport.hpp>
 
-namespace oc::context {
+namespace oc::interface {
 
 /**
  * @brief Base class for application contexts (screens/modes)
@@ -26,8 +26,8 @@ namespace oc::context {
  *
  * Contexts follow a strict lifecycle managed by ContextManager:
  *
- * 1. **Construction**: Factory creates instance (no APIs available yet)
- * 2. **setAPIs()**: Framework injects API references
+ * 1. **Construction**: Factory creates instance (no context::APIs available yet)
+ * 2. **setcontext::APIs()**: Framework injects API references
  * 3. **initialize()**: Context sets up bindings and initial state
  * 4. **onConnected()**: Called after successful initialization
  * 5. **update()**: Called every frame while active
@@ -86,20 +86,20 @@ public:
 
     /**
      * @brief Inject API references (called by ContextManager before initialize)
-     * @param apis Reference to the APIs container
+     * @param apis Reference to the context::APIs container
      * @note Do not call this directly - managed by ContextManager
      */
-    void setAPIs(const APIs& apis) { apis_ = &apis; }
+    void setAPIs(const context::APIs& apis) { apis_ = &apis; }
 
     // ─────────────────────────────────────────────────────────────────────
     // Lifecycle (must implement)
     // ─────────────────────────────────────────────────────────────────────
 
     /**
-     * @brief Initialize the context after APIs are available
+     * @brief Initialize the context after context::APIs are available
      *
      * Set up input bindings, subscribe to events, initialize UI, etc.
-     * Called after setAPIs() and before onConnected().
+     * Called after setcontext::APIs() and before onConnected().
      *
      * @return true if initialization succeeded, false to trigger fallback
      */
@@ -168,7 +168,7 @@ protected:
      *
      * Returns a fluent builder for configuring button actions.
      *
-     * @tparam ID Enum class or integral type convertible to hal::ButtonID
+     * @tparam ID Enum class or integral type convertible to ButtonID
      * @param id Button identifier
      * @return ButtonBuilder for chaining configuration
      *
@@ -179,9 +179,9 @@ protected:
      */
     template <typename ID>
     [[nodiscard]] core::input::ButtonBuilder onButton(ID id) {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
         assert(apis_->button && "ButtonAPI not available");
-        return apis_->button->button(static_cast<hal::ButtonID>(id));
+        return apis_->button->button(static_cast<oc::ButtonID>(id));
     }
 
     /**
@@ -189,7 +189,7 @@ protected:
      *
      * Returns a fluent builder for configuring encoder actions.
      *
-     * @tparam ID Enum class or integral type convertible to hal::EncoderID
+     * @tparam ID Enum class or integral type convertible to EncoderID
      * @param id Encoder identifier
      * @return EncoderBuilder for chaining configuration
      *
@@ -199,9 +199,9 @@ protected:
      */
     template <typename ID>
     [[nodiscard]] core::input::EncoderBuilder onEncoder(ID id) {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
         assert(apis_->encoder && "EncoderAPI not available");
-        return apis_->encoder->encoder(static_cast<hal::EncoderID>(id));
+        return apis_->encoder->encoder(static_cast<oc::EncoderID>(id));
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -210,28 +210,28 @@ protected:
 
     /**
      * @brief Get a proxy for querying button state
-     * @tparam ID Enum class or integral type convertible to hal::ButtonID
+     * @tparam ID Enum class or integral type convertible to ButtonID
      * @param id Button identifier
      * @return ButtonProxy for state queries (isPressed, isLatched, etc.)
      */
     template <typename ID>
     api::ButtonProxy button(ID id) {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
         assert(apis_->button && "ButtonAPI not available");
-        return api::ButtonProxy(*apis_->button, static_cast<hal::ButtonID>(id));
+        return api::ButtonProxy(*apis_->button, static_cast<oc::ButtonID>(id));
     }
 
     /**
      * @brief Get a proxy for querying encoder state
-     * @tparam ID Enum class or integral type convertible to hal::EncoderID
+     * @tparam ID Enum class or integral type convertible to EncoderID
      * @param id Encoder identifier
      * @return EncoderProxy for state queries (value, position, etc.)
      */
     template <typename ID>
     api::EncoderProxy encoder(ID id) {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
         assert(apis_->encoder && "EncoderAPI not available");
-        return api::EncoderProxy(*apis_->encoder, static_cast<hal::EncoderID>(id));
+        return api::EncoderProxy(*apis_->encoder, static_cast<oc::EncoderID>(id));
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -243,7 +243,7 @@ protected:
      * @return Reference to ButtonAPI
      */
     api::ButtonAPI& buttons() {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
         assert(apis_->button && "ButtonAPI not available");
         return *apis_->button;
     }
@@ -253,7 +253,7 @@ protected:
      * @return Reference to EncoderAPI
      */
     api::EncoderAPI& encoders() {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
         assert(apis_->encoder && "EncoderAPI not available");
         return *apis_->encoder;
     }
@@ -263,18 +263,18 @@ protected:
      * @return Reference to MidiAPI
      */
     api::MidiAPI& midi() {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
         assert(apis_->midi && "MidiAPI not available");
         return *apis_->midi;
     }
 
     /**
      * @brief Access the frame transport for protocol communication
-     * @return Reference to IFrameTransport
+     * @return Reference to ITransport
      */
-    hal::IFrameTransport& frames() {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
-        assert(apis_->frames && "IFrameTransport not available");
+    ITransport& frames() {
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
+        assert(apis_->frames && "ITransport not available");
         return *apis_->frames;
     }
 
@@ -282,8 +282,8 @@ protected:
      * @brief Access the event bus for pub/sub messaging
      * @return Reference to IEventBus
      */
-    core::event::IEventBus& events() {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
+    IEventBus& events() {
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
         return apis_->events;
     }
 
@@ -308,7 +308,7 @@ protected:
      */
     template <typename ID>
     void switchTo(ID id) {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
         assert(apis_->contexts && "ContextSwitcher not available");
         apis_->contexts->switchTo(id);
     }
@@ -320,7 +320,7 @@ protected:
      * Useful for "back to home" or "escape" actions.
      */
     void switchToDefault() {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
         assert(apis_->contexts && "ContextSwitcher not available");
         apis_->contexts->switchToDefault();
     }
@@ -337,7 +337,7 @@ protected:
      */
     template <typename ID>
     bool hasContext(ID id) const {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
         assert(apis_->contexts && "ContextSwitcher not available");
         return apis_->contexts->hasContext(id);
     }
@@ -348,7 +348,7 @@ protected:
      * @return Context name, or nullptr if not registered
      */
     const char* contextName(uint8_t id) const {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
         assert(apis_->contexts && "ContextSwitcher not available");
         return apis_->contexts->contextName(id);
     }
@@ -358,7 +358,7 @@ protected:
      * @return Active context ID (should be this context's ID)
      */
     uint8_t activeContextId() const {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
         assert(apis_->contexts && "ContextSwitcher not available");
         return apis_->contexts->activeId();
     }
@@ -368,7 +368,7 @@ protected:
      * @return Default context ID
      */
     uint8_t defaultContextId() const {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
         assert(apis_->contexts && "ContextSwitcher not available");
         return apis_->contexts->defaultId();
     }
@@ -378,7 +378,7 @@ protected:
      * @return Count of registered contexts
      */
     size_t contextCount() const {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
         assert(apis_->contexts && "ContextSwitcher not available");
         return apis_->contexts->contextCount();
     }
@@ -401,7 +401,7 @@ protected:
      */
     template <typename Fn>
     void forEachContext(Fn&& fn) const {
-        assert(apis_ && "setAPIs() not called - context not properly initialized");
+        assert(apis_ && "setcontext::APIs() not called - context not properly initialized");
         assert(apis_->contexts && "ContextSwitcher not available");
         apis_->contexts->forEachContext(std::forward<Fn>(fn));
     }
@@ -429,13 +429,13 @@ protected:
     bool hasMidi() const { return apis_->midi != nullptr; }
 
     /**
-     * @brief Check if IFrameTransport is available
+     * @brief Check if ITransport is available
      * @return true if frames can be used
      */
     bool hasFrames() const { return apis_->frames != nullptr; }
 
 private:
-    const APIs* apis_ = nullptr;  ///< Injected API references (set by ContextManager)
+    const context::APIs* apis_ = nullptr;  ///< Injected API references (set by ContextManager)
 };
 
-}  // namespace oc::context
+}  // namespace oc::interface

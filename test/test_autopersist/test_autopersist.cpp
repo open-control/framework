@@ -8,7 +8,7 @@
 #include <oc/time/Time.hpp>
 
 using namespace oc::state;
-using namespace oc::hal;
+using namespace oc;
 
 // =============================================================================
 // Mock Time Provider
@@ -24,7 +24,7 @@ uint32_t getMockTime() {
 // Mock Storage Backend
 // =============================================================================
 
-class MockStorageBackend : public IStorageBackend {
+class MockStorageBackend : public interface::IStorage {
 public:
     std::array<uint8_t, 1024> storage{};
     int saveCount = 0;

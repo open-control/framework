@@ -1,19 +1,16 @@
 #pragma once
 
-#include <cstdint>
+#include <oc/types/Event.hpp>
 
 namespace oc::core::event {
 
-using EventType = uint16_t;
-using EventCategoryType = uint8_t;
+// Re-export types from oc:: for backwards compatibility
+using oc::EventType;
+using oc::EventCategoryType;
 
-/// Event categories for subscription filtering
+// Event categories are now in oc::EventCategory, re-export for compatibility
 namespace EventCategory {
-constexpr EventCategoryType SYSTEM = 0;
-constexpr EventCategoryType USER_INPUT = 1;
-constexpr EventCategoryType MIDI = 2;
-constexpr EventCategoryType UI = 3;
-constexpr EventCategoryType CONTEXT = 4;
+using namespace oc::EventCategory;
 }  // namespace EventCategory
 
 /// System-level event types

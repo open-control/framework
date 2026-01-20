@@ -4,7 +4,7 @@
 #include <oc/api/EncoderAPI.hpp>
 #include <oc/api/MidiAPI.hpp>
 #include <oc/core/event/Events.hpp>
-#include <oc/core/event/IEventBus.hpp>
+#include <oc/interface/IEventBus.hpp>
 #include <oc/core/Warning.hpp>
 
 namespace oc::context {
@@ -115,11 +115,11 @@ void ContextManager::update() {
     }
 }
 
-void ContextManager::emitActivated(uint8_t id, const IContext& ctx) {
+void ContextManager::emitActivated(uint8_t id, const interface::IContext& ctx) {
     apis_.events.emit(core::event::ContextActivatedEvent(id, ctx.getName()));
 }
 
-void ContextManager::emitDeactivated(uint8_t id, const IContext& ctx) {
+void ContextManager::emitDeactivated(uint8_t id, const interface::IContext& ctx) {
     apis_.events.emit(core::event::ContextDeactivatedEvent(id, ctx.getName()));
 }
 

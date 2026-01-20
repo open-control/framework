@@ -5,7 +5,7 @@
 using namespace oc::core::event;
 
 static int callCount = 0;
-static oc::hal::ButtonID lastButtonId = 0;
+static oc::ButtonID lastButtonId = 0;
 
 void setUp() {
     callCount = 0;

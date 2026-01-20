@@ -8,7 +8,7 @@ namespace oc::core::event {
 
 EventBus::EventBus() : next_id_(1) {}
 
-SubscriptionID EventBus::on(EventCategoryType category, EventType type, EventCallback callback) {
+interface::SubscriptionID EventBus::on(EventCategoryType category, EventType type, interface::EventCallback callback) {
     if (!callback) return 0;
 
     uint32_t key = makeKey(category, type);
@@ -30,7 +30,7 @@ SubscriptionID EventBus::on(EventCategoryType category, EventType type, EventCal
         return 0;
     }
 
-    SubscriptionID id = next_id_++;
+    interface::SubscriptionID id = next_id_++;
     vec.push_back({id, std::move(callback), true});
 
     if constexpr (ENABLE_STATS) {
@@ -61,7 +61,7 @@ void EventBus::emit(const Event& event) {
     }
 }
 
-void EventBus::off(SubscriptionID id) {
+void EventBus::off(interface::SubscriptionID id) {
     // Mark as dead instead of erasing - allows safe iteration during emit()
     for (auto& pair : subscriptions_) {
         for (auto& sub : pair.second) {

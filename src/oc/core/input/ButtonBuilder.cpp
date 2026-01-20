@@ -5,7 +5,7 @@
 
 namespace oc::core::input {
 
-ButtonBuilder::ButtonBuilder(InputBinding* registry, hal::ButtonID buttonId)
+ButtonBuilder::ButtonBuilder(InputBinding* registry, ButtonID buttonId)
     : registry_(registry), buttonId_(buttonId) {}
 
 ButtonBuilder::~ButtonBuilder() {
@@ -87,7 +87,7 @@ ButtonBuilder& ButtonBuilder::doubleTap(uint32_t ms) {
     return *this;
 }
 
-ComboBuilder ButtonBuilder::combo(hal::ButtonID other) {
+ComboBuilder ButtonBuilder::combo(ButtonID other) {
     finalized_ = true;  // Ownership transferred to ComboBuilder
     return ComboBuilder(registry_, buttonId_, other);
 }

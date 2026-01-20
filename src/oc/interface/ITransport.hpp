@@ -4,9 +4,9 @@
 #include <cstdint>
 #include <functional>
 
-#include <oc/core/Result.hpp>
+#include <oc/types/Result.hpp>
 
-namespace oc::hal {
+namespace oc::interface {
 
 /**
  * @brief Interface for frame-based transport abstraction
@@ -22,15 +22,15 @@ namespace oc::hal {
  * @note This is for raw frame transport. Protocol encoding
  *       is handled by the protocol layer above.
  */
-class IFrameTransport {
+class ITransport {
 public:
-    virtual ~IFrameTransport() = default;
+    virtual ~ITransport() = default;
 
     /**
      * @brief Initialize transport hardware
      * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    virtual core::Result<void> init() = 0;
+    virtual oc::Result<void> init() = 0;
 
     /**
      * @brief Poll for incoming data
@@ -84,4 +84,4 @@ public:
     virtual bool isReady() const { return true; }
 };
 
-}  // namespace oc::hal
+}  // namespace oc::interface

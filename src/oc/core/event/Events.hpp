@@ -5,41 +5,41 @@
 #include "Event.hpp"
 #include "EventTypes.hpp"
 
-#include <oc/hal/Types.hpp>
+#include <oc/interface/Types.hpp>
 
 namespace oc::core::event {
 
 /// Encoder rotation event
 class EncoderChangedEvent : public Event {
 public:
-    EncoderChangedEvent(hal::EncoderID id, float value)
+    EncoderChangedEvent(EncoderID id, float value)
         : Event(EventCategory::USER_INPUT, InputEvent::ENCODER_CHANGED),
           encoderId(id),
           normalizedValue(value) {}
 
-    hal::EncoderID encoderId;
+    EncoderID encoderId;
     float normalizedValue;
 };
 
 /// Button press event
 class ButtonPressEvent : public Event {
 public:
-    ButtonPressEvent(hal::ButtonID id, bool isPressed)
+    ButtonPressEvent(ButtonID id, bool isPressed)
         : Event(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS),
           buttonId(id),
           pressed(isPressed) {}
 
-    hal::ButtonID buttonId;
+    ButtonID buttonId;
     bool pressed;
 };
 
 /// Button release event
 class ButtonReleaseEvent : public Event {
 public:
-    explicit ButtonReleaseEvent(hal::ButtonID id)
+    explicit ButtonReleaseEvent(ButtonID id)
         : Event(EventCategory::USER_INPUT, InputEvent::BUTTON_RELEASE), buttonId(id) {}
 
-    hal::ButtonID buttonId;
+    ButtonID buttonId;
 };
 
 /// MIDI Control Change event

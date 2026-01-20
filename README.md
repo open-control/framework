@@ -266,9 +266,9 @@ For high-bandwidth communication via [oc-bridge](https://github.com/open-control
 ### ISerialTransport
 
 ```cpp
-#include <oc/hal/ISerialTransport.hpp>
+#include <oc/interface/ITransport.hpp>
 
-class MySerialTransport : public oc::hal::ISerialTransport {
+class MySerialTransport : public oc::interface::ITransport {
     void send(const uint8_t* data, size_t length) override {
         // COBS-encode and transmit
     }
@@ -302,7 +302,7 @@ decoder.feed(byte, [](const uint8_t* data, size_t len) {
 A context represents an application mode. Only one is active at a time.
 
 ```cpp
-class MyContext : public oc::context::IContext {
+class MyContext : public oc::interface::IContext {
 public:
     // Declare required APIs (validated at registration)
     static constexpr oc::context::Requirements REQUIRES{

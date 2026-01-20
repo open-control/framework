@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <oc/hal/Types.hpp>
+#include <oc/interface/Types.hpp>
 
 namespace oc::test {
 
@@ -20,7 +20,7 @@ public:
     FakeTime() : current_time_(0) {}
 
     /// Get the TimeProvider function pointer
-    hal::TimeProvider provider() {
+    TimeProvider provider() {
         // Store pointer to this instance for the lambda
         instance_ = this;
         return []() -> uint32_t {

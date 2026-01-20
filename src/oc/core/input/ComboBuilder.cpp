@@ -4,7 +4,7 @@
 
 namespace oc::core::input {
 
-ComboBuilder::ComboBuilder(InputBinding* registry, hal::ButtonID btn1, hal::ButtonID btn2)
+ComboBuilder::ComboBuilder(InputBinding* registry, ButtonID btn1, ButtonID btn2)
     : registry_(registry), btn1_(btn1), btn2_(btn2) {
     // Validate: combo with same button is invalid
     if (btn1 == btn2) {

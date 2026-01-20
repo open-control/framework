@@ -1,23 +1,23 @@
 #pragma once
 
-#include <oc/core/Result.hpp>
+#include <oc/types/Result.hpp>
+#include <oc/types/Ids.hpp>
+#include <oc/types/Callbacks.hpp>
 
-#include "Types.hpp"
-
-namespace oc::hal {
+namespace oc::interface {
 
 /**
  * @brief Interface for button hardware abstraction
  */
-class IButtonController {
+class IButton {
 public:
-    virtual ~IButtonController() = default;
+    virtual ~IButton() = default;
 
     /**
      * @brief Initialize button hardware
      * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    virtual core::Result<void> init() = 0;
+    virtual oc::Result<void> init() = 0;
 
     /**
      * @brief Poll button states and trigger callbacks
@@ -25,8 +25,8 @@ public:
      */
     virtual void update(uint32_t currentTimeMs) = 0;
 
-    virtual bool isPressed(ButtonID id) const = 0;
-    virtual void setCallback(ButtonCallback cb) = 0;
+    virtual bool isPressed(oc::ButtonID id) const = 0;
+    virtual void setCallback(oc::ButtonCallback cb) = 0;
 };
 
-}  // namespace oc::hal
+}  // namespace oc::interface

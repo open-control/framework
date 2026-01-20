@@ -2,9 +2,9 @@
 
 #include <cstdint>
 
-#include <oc/core/Result.hpp>
+#include <oc/types/Result.hpp>
 
-namespace oc::hal {
+namespace oc::interface {
 
 /**
  * @brief Interface for multiplexer hardware abstraction
@@ -19,7 +19,7 @@ public:
      * @brief Initialize multiplexer hardware
      * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    virtual core::Result<void> init() = 0;
+    virtual oc::Result<void> init() = 0;
 
     /// Select a channel (for advanced batch reading)
     virtual void select(uint8_t channel) = 0;
@@ -37,4 +37,4 @@ public:
     virtual uint8_t channelCount() const = 0;
 };
 
-}  // namespace oc::hal
+}  // namespace oc::interface

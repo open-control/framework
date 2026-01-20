@@ -6,7 +6,7 @@
 #include <oc/core/Warning.hpp>
 #include <oc/core/input/BindingHandle.hpp>
 #include <oc/core/struct/Binding.hpp>
-#include <oc/hal/Types.hpp>
+#include <oc/interface/Types.hpp>
 
 namespace oc::core::input {
 
@@ -40,7 +40,7 @@ public:
      * @param btn1 First button in the combo
      * @param btn2 Second button in the combo
      */
-    ComboBuilder(InputBinding* registry, hal::ButtonID btn1, hal::ButtonID btn2);
+    ComboBuilder(InputBinding* registry, ButtonID btn1, ButtonID btn2);
 
     /**
      * @brief Destructor warns if then() was never called
@@ -97,8 +97,8 @@ public:
 
 private:
     InputBinding* registry_ = nullptr;
-    hal::ButtonID btn1_{};
-    hal::ButtonID btn2_{};
+    ButtonID btn1_{};
+    ButtonID btn2_{};
     ScopeID scope_ = 0;
     IsActiveFn isActive_ = nullptr;
     bool finalized_ = false;

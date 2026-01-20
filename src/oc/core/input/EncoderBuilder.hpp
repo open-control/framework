@@ -6,7 +6,7 @@
 #include <oc/core/Warning.hpp>
 #include <oc/core/input/BindingHandle.hpp>
 #include <oc/core/struct/Binding.hpp>
-#include <oc/hal/Types.hpp>
+#include <oc/interface/Types.hpp>
 
 namespace oc::core::input {
 
@@ -40,7 +40,7 @@ public:
      * @param registry The InputBinding that will own the binding
      * @param encoderId The encoder this binding applies to
      */
-    EncoderBuilder(InputBinding* registry, hal::EncoderID encoderId);
+    EncoderBuilder(InputBinding* registry, EncoderID encoderId);
 
     /**
      * @brief Destructor warns if then() was never called
@@ -112,7 +112,7 @@ public:
 
 private:
     InputBinding* registry_ = nullptr;
-    hal::EncoderID encoderId_{};
+    EncoderID encoderId_{};
     ScopeID scope_ = 0;
     IsActiveFn isActive_ = nullptr;
     bool gestureSet_ = false;

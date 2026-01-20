@@ -8,8 +8,8 @@
 #include <type_traits>
 
 #include "APIs.hpp"
-#include "IContext.hpp"
-#include "IContextSwitcher.hpp"
+#include <oc/interface/IContext.hpp>
+#include <oc/interface/IContextSwitcher.hpp>
 #include "Requirements.hpp"
 
 #include <oc/Config.hpp>
@@ -82,11 +82,11 @@ struct has_load_resources<T, std::void_t<decltype(T::loadResources())>> : std::t
  * @see IContextSwitcher
  * @see Requirements
  */
-class ContextManager : public IContextSwitcher {
+class ContextManager : public interface::IContextSwitcher {
 public:
     /// @brief Factory function type for creating context instances
     /// Uses std::function to support lambdas with captures
-    using ContextFactory = std::function<std::unique_ptr<IContext>()>;
+    using ContextFactory = std::function<std::unique_ptr<interface::IContext>()>;
 
     /**
      * @brief Construct a ContextManager with API references
@@ -127,7 +127,7 @@ public:
      */
     template <typename T, typename ID>
     bool registerContext(ID id, const char* name) {
-        static_assert(std::is_base_of_v<IContext, T>, "T must inherit from IContext");
+        static_assert(std::is_base_of_v<interface::IContext, T>, "T must inherit from IContext");
         static_assert(std::is_enum_v<ID> || std::is_integral_v<ID>,
                       "ID must be an enum or integral type");
 
@@ -150,7 +150,7 @@ public:
                 return false;
             }
             if (T::REQUIRES.frames && !apis_.frames) {
-                core::warn("[ContextManager] Context requires IFrameTransport but none provided");
+                core::warn("[ContextManager] Context requires ITransport but none provided");
                 return false;
             }
         }
@@ -160,7 +160,7 @@ public:
             T::loadResources();
         }
 
-        factories_[idx] = []() -> std::unique_ptr<IContext> {
+        factories_[idx] = []() -> std::unique_ptr<interface::IContext> {
             return std::make_unique<T>();
         };
         names_[idx] = name;
@@ -298,7 +298,7 @@ public:
      * @brief Get the currently active context instance
      * @return Pointer to active context, or nullptr if none
      */
-    IContext* active() const { return active_.get(); }
+    interface::IContext* active() const { return active_.get(); }
 
     /**
      * @brief Check if a deferred switch is pending
@@ -331,7 +331,7 @@ public:
 
 protected:
     /// @copydoc IContextSwitcher::forEachContextImpl
-    void forEachContextImpl(ContextCallback fn, void* userData) const override {
+    void forEachContextImpl(interface::IContextSwitcher::ContextCallback fn, void* userData) const override {
         for (uint8_t i = 0; i < MAX_CONTEXTS; ++i) {
             if (factories_[i]) {
                 fn(i, names_[i], i == default_id_, userData);
@@ -342,14 +342,14 @@ protected:
 private:
     bool switchToImpl(uint8_t id);
     void processPendingSwitch();
-    void emitActivated(uint8_t id, const IContext& ctx);
-    void emitDeactivated(uint8_t id, const IContext& ctx);
+    void emitActivated(uint8_t id, const interface::IContext& ctx);
+    void emitDeactivated(uint8_t id, const interface::IContext& ctx);
     void emitError(uint8_t id);
 
     const APIs& apis_;                                    ///< Reference to shared APIs
     std::array<ContextFactory, MAX_CONTEXTS> factories_{};///< Context factory functions
     std::array<const char*, MAX_CONTEXTS> names_{};       ///< Context names for UI/debug
-    std::unique_ptr<IContext> active_;                    ///< Currently active context
+    std::unique_ptr<interface::IContext> active_;                    ///< Currently active context
     uint8_t active_id_ = INVALID_CONTEXT_ID;              ///< ID of active context
     uint8_t default_id_ = INVALID_CONTEXT_ID;             ///< ID of default/fallback context
     size_t registered_count_ = 0;                         ///< Number of registered contexts

@@ -6,10 +6,10 @@
 #include <oc/state/Settings.hpp>
 
 using namespace oc::state;
-using namespace oc::hal;
+using namespace oc;
 
 // Mock storage backend for testing
-class MockStorageBackend : public IStorageBackend {
+class MockStorageBackend : public interface::IStorage {
 public:
     std::array<uint8_t, 1024> storage{};
     bool available_ = true;

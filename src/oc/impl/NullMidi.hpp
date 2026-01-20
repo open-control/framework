@@ -1,9 +1,9 @@
 #pragma once
 
-#include <oc/hal/IMidiTransport.hpp>
+#include <oc/interface/IMidi.hpp>
 #include <oc/core/Result.hpp>
 
-namespace oc::hal {
+namespace oc::impl {
 
 /**
  * @brief No-op MIDI transport for testing and platforms without MIDI hardware
@@ -16,7 +16,7 @@ namespace oc::hal {
  * @note For platforms that simply don't need MIDI, prefer not configuring
  * midi in AppBuilder rather than using this class.
  */
-class NullMidiTransport : public IMidiTransport {
+class NullMidi : public interface::IMidi {
 public:
     core::Result<void> init() override {
         return core::Result<void>::ok();
@@ -41,4 +41,4 @@ public:
     void setOnSysEx(SysExCallback) override {}
 };
 
-} // namespace oc::hal
+}  // namespace oc::impl

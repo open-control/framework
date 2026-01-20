@@ -23,7 +23,7 @@ namespace oc::api {
  */
 class ButtonProxy {
 public:
-    ButtonProxy(ButtonAPI& api, hal::ButtonID id) : api_(api), id_(id) {}
+    ButtonProxy(ButtonAPI& api, ButtonID id) : api_(api), id_(id) {}
 
     /// Check if button is in latched state
     bool isLatched() const { return api_.isLatched(id_); }
@@ -39,7 +39,7 @@ public:
 
 private:
     ButtonAPI& api_;
-    hal::ButtonID id_;
+    ButtonID id_;
 };
 
 }  // namespace oc::api

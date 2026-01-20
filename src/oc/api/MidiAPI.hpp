@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oc/hal/IMidiTransport.hpp>
+#include <oc/interface/IMidi.hpp>
 
 namespace oc::api {
 
@@ -21,7 +21,7 @@ namespace oc::api {
  */
 class MidiAPI {
 public:
-    explicit MidiAPI(hal::IMidiTransport& transport);
+    explicit MidiAPI(interface::IMidi& transport);
 
     // ═══════════════════════════════════════════════════
     // Output
@@ -65,19 +65,19 @@ public:
     // ═══════════════════════════════════════════════════
 
     /// Set callback for incoming CC messages
-    void onCC(hal::IMidiTransport::CCCallback cb);
+    void onCC(interface::IMidi::CCCallback cb);
 
     /// Set callback for incoming Note On messages
-    void onNoteOn(hal::IMidiTransport::NoteCallback cb);
+    void onNoteOn(interface::IMidi::NoteCallback cb);
 
     /// Set callback for incoming Note Off messages
-    void onNoteOff(hal::IMidiTransport::NoteCallback cb);
+    void onNoteOff(interface::IMidi::NoteCallback cb);
 
     /// Set callback for incoming SysEx messages
-    void onSysEx(hal::IMidiTransport::SysExCallback cb);
+    void onSysEx(interface::IMidi::SysExCallback cb);
 
 private:
-    hal::IMidiTransport& transport_;
+    interface::IMidi& transport_;
 };
 
 }  // namespace oc::api

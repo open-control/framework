@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "IEventBus.hpp"
+#include <oc/interface/IEventBus.hpp>
 
 #include <oc/Config.hpp>
 
@@ -20,13 +20,13 @@ using oc::config::ENABLE_STATS;
  * Uses category+type key for O(1) lookup of subscribers.
  * Supports configurable limits via OC_MAX_SUBSCRIBERS_PER_EVENT.
  */
-class EventBus : public IEventBus {
+class EventBus : public interface::IEventBus {
 public:
     EventBus();
 
-    SubscriptionID on(EventCategoryType category, EventType type, EventCallback callback) override;
+    interface::SubscriptionID on(EventCategoryType category, EventType type, interface::EventCallback callback) override;
     void emit(const Event& event) override;
-    void off(SubscriptionID id) override;
+    void off(interface::SubscriptionID id) override;
 
     /// Remove all subscriptions and reset ID counter
     void clear();
@@ -61,8 +61,8 @@ public:
 
 private:
     struct Subscription {
-        SubscriptionID id;
-        EventCallback callback;
+        interface::SubscriptionID id;
+        interface::EventCallback callback;
         bool alive = true;
     };
 
@@ -70,7 +70,7 @@ private:
     void autoCompactIfNeeded();
 
     std::unordered_map<uint32_t, std::vector<Subscription>> subscriptions_;
-    SubscriptionID next_id_;
+    interface::SubscriptionID next_id_;
     size_t dead_count_ = 0;  ///< Number of dead entries across all vectors
     Stats stats_{};
 };

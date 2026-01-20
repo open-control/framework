@@ -4,10 +4,10 @@
 
 namespace oc::api {
 
-ButtonAPI::ButtonAPI(core::input::InputBinding& binding, hal::IButtonController& hw)
+ButtonAPI::ButtonAPI(core::input::InputBinding& binding, interface::IButton& hw)
     : binding_(binding), hw_(hw) {}
 
-core::input::ButtonBuilder ButtonAPI::button(hal::ButtonID id) {
+core::input::ButtonBuilder ButtonAPI::button(ButtonID id) {
     return core::input::ButtonBuilder(&binding_, id);
 }
 
@@ -23,19 +23,19 @@ void ButtonAPI::setAuthorityResolver(const core::input::AuthorityResolver* resol
     binding_.setAuthorityResolver(resolver);
 }
 
-bool ButtonAPI::isPressed(hal::ButtonID id) const {
+bool ButtonAPI::isPressed(ButtonID id) const {
     return hw_.isPressed(id);
 }
 
-core::IsActiveFn ButtonAPI::pressed(hal::ButtonID id) const {
+core::IsActiveFn ButtonAPI::pressed(ButtonID id) const {
     return [this, id]() { return hw_.isPressed(id); };
 }
 
-bool ButtonAPI::isLatched(hal::ButtonID id) const {
+bool ButtonAPI::isLatched(ButtonID id) const {
     return binding_.isLatched(id);
 }
 
-void ButtonAPI::clearLatch(hal::ButtonID id) {
+void ButtonAPI::clearLatch(ButtonID id) {
     binding_.clearLatch(id);
 }
 

@@ -4,49 +4,17 @@
 #include <functional>
 #include <optional>
 
-#include <oc/hal/Types.hpp>
+#include <oc/types/Ids.hpp>
+#include <oc/types/Callbacks.hpp>
 
 namespace oc::core {
 
-/**
- * @brief Unique identifier for a registered binding
- *
- * Used internally to track and remove bindings.
- * Value 0 indicates an invalid/unregistered binding.
- */
-using BindingID = uint32_t;
-
-/**
- * @brief Predicate for conditional binding activation
- *
- * Called each time an input event matches this binding.
- * Return true to trigger the action, false to skip.
- *
- * Use cases:
- * - UI frameworks: only trigger when a widget/view is visible
- * - State machines: only trigger in certain application states
- * - Modal dialogs: disable background bindings while modal is open
- *
- * If nullptr, binding is always active when in scope.
- */
-using IsActiveFn = std::function<bool()>;
-
-/**
- * @brief Unique scope identifier for binding grouping
- *
- * Purposes:
- * 1. Batch removal: clearScope(id) removes all bindings with this scope
- * 2. Priority: scoped bindings trigger before global (scope=0) bindings
- *
- * Typical values:
- * - 0: Global binding (no scope, lowest priority)
- * - Pointer cast to uintptr_t (e.g., view/screen instance)
- * - Enum value for application modes
- */
-using ScopeID = uintptr_t;
-
-using ActionCallback = std::function<void()>;
-using EncoderActionCallback = std::function<void(float)>;
+// Re-export types from oc:: for backwards compatibility within core::
+using oc::BindingID;
+using oc::ScopeID;
+using oc::IsActiveFn;
+using oc::ActionCallback;
+using oc::EncoderActionCallback;
 
 /**
  * @brief Button binding trigger types
@@ -77,8 +45,8 @@ enum class EncoderBindingType : uint8_t {
 struct ButtonBinding {
     BindingID id = 0;                              ///< Unique ID for removal (0 = unassigned)
     ButtonBindingType type;
-    hal::ButtonID buttonId;
-    std::optional<hal::ButtonID> secondaryButton;  ///< For COMBO
+    ButtonID buttonId;
+    std::optional<ButtonID> secondaryButton;  ///< For COMBO
     uint32_t longPressMs = 0;                      ///< For LONG_PRESS (0 = use config default)
     uint32_t doubleTapWindowMs = 0;                ///< For DOUBLE_TAP (0 = use config default)
     ActionCallback action;
@@ -98,8 +66,8 @@ struct ButtonBinding {
 struct EncoderBinding {
     BindingID id = 0;                             ///< Unique ID for removal (0 = unassigned)
     EncoderBindingType type;
-    hal::EncoderID encoderId;
-    std::optional<hal::ButtonID> requiredButton;  ///< For TURN_WHILE_PRESSED
+    EncoderID encoderId;
+    std::optional<ButtonID> requiredButton;  ///< For TURN_WHILE_PRESSED
     EncoderActionCallback action;
     bool enabled = true;
     IsActiveFn isActive = nullptr;  ///< Activation predicate (nullptr = always active)

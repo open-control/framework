@@ -7,7 +7,7 @@
 #include <type_traits>
 
 #include <oc/core/Result.hpp>
-#include <oc/hal/IStorageBackend.hpp>
+#include <oc/interface/IStorage.hpp>
 
 namespace oc::state {
 
@@ -60,7 +60,7 @@ public:
      * @param address Start address in storage
      * @param version Data format version (increment when struct changes)
      */
-    Settings(hal::IStorageBackend& backend, uint32_t address, uint16_t version)
+    Settings(interface::IStorage& backend, uint32_t address, uint16_t version)
         : backend_(backend), address_(address), version_(version) {}
 
     /**
@@ -217,7 +217,7 @@ protected:
         return false;
     }
 
-    hal::IStorageBackend& backend_;
+    interface::IStorage& backend_;
     uint32_t address_;
     T data_{};
 

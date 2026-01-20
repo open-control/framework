@@ -6,7 +6,7 @@
 #include <oc/core/Warning.hpp>
 #include <oc/core/input/BindingHandle.hpp>
 #include <oc/core/struct/Binding.hpp>
-#include <oc/hal/Types.hpp>
+#include <oc/interface/Types.hpp>
 
 namespace oc::core::input {
 
@@ -47,7 +47,7 @@ public:
      * @param registry The InputBinding that will own the binding
      * @param buttonId The button this binding applies to
      */
-    ButtonBuilder(InputBinding* registry, hal::ButtonID buttonId);
+    ButtonBuilder(InputBinding* registry, ButtonID buttonId);
 
     /**
      * @brief Destructor warns if then() was never called
@@ -91,7 +91,7 @@ public:
      * @param other The second button in the combo
      * @return A ComboBuilder for the combo binding
      */
-    ComboBuilder combo(hal::ButtonID other);
+    ComboBuilder combo(ButtonID other);
 
     // ═══════════════════════════════════════════════════
     // Modifiers (optional, chainable)
@@ -149,7 +149,7 @@ public:
 
 private:
     InputBinding* registry_ = nullptr;
-    hal::ButtonID buttonId_{};
+    ButtonID buttonId_{};
     ButtonBindingType type_ = ButtonBindingType::PRESS;
     uint32_t timingMs_ = 0;
     ScopeID scope_ = 0;
