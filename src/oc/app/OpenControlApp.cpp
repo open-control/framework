@@ -65,7 +65,7 @@ void OpenControlApp::begin() {
 
 void OpenControlApp::update() {
     uint32_t startTime = 0;
-    if constexpr (oc::config::ENABLE_STATS) {
+    if constexpr (oc::ENABLE_STATS) {
         startTime = time_provider_();
     }
 
@@ -93,7 +93,7 @@ void OpenControlApp::update() {
     state::NotificationQueue::instance().flush();
 
     // Track timing stats
-    if constexpr (oc::config::ENABLE_STATS) {
+    if constexpr (oc::ENABLE_STATS) {
         uint32_t endTime = time_provider_();
         // Convert from ms to us (assuming millis() provider)
         uint32_t durationUs = (endTime - startTime) * 1000;
@@ -107,7 +107,7 @@ void OpenControlApp::update() {
 }
 
 void OpenControlApp::dumpStats() const {
-    if constexpr (oc::config::ENABLE_STATS) {
+    if constexpr (oc::ENABLE_STATS) {
         OC_LOG_INFO("=== Open Control Stats ===");
 
         // Timing stats
@@ -142,7 +142,7 @@ void OpenControlApp::dumpStats() const {
 }
 
 void OpenControlApp::resetStats() {
-    if constexpr (oc::config::ENABLE_STATS) {
+    if constexpr (oc::ENABLE_STATS) {
         event_bus_.resetStats();
         state::NotificationQueue::instance().resetStats();
         state::NotificationQueue::instance().resetOverflowCount();
@@ -157,16 +157,16 @@ size_t OpenControlApp::estimateMemoryUsage() const {
     total += sizeof(OpenControlApp);
 
     // InputBinding state arrays (fixed size from config)
-    total += oc::config::MAX_BUTTONS * (sizeof(bool) * 3 + sizeof(uint32_t) * 2 + sizeof(uint8_t));
+    total += oc::MAX_BUTTONS * (sizeof(bool) * 3 + sizeof(uint32_t) * 2 + sizeof(uint8_t));
 
     // EventBus subscriptions (estimate based on current usage)
     total += event_bus_.getSubscriberCount() * (sizeof(void*) * 2 + sizeof(bool) + 64);  // 64 for std::function
 
     // NotificationQueue pending (estimate based on max)
-    total += oc::config::MAX_PENDING_NOTIFICATIONS * (sizeof(void*) + sizeof(size_t) + 64);
+    total += oc::MAX_PENDING_NOTIFICATIONS * (sizeof(void*) + sizeof(size_t) + 64);
 
     // ContextManager factories and names
-    total += oc::config::MAX_CONTEXTS * (sizeof(void*) * 2);
+    total += oc::MAX_CONTEXTS * (sizeof(void*) * 2);
 
     return total;
 }

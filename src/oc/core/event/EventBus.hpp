@@ -10,9 +10,9 @@
 
 namespace oc::core::event {
 
-using oc::config::MAX_SUBSCRIBERS_PER_EVENT;
-using oc::config::EVENTBUS_COMPACT_THRESHOLD;
-using oc::config::ENABLE_STATS;
+using oc::MAX_SUBSCRIBERS_PER_EVENT;
+using oc::EVENTBUS_COMPACT_THRESHOLD;
+using oc::ENABLE_STATS;
 
 /**
  * @brief Default implementation of IEventBus using pub/sub pattern

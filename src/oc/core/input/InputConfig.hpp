@@ -4,11 +4,11 @@
 
 #include <oc/Config.hpp>
 
-namespace oc::core {
+namespace oc::core::input {
 
 // Import limits from central config
-using oc::config::MAX_BUTTONS;
-using oc::config::MAX_ENCODERS;
+using oc::MAX_BUTTONS;
+using oc::MAX_ENCODERS;
 
 /**
  * @brief Timing configuration for input gesture detection
@@ -20,4 +20,11 @@ struct InputConfig {
     uint32_t debounceMs = 5;           ///< Button debounce time
 };
 
+}  // namespace oc::core::input
+
+// Backwards compatibility alias
+namespace oc::core {
+using input::InputConfig;
+using input::MAX_BUTTONS;
+using input::MAX_ENCODERS;
 }  // namespace oc::core

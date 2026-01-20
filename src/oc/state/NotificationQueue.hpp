@@ -47,8 +47,8 @@
 
 namespace oc::state {
 
-using oc::config::MAX_PENDING_NOTIFICATIONS;
-using oc::config::ENABLE_STATS;
+using oc::MAX_PENDING_NOTIFICATIONS;
+using oc::ENABLE_STATS;
 
 /**
  * @brief Singleton queue for deferred signal notifications

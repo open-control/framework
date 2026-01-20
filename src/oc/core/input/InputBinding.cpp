@@ -9,8 +9,8 @@
 namespace oc::core::input {
 
 using namespace event;
-using oc::config::MAX_BUTTON_BINDINGS;
-using oc::config::MAX_ENCODER_BINDINGS;
+using oc::MAX_BUTTON_BINDINGS;
+using oc::MAX_ENCODER_BINDINGS;
 
 InputBinding::InputBinding(interface::IEventBus& eventBus, TimeProvider timeProvider, const InputConfig& config)
     : event_bus_(eventBus), time_provider_(timeProvider), config_(config) {

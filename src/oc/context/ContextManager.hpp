@@ -19,7 +19,7 @@
 namespace oc::context {
 
 // Import from central config
-using oc::config::MAX_CONTEXTS;
+using oc::MAX_CONTEXTS;
 
 /// @brief Sentinel value indicating no valid context ID
 inline constexpr uint8_t INVALID_CONTEXT_ID = 0xFF;

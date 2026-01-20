@@ -26,7 +26,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace oc::config {
+namespace oc {
 
 // ═══════════════════════════════════════════════════════════════════════════
 // INPUT LIMITS
@@ -139,4 +139,4 @@ constexpr size_t estimateFrameworkMemory() {
            MAX_PENDING_NOTIFICATIONS * 32;      // Rough notification size
 }
 
-}  // namespace oc::config
+}  // namespace oc

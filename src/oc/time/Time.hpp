@@ -22,12 +22,12 @@
  * @endcode
  */
 
-#include <cstdint>
+#include <oc/types/Callbacks.hpp>
 
 namespace oc::time {
 
-/// Time provider function signature
-using TimeProvider = uint32_t(*)();
+// Use TimeProvider from oc::types (avoid duplication)
+using oc::TimeProvider;
 
 /**
  * @brief Register the platform time provider
