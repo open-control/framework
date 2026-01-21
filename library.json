@@ -1,6 +1,15 @@
 {
   "name": "framework",
   "version": "0.2.0",
+  "description": "Open Control Framework - Core MIDI controller abstractions",
+  "keywords": ["open-control", "midi", "controller", "framework", "embedded"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/open-control/framework.git"
+  },
+  "license": "MIT",
+  "frameworks": "*",
+  "platforms": "*",
   "build": {
     "includeDir": "src",
     "srcFilter": ["+<**/*.cpp>", "-<main.cpp>"]
