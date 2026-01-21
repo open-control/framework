@@ -5,7 +5,7 @@
 
 namespace oc::core::input {
 
-ComboBuilder::ComboBuilder(InputBinding* registry, ButtonID btn1, ButtonID btn2)
+ComboBuilder::ComboBuilder(InputBinding* registry, oc::type::ButtonID btn1, oc::type::ButtonID btn2)
     : registry_(registry), btn1_(btn1), btn2_(btn2) {
     // Validate: combo with same button is invalid
     if (btn1 == btn2) {
@@ -45,17 +45,17 @@ ComboBuilder& ComboBuilder::operator=(ComboBuilder&& other) noexcept {
     return *this;
 }
 
-ComboBuilder& ComboBuilder::scope(ScopeID s) {
+ComboBuilder& ComboBuilder::scope(oc::type::ScopeID s) {
     scope_ = s;
     return *this;
 }
 
-ComboBuilder& ComboBuilder::when(IsActiveFn fn) {
+ComboBuilder& ComboBuilder::when(oc::type::IsActiveFn fn) {
     isActive_ = std::move(fn);
     return *this;
 }
 
-BindingHandle ComboBuilder::then(ActionCallback cb) {
+BindingHandle ComboBuilder::then(oc::type::ActionCallback cb) {
     finalized_ = true;
 
     if (!registry_) {
@@ -82,7 +82,7 @@ BindingHandle ComboBuilder::then(ActionCallback cb) {
         .scopeId = scope_
     };
 
-    BindingID id = registry_->registerButtonBinding(std::move(binding));
+    oc::type::BindingID id = registry_->registerButtonBinding(std::move(binding));
     return BindingHandle(registry_, id);
 }
 

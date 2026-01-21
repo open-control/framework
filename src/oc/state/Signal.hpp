@@ -36,6 +36,8 @@ bool equal(const T& a, const T& b) {
     if constexpr (has_equality_v<T>) {
         return a == b;
     } else {
+        static_assert(std::is_trivially_copyable_v<T>,
+            "Signal<T>: T must have operator== or be trivially copyable for memcmp comparison");
         return std::memcmp(&a, &b, sizeof(T)) == 0;
     }
 }
@@ -46,7 +48,9 @@ bool equal(const T& a, const T& b) {
  * @brief Observable value that notifies subscribers on change
  *
  * Signal<T> is the core reactive primitive for state management.
- * When the value changes, all registered callbacks are invoked synchronously.
+ * When the value changes, notifications are queued and executed when
+ * NotificationQueue::flush() is called (typically at end of update loop).
+ * For immediate execution, use notifyImmediate().
  *
  * ## Usage
  *

@@ -3,8 +3,8 @@
 #include <oc/core/input/EncoderBuilder.hpp>
 #include <oc/core/input/Binding.hpp>
 #include <oc/interface/IEncoder.hpp>
-#include <oc/types/Ids.hpp>
-#include <oc/types/Callbacks.hpp>
+#include <oc/type/Ids.hpp>
+#include <oc/type/Callbacks.hpp>
 
 namespace oc::core::input {
 class InputBinding;
@@ -41,12 +41,12 @@ public:
      * @param id The encoder to bind (uint16_t or enum class : uint16_t)
      * @return EncoderBuilder for chained configuration
      */
-    [[nodiscard]] core::input::EncoderBuilder encoder(EncoderID id);
+    [[nodiscard]] core::input::EncoderBuilder encoder(oc::type::EncoderID id);
 
     /// @brief Template overload for enum class encoder IDs
-    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
     [[nodiscard]] core::input::EncoderBuilder encoder(EnumT id) {
-        return encoder(static_cast<EncoderID>(id));
+        return encoder(static_cast<oc::type::EncoderID>(id));
     }
 
     // ═══════════════════════════════════════════════════
@@ -57,46 +57,46 @@ public:
     void clearBindings();
 
     /// Clear encoder bindings in a specific scope
-    void clearScope(oc::ScopeID scope);
+    void clearScope(oc::type::ScopeID scope);
 
     // ═══════════════════════════════════════════════════
     // Hardware state
     // ═══════════════════════════════════════════════════
 
     /// Get current encoder position (value depends on mode)
-    float getPosition(EncoderID id) const;
-    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
-    float getPosition(EnumT id) const { return getPosition(static_cast<EncoderID>(id)); }
+    float getPosition(oc::type::EncoderID id) const;
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
+    float getPosition(EnumT id) const { return getPosition(static_cast<oc::type::EncoderID>(id)); }
 
     /// Set encoder position (value depends on mode)
-    void setPosition(EncoderID id, float value);
-    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
-    void setPosition(EnumT id, float value) { setPosition(static_cast<EncoderID>(id), value); }
+    void setPosition(oc::type::EncoderID id, float value);
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
+    void setPosition(EnumT id, float value) { setPosition(static_cast<oc::type::EncoderID>(id), value); }
 
     /// Set encoder operating mode (NORMALIZED, RAW, RELATIVE)
-    void setMode(EncoderID id, interface::EncoderMode mode);
-    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
-    void setMode(EnumT id, interface::EncoderMode mode) { setMode(static_cast<EncoderID>(id), mode); }
+    void setMode(oc::type::EncoderID id, interface::EncoderMode mode);
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
+    void setMode(EnumT id, interface::EncoderMode mode) { setMode(static_cast<oc::type::EncoderID>(id), mode); }
 
     /// Set encoder bounds for absolute mode
-    void setBounds(EncoderID id, float min, float max);
-    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
-    void setBounds(EnumT id, float min, float max) { setBounds(static_cast<EncoderID>(id), min, max); }
+    void setBounds(oc::type::EncoderID id, float min, float max);
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
+    void setBounds(EnumT id, float min, float max) { setBounds(static_cast<oc::type::EncoderID>(id), min, max); }
 
     /// Set delta per detent for relative mode
-    void setDelta(EncoderID id, float delta);
-    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
-    void setDelta(EnumT id, float delta) { setDelta(static_cast<EncoderID>(id), delta); }
+    void setDelta(oc::type::EncoderID id, float delta);
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
+    void setDelta(EnumT id, float delta) { setDelta(static_cast<oc::type::EncoderID>(id), delta); }
 
     /// Configure encoder for discrete steps
-    void setDiscreteSteps(EncoderID id, uint8_t steps);
-    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
-    void setDiscreteSteps(EnumT id, uint8_t steps) { setDiscreteSteps(static_cast<EncoderID>(id), steps); }
+    void setDiscreteSteps(oc::type::EncoderID id, uint8_t steps);
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
+    void setDiscreteSteps(EnumT id, uint8_t steps) { setDiscreteSteps(static_cast<oc::type::EncoderID>(id), steps); }
 
     /// Configure encoder for continuous mode
-    void setContinuous(EncoderID id);
-    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
-    void setContinuous(EnumT id) { setContinuous(static_cast<EncoderID>(id)); }
+    void setContinuous(oc::type::EncoderID id);
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
+    void setContinuous(EnumT id) { setContinuous(static_cast<oc::type::EncoderID>(id)); }
 
 private:
     core::input::InputBinding& binding_;

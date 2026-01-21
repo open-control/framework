@@ -5,9 +5,9 @@
 using namespace oc::core::input;
 using namespace oc::core;
 
-static ScopeID overlayScope = 0;
-static ScopeID viewScope = 0;
-static ScopeID customScope = 0;
+static oc::type::ScopeID overlayScope = 0;
+static oc::type::ScopeID viewScope = 0;
+static oc::type::ScopeID customScope = 0;
 
 void setUp() {
     overlayScope = 0;
@@ -185,8 +185,8 @@ void test_overlay_overrides_custom_layer() {
 void test_multiple_custom_layers_last_wins() {
     AuthorityResolver resolver;
 
-    static ScopeID layer1 = 110;
-    static ScopeID layer2 = 120;
+    static oc::type::ScopeID layer1 = 110;
+    static oc::type::ScopeID layer2 = 120;
 
     resolver.addCustomLayer([]() { return layer1; });
     resolver.addCustomLayer([]() { return layer2; });
@@ -198,8 +198,8 @@ void test_multiple_custom_layers_last_wins() {
 void test_inactive_custom_layer_skipped() {
     AuthorityResolver resolver;
 
-    static ScopeID layer1 = 110;
-    static ScopeID layer2 = 0;  // Inactive
+    static oc::type::ScopeID layer1 = 110;
+    static oc::type::ScopeID layer2 = 0;  // Inactive
 
     resolver.addCustomLayer([]() { return layer1; });
     resolver.addCustomLayer([]() { return layer2; });

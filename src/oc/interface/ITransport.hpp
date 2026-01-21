@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <functional>
 
-#include <oc/types/Result.hpp>
+#include <oc/type/Result.hpp>
 
 namespace oc::interface {
 
@@ -30,7 +30,7 @@ public:
      * @brief Initialize transport hardware
      * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    virtual oc::Result<void> init() = 0;
+    virtual oc::type::Result<void> init() = 0;
 
     /**
      * @brief Poll for incoming data

@@ -20,7 +20,7 @@ namespace oc::api {
  */
 class EncoderProxy {
 public:
-    EncoderProxy(EncoderAPI& api, EncoderID id) : api_(api), id_(id) {}
+    EncoderProxy(EncoderAPI& api, oc::type::EncoderID id) : api_(api), id_(id) {}
 
     /// Get current encoder position
     float position() const { return api_.getPosition(id_); }
@@ -45,7 +45,7 @@ public:
 
 private:
     EncoderAPI& api_;
-    EncoderID id_;
+    oc::type::EncoderID id_;
 };
 
 }  // namespace oc::api

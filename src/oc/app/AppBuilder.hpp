@@ -8,8 +8,8 @@
 #include <oc/interface/IEncoder.hpp>
 #include <oc/interface/IMidi.hpp>
 #include <oc/interface/ITransport.hpp>
-#include <oc/types/Ids.hpp>
-#include <oc/types/Callbacks.hpp>
+#include <oc/type/Ids.hpp>
+#include <oc/type/Callbacks.hpp>
 
 namespace oc::app {
 
@@ -66,7 +66,7 @@ public:
     AppBuilder& encoders(std::unique_ptr<interface::IEncoder> controller);
     AppBuilder& buttons(std::unique_ptr<interface::IButton> controller);
     AppBuilder& inputConfig(const core::input::InputConfig& config);
-    AppBuilder& timeProvider(TimeProvider provider);
+    AppBuilder& timeProvider(oc::type::TimeProvider provider);
 
     /**
      * @brief Build the OpenControlApp with configured components
@@ -82,7 +82,7 @@ private:
     std::unique_ptr<interface::IEncoder> encoders_;
     std::unique_ptr<interface::IButton> buttons_;
     core::input::InputConfig input_config_;
-    TimeProvider time_provider_ = nullptr;
+    oc::type::TimeProvider time_provider_ = nullptr;
 };
 
 }  // namespace oc::app

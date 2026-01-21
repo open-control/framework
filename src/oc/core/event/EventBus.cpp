@@ -12,7 +12,7 @@ EventBus::EventBus() : next_id_(1) {
     subscriptions_.reserve(32);
 }
 
-interface::SubscriptionID EventBus::on(EventCategoryType category, EventType type, interface::EventCallback callback) {
+interface::SubscriptionID EventBus::on(oc::type::EventCategoryType category, oc::type::EventType type, interface::EventCallback callback) {
     if (!callback) return 0;
 
     uint32_t key = makeKey(category, type);
@@ -48,7 +48,7 @@ interface::SubscriptionID EventBus::on(EventCategoryType category, EventType typ
     return id;
 }
 
-void EventBus::emit(const Event& event) {
+void EventBus::emit(const oc::type::Event& event) {
     if constexpr (ENABLE_STATS) {
         stats_.totalEmitted++;
     }
@@ -122,7 +122,7 @@ void EventBus::autoCompactIfNeeded() {
     }
 }
 
-uint32_t EventBus::makeKey(EventCategoryType category, EventType type) const {
+uint32_t EventBus::makeKey(oc::type::EventCategoryType category, oc::type::EventType type) const {
     return (static_cast<uint32_t>(category) << 16) | type;
 }
 

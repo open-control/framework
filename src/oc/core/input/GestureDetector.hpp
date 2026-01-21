@@ -11,7 +11,6 @@
  */
 
 #include <array>
-#include <vector>
 
 #include <oc/Config.hpp>
 #include <oc/core/input/Binding.hpp>
@@ -42,19 +41,19 @@ public:
      * @param buttonId Button that was pressed
      * @param time Current time in milliseconds
      */
-    void onButtonPress(ButtonID buttonId, uint32_t time);
+    void onButtonPress(oc::type::ButtonID buttonId, uint32_t time);
 
     /**
      * @brief Record button release
      * @param buttonId Button that was released
      * @param time Current time in milliseconds
      */
-    void onButtonRelease(ButtonID buttonId, uint32_t time);
+    void onButtonRelease(oc::type::ButtonID buttonId, uint32_t time);
 
     /**
      * @brief Reset state for a button (e.g., after binding cleared)
      */
-    void resetButton(ButtonID buttonId);
+    void resetButton(oc::type::ButtonID buttonId);
 
     /**
      * @brief Reset all gesture state
@@ -72,12 +71,12 @@ public:
      * @param requiredDuration Duration required (0 = use config default)
      * @return true if long press duration exceeded and not yet triggered
      */
-    bool checkLongPress(ButtonID buttonId, uint32_t now, uint32_t requiredDuration = 0);
+    bool checkLongPress(oc::type::ButtonID buttonId, uint32_t now, uint32_t requiredDuration = 0);
 
     /**
      * @brief Mark long press as triggered (prevents re-trigger)
      */
-    void markLongPressTriggered(ButtonID buttonId);
+    void markLongPressTriggered(oc::type::ButtonID buttonId);
 
     /**
      * @brief Check if double tap should trigger for a button
@@ -86,27 +85,27 @@ public:
      * @param windowMs Window in ms (0 = use config default)
      * @return true if this is a valid double tap
      */
-    bool checkDoubleTap(ButtonID buttonId, uint32_t now, uint32_t windowMs = 0);
+    bool checkDoubleTap(oc::type::ButtonID buttonId, uint32_t now, uint32_t windowMs = 0);
 
     /**
      * @brief Reset tap count after double tap triggered
      */
-    void resetTapCount(ButtonID buttonId);
+    void resetTapCount(oc::type::ButtonID buttonId);
 
     /**
      * @brief Check if two buttons are both currently pressed
      */
-    bool isComboActive(ButtonID btn1, ButtonID btn2) const;
+    bool isComboActive(oc::type::ButtonID btn1, oc::type::ButtonID btn2) const;
 
     // ═══════════════════════════════════════════════════
     // State Queries
     // ═══════════════════════════════════════════════════
 
-    bool isPressed(ButtonID buttonId) const;
-    uint32_t pressTime(ButtonID buttonId) const;
-    uint32_t releaseTime(ButtonID buttonId) const;
-    uint8_t tapCount(ButtonID buttonId) const;
-    bool longPressTriggered(ButtonID buttonId) const;
+    bool isPressed(oc::type::ButtonID buttonId) const;
+    uint32_t pressTime(oc::type::ButtonID buttonId) const;
+    uint32_t releaseTime(oc::type::ButtonID buttonId) const;
+    uint8_t tapCount(oc::type::ButtonID buttonId) const;
+    bool longPressTriggered(oc::type::ButtonID buttonId) const;
 
     const InputConfig& config() const { return config_; }
 

@@ -116,7 +116,9 @@ inline size_t cobsDecode(const uint8_t* input, size_t inputLen, uint8_t* output)
  * @brief Streaming COBS frame decoder
  *
  * Accumulates bytes and invokes callback for each complete frame.
- * Zero-allocation after construction (uses fixed internal buffer).
+ * Zero-allocation after construction (uses fixed internal buffers).
+ *
+ * @note Memory usage: 2 * MaxFrameSize bytes (default: 8KB total)
  *
  * @tparam MaxFrameSize Maximum frame size to buffer
  */
@@ -140,11 +142,10 @@ public:
     void feed(uint8_t byte, Callback&& onFrame) {
         if (byte == COBS_DELIMITER) {
             if (bufferLen_ > 0) {
-                // Decode and emit frame
-                uint8_t decoded[MaxFrameSize];
-                size_t decodedLen = cobsDecode(buffer_, bufferLen_, decoded);
+                // Decode into member buffer (no stack allocation)
+                size_t decodedLen = cobsDecode(buffer_, bufferLen_, decode_buffer_);
                 if (decodedLen > 0) {
-                    onFrame(decoded, decodedLen);
+                    onFrame(decode_buffer_, decodedLen);
                 }
                 bufferLen_ = 0;
             }
@@ -179,6 +180,7 @@ public:
 
 private:
     uint8_t buffer_[MaxFrameSize]{};
+    uint8_t decode_buffer_[MaxFrameSize]{};  ///< Buffer for decoded output
     size_t bufferLen_ = 0;
 };
 

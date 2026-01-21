@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oc/interface/IMidi.hpp>
-#include <oc/types/Result.hpp>
+#include <oc/type/Result.hpp>
 
 namespace oc::impl {
 
@@ -18,8 +18,8 @@ namespace oc::impl {
  */
 class NullMidi : public interface::IMidi {
 public:
-    oc::Result<void> init() override {
-        return oc::Result<void>::ok();
+    oc::type::Result<void> init() override {
+        return oc::type::Result<void>::ok();
     }
 
     void update() override {}

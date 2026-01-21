@@ -2,7 +2,6 @@
 
 #include <array>
 #include <cstdint>
-#include <vector>
 
 #include <oc/Config.hpp>
 #include <oc/interface/IEventBus.hpp>
@@ -13,11 +12,11 @@
 #include <oc/core/input/LatchManager.hpp>
 #include <oc/core/input/OwnershipTracker.hpp>
 #include <oc/core/input/Binding.hpp>
-#include <oc/types/Ids.hpp>
-#include <oc/types/Callbacks.hpp>
-#include <oc/types/Event.hpp>
+#include <oc/type/Ids.hpp>
+#include <oc/type/Callbacks.hpp>
+#include <oc/type/Event.hpp>
 
-// For tests: if no TimeProvider given, use a default that returns 0
+// For tests: if no oc::type::TimeProvider given, use a default that returns 0
 #ifndef OC_DEFAULT_TIME_PROVIDER
 #define OC_DEFAULT_TIME_PROVIDER nullptr
 #endif
@@ -41,13 +40,13 @@ namespace oc::core::input {
 class InputBinding {
 public:
     /**
-     * @brief Construct InputBinding with optional TimeProvider
-     * @param eventBus Event bus for input events
+     * @brief Construct InputBinding with optional oc::type::TimeProvider
+     * @param eventBus oc::type::Event bus for input events
      * @param timeProvider Function returning current time in ms (for tests: can be nullptr)
      * @param config Gesture timing configuration
      */
     explicit InputBinding(interface::IEventBus& eventBus,
-                          TimeProvider timeProvider = OC_DEFAULT_TIME_PROVIDER,
+                          oc::type::TimeProvider timeProvider = OC_DEFAULT_TIME_PROVIDER,
                           const InputConfig& config = {});
     ~InputBinding();
 
@@ -59,16 +58,16 @@ public:
     // ═══════════════════════════════════════════════════
 
     /// Remove all bindings associated with a scope
-    void clearScope(ScopeID scope);
+    void clearScope(oc::type::ScopeID scope);
 
     /// Check if a button is in latched state (by any scope)
-    bool isLatched(ButtonID btn) const;
+    bool isLatched(oc::type::ButtonID btn) const;
 
     /// Clear latch for a button (regardless of which scope owns it)
-    void clearLatch(ButtonID btn);
+    void clearLatch(oc::type::ButtonID btn);
 
     /// Clear all latches owned by a specific scope
-    void clearLatchesForScope(ScopeID scope);
+    void clearLatchesForScope(oc::type::ScopeID scope);
 
     /// Must be called periodically for long press detection
     void processTick();
@@ -91,7 +90,7 @@ public:
     // ═══════════════════════════════════════════════════
 
     /// Check if a button is currently pressed (instantaneous state)
-    bool isButtonPressed(ButtonID id) const;
+    bool isButtonPressed(oc::type::ButtonID id) const;
 
     /// Clear only button bindings
     void clearButtonBindings();
@@ -100,10 +99,10 @@ public:
     void clearEncoderBindings();
 
     /// Clear button bindings in a specific scope
-    void clearButtonScope(ScopeID scope);
+    void clearButtonScope(oc::type::ScopeID scope);
 
     /// Clear encoder bindings in a specific scope
-    void clearEncoderScope(ScopeID scope);
+    void clearEncoderScope(oc::type::ScopeID scope);
 
     // ═══════════════════════════════════════════════════
     // Internal API for fluent builders
@@ -112,23 +111,23 @@ public:
     /**
      * @brief Register a button binding and return its ID
      * @param binding The binding to register (id field will be set)
-     * @return The assigned BindingID
+     * @return The assigned oc::type::BindingID
      */
-    BindingID registerButtonBinding(ButtonBinding binding);
+    oc::type::BindingID registerButtonBinding(ButtonBinding binding);
 
     /**
      * @brief Register an encoder binding and return its ID
      * @param binding The binding to register (id field will be set)
-     * @return The assigned BindingID
+     * @return The assigned oc::type::BindingID
      */
-    BindingID registerEncoderBinding(EncoderBinding binding);
+    oc::type::BindingID registerEncoderBinding(EncoderBinding binding);
 
     /**
      * @brief Remove a binding by its ID
      * @param id The binding ID to remove
      * @return true if binding was found and removed
      */
-    bool removeById(BindingID id);
+    bool removeById(oc::type::BindingID id);
 
     /**
      * @brief Get access to config for builders
@@ -139,31 +138,31 @@ private:
     BindingRegistry<ButtonBinding> button_registry_;
     BindingRegistry<EncoderBinding> encoder_registry_;
 
-    void onEncoderChanged(const oc::Event& event);
-    void onButtonPress(const oc::Event& event);
-    void onButtonRelease(const oc::Event& event);
+    void onEncoderChanged(const oc::type::Event& event);
+    void onButtonPress(const oc::type::Event& event);
+    void onButtonRelease(const oc::type::Event& event);
 
-    // Event dispatch
-    void dispatchButtonEvent(ButtonID id, ButtonBindingType type);
-    void dispatchEncoderEvent(EncoderID id, float value);
-    ScopeID dispatchPress(ButtonID id, ScopeID excludeScope = 0);
-    bool dispatchReleaseToScope(ButtonID id, ScopeID scope);
+    // oc::type::Event dispatch
+    void dispatchButtonEvent(oc::type::ButtonID id, ButtonBindingType type);
+    void dispatchEncoderEvent(oc::type::EncoderID id, float value);
+    oc::type::ScopeID dispatchPress(oc::type::ButtonID id, oc::type::ScopeID excludeScope = 0);
+    bool dispatchReleaseToScope(oc::type::ButtonID id, oc::type::ScopeID scope);
 
     // Binding filters
     template <typename BindingType>
     bool isBindingActive(const BindingType& binding) const;
-    bool hasAuthority(ScopeID scope) const;
+    bool hasAuthority(oc::type::ScopeID scope) const;
     bool checkRequiredButton(const EncoderBinding& binding) const;
 
     // Gesture triggers
-    void checkLongPress(ButtonID id, uint32_t now);
-    void checkDoubleTap(ButtonID id, uint32_t now);
-    void checkCombo(ButtonID releasedId);
+    void checkLongPress(oc::type::ButtonID id, uint32_t now);
+    void checkDoubleTap(oc::type::ButtonID id, uint32_t now);
+    void checkCombo(oc::type::ButtonID releasedId);
 
     // Release handling (decomposed from onButtonRelease)
-    void handleScopedRelease(ButtonID id, ScopeID pressOwner, uint32_t pressDuration);
-    void handleLatchedRelease(ButtonID id, ScopeID latchOwner);
-    bool shouldActivateLatch(ButtonID id, ScopeID pressOwner, uint32_t pressDuration) const;
+    void handleScopedRelease(oc::type::ButtonID id, oc::type::ScopeID pressOwner, uint32_t pressDuration);
+    void handleLatchedRelease(oc::type::ButtonID id, oc::type::ScopeID latchOwner);
+    bool shouldActivateLatch(oc::type::ButtonID id, oc::type::ScopeID pressOwner, uint32_t pressDuration) const;
 
     // Subsystems
     GestureDetector gesture_;
@@ -171,7 +170,7 @@ private:
     OwnershipTracker ownership_;
 
     interface::IEventBus& event_bus_;
-    TimeProvider time_provider_;
+    oc::type::TimeProvider time_provider_;
     interface::SubscriptionID encoder_sub_;
     interface::SubscriptionID button_press_sub_;
     interface::SubscriptionID button_release_sub_;
@@ -179,7 +178,7 @@ private:
     InputConfig config_;
     bool bindings_enabled_ = true;
     uint32_t current_time_ = 0;
-    BindingID next_binding_id_ = 1;  ///< Next ID to assign (0 = invalid)
+    oc::type::BindingID next_binding_id_ = 1;  ///< Next ID to assign (0 = invalid)
     const AuthorityResolver* authority_resolver_ = nullptr;  ///< Optional authority check
 };
 

@@ -3,8 +3,8 @@
 #include <oc/core/input/BindingHandle.hpp>
 #include <oc/core/input/Traits.hpp>
 #include <oc/core/input/Binding.hpp>
-#include <oc/types/Ids.hpp>
-#include <oc/types/Callbacks.hpp>
+#include <oc/type/Ids.hpp>
+#include <oc/type/Callbacks.hpp>
 
 namespace oc::core::input {
 
@@ -30,7 +30,7 @@ public:
      * @param btn1 First button in the combo
      * @param btn2 Second button in the combo
      */
-    ComboBuilder(InputBinding* registry, ButtonID btn1, ButtonID btn2);
+    ComboBuilder(InputBinding* registry, oc::type::ButtonID btn1, oc::type::ButtonID btn2);
 
     /**
      * @brief Destructor warns if then() was never called
@@ -51,7 +51,7 @@ public:
      * @brief Set the scope ID for this binding
      * @param s Scope identifier (non-zero for scoped bindings)
      */
-    ComboBuilder& scope(ScopeID s);
+    ComboBuilder& scope(oc::type::ScopeID s);
 
     /**
      * @brief Set scope from a duck-typed provider
@@ -72,7 +72,7 @@ public:
      * @brief Set custom activation condition
      * @param fn Function returning true when binding should be active
      */
-    ComboBuilder& when(IsActiveFn fn);
+    ComboBuilder& when(oc::type::IsActiveFn fn);
 
     // ═══════════════════════════════════════════════════
     // Terminal (MUST be called)
@@ -83,14 +83,14 @@ public:
      * @param cb Action to execute when both buttons are pressed
      * @return Handle for optional unbinding
      */
-    BindingHandle then(ActionCallback cb);
+    BindingHandle then(oc::type::ActionCallback cb);
 
 private:
     InputBinding* registry_ = nullptr;
-    ButtonID btn1_{};
-    ButtonID btn2_{};
-    ScopeID scope_ = 0;
-    IsActiveFn isActive_ = nullptr;
+    oc::type::ButtonID btn1_{};
+    oc::type::ButtonID btn2_{};
+    oc::type::ScopeID scope_ = 0;
+    oc::type::IsActiveFn isActive_ = nullptr;
     bool finalized_ = false;
 };
 

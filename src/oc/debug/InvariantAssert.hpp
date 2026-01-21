@@ -6,8 +6,6 @@
  *
  * These macros help detect invariant violations during development.
  * They are compiled out in release builds (when NDEBUG is defined).
- *
- * @see INVARIANTS.md
  */
 
 #include <oc/log/Log.hpp>

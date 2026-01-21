@@ -18,9 +18,9 @@ ContextManager::~ContextManager() {
     }
 }
 
-oc::Result<void> ContextManager::begin() {
-    using R = oc::Result<void>;
-    using E = oc::ErrorCode;
+oc::type::Result<void> ContextManager::begin() {
+    using R = oc::type::Result<void>;
+    using E = oc::type::ErrorCode;
 
     if (default_id_ == INVALID_CONTEXT_ID) {
         return R::err({E::CONTEXT_NOT_REGISTERED, "no default context"});
@@ -108,8 +108,8 @@ void ContextManager::update() {
     processPendingSwitch();
 
     // Check for disconnection (DAW contexts) - schedule deferred switch
+    // Note: Don't call onDisconnected() here - switchToImpl() handles it
     if (active_ && !active_->isConnected()) {
-        active_->onDisconnected();
         if (active_id_ != default_id_ && default_id_ != INVALID_CONTEXT_ID) {
             pending_switch_ = default_id_;
         }

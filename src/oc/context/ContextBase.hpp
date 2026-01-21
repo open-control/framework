@@ -36,10 +36,10 @@ namespace oc::context {
  *         .midi = false
  *     };
  *
- *     oc::Result<void> init() override {
- *         onButton(ButtonID::PLAY).press().then([this] { play(); });
- *         onEncoder(EncoderID::VOLUME).turn().then([this](float v) { setVolume(v); });
- *         return oc::Result<void>::ok();
+ *     oc::type::Result<void> init() override {
+ *         onButton(oc::type::ButtonID::PLAY).press().then([this] { play(); });
+ *         onEncoder(oc::type::EncoderID::VOLUME).turn().then([this](float v) { setVolume(v); });
+ *         return oc::type::Result<void>::ok();
  *     }
  *
  *     void update() override {}
@@ -70,37 +70,37 @@ protected:
     /**
      * @brief Start building a button binding
      *
-     * @tparam ID Enum class or integral type convertible to ButtonID
+     * @tparam ID Enum class or integral type convertible to oc::type::ButtonID
      * @param id Button identifier
      * @return ButtonBuilder for chaining configuration
      *
      * @code
-     * onButton(ButtonID::PLAY).press().then([this] { transport.play(); });
+     * onButton(oc::type::ButtonID::PLAY).press().then([this] { transport.play(); });
      * @endcode
      */
     template <typename ID>
     [[nodiscard]] core::input::ButtonBuilder onButton(ID id) {
         assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->button && "ButtonAPI not available");
-        return apis_->button->button(static_cast<oc::ButtonID>(id));
+        return apis_->button->button(static_cast<oc::type::ButtonID>(id));
     }
 
     /**
      * @brief Start building an encoder binding
      *
-     * @tparam ID Enum class or integral type convertible to EncoderID
+     * @tparam ID Enum class or integral type convertible to oc::type::EncoderID
      * @param id Encoder identifier
      * @return EncoderBuilder for chaining configuration
      *
      * @code
-     * onEncoder(EncoderID::VOLUME).turn().then([this](float v) { setVolume(v); });
+     * onEncoder(oc::type::EncoderID::VOLUME).turn().then([this](float v) { setVolume(v); });
      * @endcode
      */
     template <typename ID>
     [[nodiscard]] core::input::EncoderBuilder onEncoder(ID id) {
         assert(apis_ && "setAPIs() not called - context not properly initialized");
         assert(apis_->encoder && "EncoderAPI not available");
-        return apis_->encoder->encoder(static_cast<oc::EncoderID>(id));
+        return apis_->encoder->encoder(static_cast<oc::type::EncoderID>(id));
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -114,7 +114,7 @@ protected:
     api::ButtonProxy button(ID id) {
         assert(apis_ && "setAPIs() not called");
         assert(apis_->button && "ButtonAPI not available");
-        return api::ButtonProxy(*apis_->button, static_cast<oc::ButtonID>(id));
+        return api::ButtonProxy(*apis_->button, static_cast<oc::type::ButtonID>(id));
     }
 
     /**
@@ -124,7 +124,7 @@ protected:
     api::EncoderProxy encoder(ID id) {
         assert(apis_ && "setAPIs() not called");
         assert(apis_->encoder && "EncoderAPI not available");
-        return api::EncoderProxy(*apis_->encoder, static_cast<oc::EncoderID>(id));
+        return api::EncoderProxy(*apis_->encoder, static_cast<oc::type::EncoderID>(id));
     }
 
     // ─────────────────────────────────────────────────────────────────────

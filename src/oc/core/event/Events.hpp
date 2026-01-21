@@ -2,52 +2,52 @@
 
 #include <cstdint>
 
-#include <oc/types/Event.hpp>
+#include <oc/type/Event.hpp>
 #include "EventTypes.hpp"
 
-#include <oc/types/Ids.hpp>
-#include <oc/types/Callbacks.hpp>
+#include <oc/type/Ids.hpp>
+#include <oc/type/Callbacks.hpp>
 
 namespace oc::core::event {
 
 /// Encoder rotation event
-class EncoderChangedEvent : public Event {
+class EncoderChangedEvent : public oc::type::Event {
 public:
-    EncoderChangedEvent(EncoderID id, float value)
-        : Event(EventCategory::USER_INPUT, InputEvent::ENCODER_CHANGED),
+    EncoderChangedEvent(oc::type::EncoderID id, float value)
+        : oc::type::Event(oc::type::EventCategory::USER_INPUT, InputEvent::ENCODER_CHANGED),
           encoderId(id),
           normalizedValue(value) {}
 
-    EncoderID encoderId;
+    oc::type::EncoderID encoderId;
     float normalizedValue;
 };
 
 /// Button press event
-class ButtonPressEvent : public Event {
+class ButtonPressEvent : public oc::type::Event {
 public:
-    ButtonPressEvent(ButtonID id, bool isPressed)
-        : Event(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS),
+    ButtonPressEvent(oc::type::ButtonID id, bool isPressed)
+        : oc::type::Event(oc::type::EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS),
           buttonId(id),
           pressed(isPressed) {}
 
-    ButtonID buttonId;
+    oc::type::ButtonID buttonId;
     bool pressed;
 };
 
 /// Button release event
-class ButtonReleaseEvent : public Event {
+class ButtonReleaseEvent : public oc::type::Event {
 public:
-    explicit ButtonReleaseEvent(ButtonID id)
-        : Event(EventCategory::USER_INPUT, InputEvent::BUTTON_RELEASE), buttonId(id) {}
+    explicit ButtonReleaseEvent(oc::type::ButtonID id)
+        : oc::type::Event(oc::type::EventCategory::USER_INPUT, InputEvent::BUTTON_RELEASE), buttonId(id) {}
 
-    ButtonID buttonId;
+    oc::type::ButtonID buttonId;
 };
 
 /// MIDI Control Change event
-class MidiCCEvent : public Event {
+class MidiCCEvent : public oc::type::Event {
 public:
     MidiCCEvent(uint8_t ch, uint8_t cc, uint8_t val)
-        : Event(EventCategory::MIDI, MidiEvent::CC),
+        : oc::type::Event(oc::type::EventCategory::MIDI, MidiEvent::CC),
           channel(ch),
           controller(cc),
           value(val) {}
@@ -58,10 +58,10 @@ public:
 };
 
 /// MIDI Note On event
-class MidiNoteOnEvent : public Event {
+class MidiNoteOnEvent : public oc::type::Event {
 public:
     MidiNoteOnEvent(uint8_t ch, uint8_t n, uint8_t vel)
-        : Event(EventCategory::MIDI, MidiEvent::NOTE_ON),
+        : oc::type::Event(oc::type::EventCategory::MIDI, MidiEvent::NOTE_ON),
           channel(ch),
           note(n),
           velocity(vel) {}
@@ -72,10 +72,10 @@ public:
 };
 
 /// MIDI Note Off event
-class MidiNoteOffEvent : public Event {
+class MidiNoteOffEvent : public oc::type::Event {
 public:
     MidiNoteOffEvent(uint8_t ch, uint8_t n, uint8_t vel)
-        : Event(EventCategory::MIDI, MidiEvent::NOTE_OFF),
+        : oc::type::Event(oc::type::EventCategory::MIDI, MidiEvent::NOTE_OFF),
           channel(ch),
           note(n),
           velocity(vel) {}
@@ -86,19 +86,19 @@ public:
 };
 
 /// MIDI System Exclusive event
-class SysExEvent : public Event {
+class SysExEvent : public oc::type::Event {
 public:
     SysExEvent(const uint8_t* d, uint16_t len)
-        : Event(EventCategory::MIDI, MidiEvent::SYSEX), data(d), length(len) {}
+        : oc::type::Event(oc::type::EventCategory::MIDI, MidiEvent::SYSEX), data(d), length(len) {}
 
     const uint8_t* data;
     uint16_t length;
 };
 
 /// System boot complete event
-class SystemBootCompleteEvent : public Event {
+class SystemBootCompleteEvent : public oc::type::Event {
 public:
-    SystemBootCompleteEvent() : Event(EventCategory::SYSTEM, SystemEvent::BOOT_COMPLETE) {}
+    SystemBootCompleteEvent() : oc::type::Event(oc::type::EventCategory::SYSTEM, SystemEvent::BOOT_COMPLETE) {}
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -106,10 +106,10 @@ public:
 // ═══════════════════════════════════════════════════════════════════
 
 /// Context was activated (switched to)
-class ContextActivatedEvent : public Event {
+class ContextActivatedEvent : public oc::type::Event {
 public:
     ContextActivatedEvent(uint8_t id, const char* name)
-        : Event(EventCategory::CONTEXT, SystemEvent::CONTEXT_ACTIVATED),
+        : oc::type::Event(oc::type::EventCategory::CONTEXT, SystemEvent::CONTEXT_ACTIVATED),
           contextId(id),
           contextName(name) {}
 
@@ -118,10 +118,10 @@ public:
 };
 
 /// Context was deactivated (switched away from)
-class ContextDeactivatedEvent : public Event {
+class ContextDeactivatedEvent : public oc::type::Event {
 public:
     ContextDeactivatedEvent(uint8_t id, const char* name)
-        : Event(EventCategory::CONTEXT, SystemEvent::CONTEXT_DEACTIVATED),
+        : oc::type::Event(oc::type::EventCategory::CONTEXT, SystemEvent::CONTEXT_DEACTIVATED),
           contextId(id),
           contextName(name) {}
 
@@ -130,10 +130,10 @@ public:
 };
 
 /// Context initialization failed
-class ContextErrorEvent : public Event {
+class ContextErrorEvent : public oc::type::Event {
 public:
     explicit ContextErrorEvent(uint8_t id)
-        : Event(EventCategory::CONTEXT, SystemEvent::CONTEXT_ERROR), contextId(id) {}
+        : oc::type::Event(oc::type::EventCategory::CONTEXT, SystemEvent::CONTEXT_ERROR), contextId(id) {}
 
     uint8_t contextId;
 };

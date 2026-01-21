@@ -23,7 +23,7 @@ namespace oc::api {
  */
 class ButtonProxy {
 public:
-    ButtonProxy(ButtonAPI& api, ButtonID id) : api_(api), id_(id) {}
+    ButtonProxy(ButtonAPI& api, oc::type::ButtonID id) : api_(api), id_(id) {}
 
     /// Check if button is in latched state
     bool isLatched() const { return api_.isLatched(id_); }
@@ -35,11 +35,11 @@ public:
     bool isPressed() const { return api_.isPressed(id_); }
 
     /// Get predicate for use with when()
-    oc::IsActiveFn pressed() const { return api_.pressed(id_); }
+    oc::type::IsActiveFn pressed() const { return api_.pressed(id_); }
 
 private:
     ButtonAPI& api_;
-    ButtonID id_;
+    oc::type::ButtonID id_;
 };
 
 }  // namespace oc::api

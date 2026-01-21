@@ -2,7 +2,7 @@
 
 **Hardware abstraction framework for building embedded controllers**
 
-[![Version](https://img.shields.io/badge/version-0.1.3-blue)]()
+[![Version](https://img.shields.io/badge/version-0.2.0-blue)]()
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)]()
 
 > **Alpha Software** - API may change.
@@ -58,8 +58,8 @@ See [hal-teensy](https://github.com/open-control/hal-teensy):
 
 ```
 oc::
-├── types/        # Level 0: Foundational types (no internal dependencies)
-│   ├── Ids.hpp, Result.hpp, Callbacks.hpp, Event.hpp
+├── type/         # Level 0: Foundational types (no internal dependencies)
+│   └── Ids.hpp, Result.hpp, Callbacks.hpp, Event.hpp
 ├── interface/    # Level 1: Hardware abstraction interfaces
 │   ├── IButton, IEncoder, IMidi, IStorage
 │   ├── IDisplay, IGpio, IMultiplexer, ITransport
@@ -186,30 +186,30 @@ for (auto& signal : state.items) {
 Result<T> provides typed error handling without exceptions:
 
 ```cpp
-#include <oc/core/Result.hpp>
+#include <oc/type/Result.hpp>
 
-Result<void> initHardware() {
+oc::type::Result<void> initHardware() {
     if (!device.detect()) {
-        return Result<void>::err(ErrorCode::HARDWARE_NOT_FOUND);
+        return oc::type::Result<void>::err(oc::type::ErrorCode::HARDWARE_NOT_FOUND);
     }
-    return Result<void>::ok();
+    return oc::type::Result<void>::ok();
 }
 
 // Usage
 auto result = initHardware();
 if (result.isErr()) {
-    OC_LOG_ERROR("Init failed: {}", errorCodeToString(result.error()));
+    OC_LOG_ERROR("Init failed: {}", oc::type::errorCodeToString(result.error().code));
 }
 ```
 
 ### Error Codes
 
 ```cpp
-ErrorCode::HARDWARE_NOT_FOUND    // Device not detected
-ErrorCode::HARDWARE_INIT_FAILED  // Initialization failed
-ErrorCode::RESOURCE_EXHAUSTED    // No more capacity
-ErrorCode::INVALID_ARGUMENT      // Parameter out of range
-ErrorCode::STORAGE_CORRUPT       // Data integrity check failed
+oc::type::ErrorCode::HARDWARE_NOT_FOUND    // Device not detected
+oc::type::ErrorCode::HARDWARE_INIT_FAILED  // Initialization failed
+oc::type::ErrorCode::RESOURCE_EXHAUSTED    // No more capacity
+oc::type::ErrorCode::INVALID_ARGUMENT      // Parameter out of range
+oc::type::ErrorCode::STORAGE_CORRUPT       // Data integrity check failed
 // ... and more
 ```
 
@@ -309,9 +309,8 @@ decoder.feed(byte, [](const uint8_t* data, size_t len) {
 A context represents an application mode. Only one is active at a time.
 
 ```cpp
-class MyContext : public oc::interface::IContext {
+class MyContext : public oc::context::ContextBase {
 public:
-    // Declare required APIs (validated at registration)
     static constexpr oc::context::Requirements REQUIRES{
         .button = true,
         .encoder = true,
@@ -320,9 +319,9 @@ public:
 
     const char* getName() const override { return "MyContext"; }
 
-    bool initialize() override {
+    oc::type::Result<void> init() override {
         // Setup bindings here
-        return true;
+        return oc::type::Result<void>::ok();
     }
 
     void update() override {

@@ -3,8 +3,8 @@
 #include <oc/core/input/BindingHandle.hpp>
 #include <oc/core/input/Traits.hpp>
 #include <oc/core/input/Binding.hpp>
-#include <oc/types/Ids.hpp>
-#include <oc/types/Callbacks.hpp>
+#include <oc/type/Ids.hpp>
+#include <oc/type/Callbacks.hpp>
 
 namespace oc::core::input {
 
@@ -30,7 +30,7 @@ public:
      * @param registry The InputBinding that will own the binding
      * @param encoderId The encoder this binding applies to
      */
-    EncoderBuilder(InputBinding* registry, EncoderID encoderId);
+    EncoderBuilder(InputBinding* registry, oc::type::EncoderID encoderId);
 
     /**
      * @brief Destructor warns if then() was never called
@@ -66,7 +66,7 @@ public:
      * @brief Set the scope ID for this binding
      * @param s Scope identifier (non-zero for scoped bindings)
      */
-    EncoderBuilder& scope(ScopeID s);
+    EncoderBuilder& scope(oc::type::ScopeID s);
 
     /**
      * @brief Set scope from a duck-typed provider
@@ -87,7 +87,7 @@ public:
      * @brief Set custom activation condition
      * @param fn Function returning true when binding should be active
      */
-    EncoderBuilder& when(IsActiveFn fn);
+    EncoderBuilder& when(oc::type::IsActiveFn fn);
 
     // ═══════════════════════════════════════════════════
     // Terminal (MUST be called)
@@ -98,13 +98,13 @@ public:
      * @param cb Action to execute when binding triggers (receives encoder value)
      * @return Handle for optional unbinding
      */
-    BindingHandle then(EncoderActionCallback cb);
+    BindingHandle then(oc::type::EncoderActionCallback cb);
 
 private:
     InputBinding* registry_ = nullptr;
-    EncoderID encoderId_{};
-    ScopeID scope_ = 0;
-    IsActiveFn isActive_ = nullptr;
+    oc::type::EncoderID encoderId_{};
+    oc::type::ScopeID scope_ = 0;
+    oc::type::IsActiveFn isActive_ = nullptr;
     bool gestureSet_ = false;
     bool finalized_ = false;
 };

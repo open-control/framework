@@ -6,7 +6,7 @@
 #include <functional>
 #include <type_traits>
 
-#include <oc/types/Result.hpp>
+#include <oc/type/Result.hpp>
 #include <oc/interface/IStorage.hpp>
 
 namespace oc::state {
@@ -71,9 +71,9 @@ public:
      *
      * @return Ok if loaded successfully, Err with reason otherwise
      */
-    oc::Result<void> load() {
-        using R = oc::Result<void>;
-        using E = oc::ErrorCode;
+    oc::type::Result<void> load() {
+        using R = oc::type::Result<void>;
+        using E = oc::type::ErrorCode;
 
         SettingsHeader header;
 
@@ -127,9 +127,9 @@ public:
      * @brief Save settings to storage (only if dirty)
      * @return Ok if saved (or not dirty), Err on write failure
      */
-    oc::Result<void> save() {
-        using R = oc::Result<void>;
-        using E = oc::ErrorCode;
+    oc::type::Result<void> save() {
+        using R = oc::type::Result<void>;
+        using E = oc::type::ErrorCode;
 
         if (!dirty_) return R::ok();
 
@@ -163,7 +163,7 @@ public:
     /**
      * @brief Reload from storage (discard unsaved changes)
      */
-    oc::Result<void> reload() { return load(); }
+    oc::type::Result<void> reload() { return load(); }
 
     /**
      * @brief Reset to default values (marks dirty)
@@ -176,9 +176,9 @@ public:
     /**
      * @brief Factory reset (erase + defaults + save)
      */
-    oc::Result<void> factoryReset() {
-        using R = oc::Result<void>;
-        using E = oc::ErrorCode;
+    oc::type::Result<void> factoryReset() {
+        using R = oc::type::Result<void>;
+        using E = oc::type::ErrorCode;
 
         size_t totalSize = sizeof(SettingsHeader) + sizeof(T);
         if (!backend_.erase(address_, totalSize)) {

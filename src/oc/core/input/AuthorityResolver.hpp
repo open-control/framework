@@ -11,8 +11,6 @@
  *
  * This ensures that only one scope receives input at any time,
  * preventing ghost inputs and scope conflicts.
- *
- * @see INVARIANTS.md - Invariant 2: Input Authority
  */
 
 #include <functional>
@@ -40,7 +38,7 @@ namespace oc::core::input {
  * });
  *
  * // Query authority
- * ScopeID auth = resolver.getAuthority();
+ * oc::type::ScopeID auth = resolver.getAuthority();
  * if (resolver.hasAuthority(myScope)) {
  *     // This scope can receive input
  * }
@@ -48,8 +46,8 @@ namespace oc::core::input {
  */
 class AuthorityResolver {
 public:
-    /// Provider function that returns a ScopeID (0 = none/inactive)
-    using ScopeProvider = std::function<ScopeID()>;
+    /// Provider function that returns a oc::type::ScopeID (0 = none/inactive)
+    using ScopeProvider = std::function<oc::type::ScopeID()>;
 
     AuthorityResolver() = default;
     ~AuthorityResolver() = default;
@@ -67,7 +65,7 @@ public:
     /**
      * @brief Set the overlay stack provider
      *
-     * Should return the ScopeID of the top overlay, or 0 if no overlay is active.
+     * Should return the oc::type::ScopeID of the top overlay, or 0 if no overlay is active.
      * This has the highest priority.
      */
     void setOverlayProvider(ScopeProvider provider) {
@@ -77,7 +75,7 @@ public:
     /**
      * @brief Set the active view provider
      *
-     * Should return the ScopeID of the currently active view, or 0 if none.
+     * Should return the oc::type::ScopeID of the currently active view, or 0 if none.
      * This has second priority after overlays.
      */
     void setActiveViewProvider(ScopeProvider provider) {
@@ -116,26 +114,26 @@ public:
      * 3. Active view (if activeViewProvider returns non-zero)
      * 4. Global (returns 0)
      *
-     * @return ScopeID of the authoritative scope (0 = global)
+     * @return oc::type::ScopeID of the authoritative scope (0 = global)
      */
-    ScopeID getAuthority() const {
+    oc::type::ScopeID getAuthority() const {
         // 1. Check overlay (highest priority)
         if (overlayProvider_) {
-            ScopeID overlay = overlayProvider_();
+            oc::type::ScopeID overlay = overlayProvider_();
             if (overlay != 0) return overlay;
         }
 
         // 2. Check custom layers (reverse order)
         for (auto it = customLayers_.rbegin(); it != customLayers_.rend(); ++it) {
             if (*it) {
-                ScopeID custom = (*it)();
+                oc::type::ScopeID custom = (*it)();
                 if (custom != 0) return custom;
             }
         }
 
         // 3. Check active view
         if (activeViewProvider_) {
-            ScopeID view = activeViewProvider_();
+            oc::type::ScopeID view = activeViewProvider_();
             if (view != 0) return view;
         }
 
@@ -157,7 +155,7 @@ public:
      * @param scope The scope to check
      * @return true if this scope can participate in input dispatch
      */
-    bool hasAuthority(ScopeID scope) const {
+    bool hasAuthority(oc::type::ScopeID scope) const {
         if (scope == 0) {
             // Global scope always participates (but lowest priority)
             return true;
@@ -174,7 +172,7 @@ public:
      * @param scope The scope to check
      * @return true if this scope is the exclusive authority
      */
-    bool isExclusiveAuthority(ScopeID scope) const {
+    bool isExclusiveAuthority(oc::type::ScopeID scope) const {
         return scope != 0 && scope == getAuthority();
     }
 

@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#include <oc/types/Result.hpp>
+#include <oc/type/Result.hpp>
 
 namespace oc::interface {
 
@@ -46,7 +46,7 @@ public:
      * - SD Card: Initializes SDIO, opens/creates file
      * - Native filesystem: Opens/creates file
      */
-    virtual oc::Result<void> init() = 0;
+    virtual oc::type::Result<void> init() = 0;
 
     /**
      * @brief Check if storage is initialized and available

@@ -5,7 +5,7 @@
 using namespace oc::core::event;
 
 static int callCount = 0;
-static oc::ButtonID lastButtonId = 0;
+static oc::type::ButtonID lastButtonId = 0;
 
 void setUp() {
     callCount = 0;
@@ -18,7 +18,7 @@ void test_on_and_emit() {
     EventBus bus;
 
     auto id = bus.on(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS,
-        [](const Event& e) {
+        [](const oc::type::Event& e) {
             callCount++;
             auto& btn = static_cast<const ButtonPressEvent&>(e);
             lastButtonId = btn.buttonId;
@@ -35,7 +35,7 @@ void test_off_unsubscribes() {
     EventBus bus;
 
     auto id = bus.on(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS,
-        [](const Event&) { callCount++; });
+        [](const oc::type::Event&) { callCount++; });
 
     bus.emit(ButtonPressEvent{1, true});
     TEST_ASSERT_EQUAL(1, callCount);
@@ -50,9 +50,9 @@ void test_multiple_subscribers() {
     EventBus bus;
 
     bus.on(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS,
-        [](const Event&) { callCount++; });
+        [](const oc::type::Event&) { callCount++; });
     bus.on(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS,
-        [](const Event&) { callCount++; });
+        [](const oc::type::Event&) { callCount++; });
 
     bus.emit(ButtonPressEvent{1, true});
 
@@ -64,7 +64,7 @@ void test_category_filtering() {
 
     // Subscribe to MIDI events
     bus.on(EventCategory::MIDI, MidiEvent::CC,
-        [](const Event&) { callCount++; });
+        [](const oc::type::Event&) { callCount++; });
 
     // Emit USER_INPUT event - should NOT trigger
     bus.emit(ButtonPressEvent{1, true});
@@ -80,7 +80,7 @@ void test_type_filtering() {
 
     // Subscribe to BUTTON_PRESS only
     bus.on(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS,
-        [](const Event&) { callCount++; });
+        [](const oc::type::Event&) { callCount++; });
 
     // Emit BUTTON_RELEASE - should NOT trigger
     bus.emit(ButtonReleaseEvent{1});
@@ -95,9 +95,9 @@ void test_clear_removes_all() {
     EventBus bus;
 
     bus.on(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS,
-        [](const Event&) { callCount++; });
+        [](const oc::type::Event&) { callCount++; });
     bus.on(EventCategory::MIDI, MidiEvent::CC,
-        [](const Event&) { callCount++; });
+        [](const oc::type::Event&) { callCount++; });
 
     TEST_ASSERT_EQUAL(2, bus.getSubscriberCount());
 
@@ -116,11 +116,11 @@ void test_subscriber_count() {
     TEST_ASSERT_EQUAL(0, bus.getSubscriberCount());
 
     auto id1 = bus.on(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS,
-        [](const Event&) {});
+        [](const oc::type::Event&) {});
     TEST_ASSERT_EQUAL(1, bus.getSubscriberCount());
 
     auto id2 = bus.on(EventCategory::MIDI, MidiEvent::CC,
-        [](const Event&) {});
+        [](const oc::type::Event&) {});
     TEST_ASSERT_EQUAL(2, bus.getSubscriberCount());
 
     bus.off(id1);

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <oc/types/Result.hpp>
-#include <oc/types/Ids.hpp>
-#include <oc/types/Callbacks.hpp>
+#include <oc/type/Result.hpp>
+#include <oc/type/Ids.hpp>
+#include <oc/type/Callbacks.hpp>
 
 namespace oc::interface {
 
@@ -83,20 +83,20 @@ public:
      * @brief Initialize encoder hardware
      * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    virtual oc::Result<void> init() = 0;
+    virtual oc::type::Result<void> init() = 0;
 
     virtual void update() = 0;
 
-    virtual float getPosition(oc::EncoderID id) const = 0;       ///< Value depends on mode
-    virtual void setPosition(oc::EncoderID id, float value) = 0;  ///< Value depends on mode
+    virtual float getPosition(oc::type::EncoderID id) const = 0;       ///< Value depends on mode
+    virtual void setPosition(oc::type::EncoderID id, float value) = 0;  ///< Value depends on mode
 
-    virtual void setMode(oc::EncoderID id, EncoderMode mode) = 0;
-    virtual void setBounds(oc::EncoderID id, float min, float max) = 0;
-    virtual void setDelta(oc::EncoderID id, float delta) = 0;  ///< Set delta per detent (relative mode)
-    virtual void setDiscreteSteps(oc::EncoderID id, uint8_t steps) = 0;
-    virtual void setContinuous(oc::EncoderID id) = 0;
+    virtual void setMode(oc::type::EncoderID id, EncoderMode mode) = 0;
+    virtual void setBounds(oc::type::EncoderID id, float min, float max) = 0;
+    virtual void setDelta(oc::type::EncoderID id, float delta) = 0;  ///< Set delta per detent (relative mode)
+    virtual void setDiscreteSteps(oc::type::EncoderID id, uint8_t steps) = 0;
+    virtual void setContinuous(oc::type::EncoderID id) = 0;
 
-    virtual void setCallback(oc::EncoderCallback cb) = 0;
+    virtual void setCallback(oc::type::EncoderCallback cb) = 0;
 };
 
 }  // namespace oc::interface

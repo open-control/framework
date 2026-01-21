@@ -11,7 +11,7 @@ using namespace event;
 // Construction / Destruction
 // ═══════════════════════════════════════════════════════════════════════════
 
-InputBinding::InputBinding(interface::IEventBus& eventBus, TimeProvider timeProvider, const InputConfig& config)
+InputBinding::InputBinding(interface::IEventBus& eventBus, oc::type::TimeProvider timeProvider, const InputConfig& config)
     : button_registry_(MAX_BUTTON_BINDINGS, next_binding_id_),
       encoder_registry_(MAX_ENCODER_BINDINGS, next_binding_id_),
       gesture_(config),
@@ -20,17 +20,17 @@ InputBinding::InputBinding(interface::IEventBus& eventBus, TimeProvider timeProv
       config_(config) {
 
     if (!time_provider_) {
-        OC_LOG_WARN("{}", "[InputBinding] No TimeProvider - long press and double tap detection disabled");
+        OC_LOG_WARN("{}", "[InputBinding] No oc::type::TimeProvider - long press and double tap detection disabled");
     }
 
-    encoder_sub_ = event_bus_.on(EventCategory::USER_INPUT, InputEvent::ENCODER_CHANGED,
-                                 [this](const Event& e) { onEncoderChanged(e); });
+    encoder_sub_ = event_bus_.on(oc::type::EventCategory::USER_INPUT, InputEvent::ENCODER_CHANGED,
+                                 [this](const oc::type::Event& e) { onEncoderChanged(e); });
 
-    button_press_sub_ = event_bus_.on(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS,
-                                      [this](const Event& e) { onButtonPress(e); });
+    button_press_sub_ = event_bus_.on(oc::type::EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS,
+                                      [this](const oc::type::Event& e) { onButtonPress(e); });
 
-    button_release_sub_ = event_bus_.on(EventCategory::USER_INPUT, InputEvent::BUTTON_RELEASE,
-                                        [this](const Event& e) { onButtonRelease(e); });
+    button_release_sub_ = event_bus_.on(oc::type::EventCategory::USER_INPUT, InputEvent::BUTTON_RELEASE,
+                                        [this](const oc::type::Event& e) { onButtonRelease(e); });
 }
 
 InputBinding::~InputBinding() {
@@ -43,7 +43,7 @@ InputBinding::~InputBinding() {
 // Public API - Scope Management
 // ═══════════════════════════════════════════════════════════════════════════
 
-void InputBinding::clearScope(ScopeID scope) {
+void InputBinding::clearScope(oc::type::ScopeID scope) {
     button_registry_.clearScope(scope);
     encoder_registry_.clearScope(scope);
     ownership_.clearForScope(scope);
@@ -69,13 +69,13 @@ void InputBinding::clearEncoderBindings() {
     encoder_registry_.clear();
 }
 
-void InputBinding::clearButtonScope(ScopeID scope) {
+void InputBinding::clearButtonScope(oc::type::ScopeID scope) {
     button_registry_.clearScope(scope);
     ownership_.clearForScope(scope);
     latch_.releaseForScope(scope);
 }
 
-void InputBinding::clearEncoderScope(ScopeID scope) {
+void InputBinding::clearEncoderScope(oc::type::ScopeID scope) {
     encoder_registry_.clearScope(scope);
 }
 
@@ -83,15 +83,15 @@ void InputBinding::clearEncoderScope(ScopeID scope) {
 // Public API - Latch
 // ═══════════════════════════════════════════════════════════════════════════
 
-bool InputBinding::isLatched(ButtonID btn) const {
+bool InputBinding::isLatched(oc::type::ButtonID btn) const {
     return latch_.isLatched(btn);
 }
 
-void InputBinding::clearLatch(ButtonID btn) {
+void InputBinding::clearLatch(oc::type::ButtonID btn) {
     latch_.release(btn);
 }
 
-void InputBinding::clearLatchesForScope(ScopeID scope) {
+void InputBinding::clearLatchesForScope(oc::type::ScopeID scope) {
     latch_.releaseForScope(scope);
 }
 
@@ -99,7 +99,7 @@ void InputBinding::clearLatchesForScope(ScopeID scope) {
 // Public API - State
 // ═══════════════════════════════════════════════════════════════════════════
 
-bool InputBinding::isButtonPressed(ButtonID id) const {
+bool InputBinding::isButtonPressed(oc::type::ButtonID id) const {
     return gesture_.isPressed(id);
 }
 
@@ -116,8 +116,8 @@ void InputBinding::processTick() {
         current_time_ = time_provider_();
     }
     for (size_t i = 0; i < MAX_BUTTONS; ++i) {
-        if (gesture_.isPressed(static_cast<ButtonID>(i))) {
-            checkLongPress(static_cast<ButtonID>(i), current_time_);
+        if (gesture_.isPressed(static_cast<oc::type::ButtonID>(i))) {
+            checkLongPress(static_cast<oc::type::ButtonID>(i), current_time_);
         }
     }
 }
@@ -126,50 +126,50 @@ void InputBinding::processTick() {
 // Public API - Registration
 // ═══════════════════════════════════════════════════════════════════════════
 
-BindingID InputBinding::registerButtonBinding(ButtonBinding binding) {
+oc::type::BindingID InputBinding::registerButtonBinding(ButtonBinding binding) {
     return button_registry_.add(std::move(binding));
 }
 
-BindingID InputBinding::registerEncoderBinding(EncoderBinding binding) {
+oc::type::BindingID InputBinding::registerEncoderBinding(EncoderBinding binding) {
     return encoder_registry_.add(std::move(binding));
 }
 
-bool InputBinding::removeById(BindingID id) {
+bool InputBinding::removeById(oc::type::BindingID id) {
     if (id == 0) return false;
     if (button_registry_.removeById(id)) return true;
     return encoder_registry_.removeById(id);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Event Handlers
+// oc::type::Event Handlers
 // ═══════════════════════════════════════════════════════════════════════════
 
-void InputBinding::onEncoderChanged(const Event& event) {
+void InputBinding::onEncoderChanged(const oc::type::Event& event) {
     auto& evt = static_cast<const EncoderChangedEvent&>(event);
     dispatchEncoderEvent(evt.encoderId, evt.normalizedValue);
 }
 
-void InputBinding::onButtonPress(const Event& event) {
+void InputBinding::onButtonPress(const oc::type::Event& event) {
     auto& evt = static_cast<const ButtonPressEvent&>(event);
-    ButtonID id = evt.buttonId;
+    oc::type::ButtonID id = evt.buttonId;
     if (id >= MAX_BUTTONS) return;
 
     gesture_.onButtonPress(id, current_time_);
 
     // Dispatch to scopes, excluding the one that owns the latch (if any)
-    ScopeID newOwner = dispatchPress(id, latch_.owner(id));
+    oc::type::ScopeID newOwner = dispatchPress(id, latch_.owner(id));
     ownership_.setOwner(id, newOwner);
 }
 
-void InputBinding::onButtonRelease(const Event& event) {
+void InputBinding::onButtonRelease(const oc::type::Event& event) {
     auto& evt = static_cast<const ButtonReleaseEvent&>(event);
-    ButtonID id = evt.buttonId;
+    oc::type::ButtonID id = evt.buttonId;
     if (id >= MAX_BUTTONS) return;
 
     const uint32_t now = current_time_;
     const uint32_t pressDuration = now - gesture_.pressTime(id);
-    const ScopeID latchOwner = latch_.owner(id);
-    const ScopeID pressOwner = ownership_.owner(id);
+    const oc::type::ScopeID latchOwner = latch_.owner(id);
+    const oc::type::ScopeID pressOwner = ownership_.owner(id);
 
     // Combo detection (only if not latched)
     if (latchOwner == 0) {
@@ -195,7 +195,7 @@ void InputBinding::onButtonRelease(const Event& event) {
 // Release Handling (decomposed)
 // ═══════════════════════════════════════════════════════════════════════════
 
-void InputBinding::handleScopedRelease(ButtonID id, ScopeID pressOwner, uint32_t pressDuration) {
+void InputBinding::handleScopedRelease(oc::type::ButtonID id, oc::type::ScopeID pressOwner, uint32_t pressDuration) {
     if (shouldActivateLatch(id, pressOwner, pressDuration)) {
         latch_.activate(id, pressOwner);
     } else {
@@ -205,14 +205,14 @@ void InputBinding::handleScopedRelease(ButtonID id, ScopeID pressOwner, uint32_t
     }
 }
 
-void InputBinding::handleLatchedRelease(ButtonID id, ScopeID latchOwner) {
+void InputBinding::handleLatchedRelease(oc::type::ButtonID id, oc::type::ScopeID latchOwner) {
     if (!dispatchReleaseToScope(id, latchOwner)) {
         dispatchButtonEvent(id, ButtonBindingType::RELEASE);
     }
     latch_.release(id);
 }
 
-bool InputBinding::shouldActivateLatch(ButtonID id, ScopeID pressOwner, uint32_t pressDuration) const {
+bool InputBinding::shouldActivateLatch(oc::type::ButtonID id, oc::type::ScopeID pressOwner, uint32_t pressDuration) const {
     if (pressDuration >= config_.latchThresholdMs) return false;
 
     for (const auto& binding : button_registry_.bindings()) {
@@ -228,10 +228,10 @@ bool InputBinding::shouldActivateLatch(ButtonID id, ScopeID pressOwner, uint32_t
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Event Dispatch
+// oc::type::Event Dispatch
 // ═══════════════════════════════════════════════════════════════════════════
 
-void InputBinding::dispatchButtonEvent(ButtonID id, ButtonBindingType type) {
+void InputBinding::dispatchButtonEvent(oc::type::ButtonID id, ButtonBindingType type) {
     if (!bindings_enabled_) return;
 
     // Try scoped bindings first (stop after first match)
@@ -258,7 +258,7 @@ void InputBinding::dispatchButtonEvent(ButtonID id, ButtonBindingType type) {
     }
 }
 
-void InputBinding::dispatchEncoderEvent(EncoderID id, float value) {
+void InputBinding::dispatchEncoderEvent(oc::type::EncoderID id, float value) {
     if (!bindings_enabled_) return;
 
     // Try scoped bindings first
@@ -287,7 +287,7 @@ void InputBinding::dispatchEncoderEvent(EncoderID id, float value) {
     }
 }
 
-ScopeID InputBinding::dispatchPress(ButtonID id, ScopeID excludeScope) {
+oc::type::ScopeID InputBinding::dispatchPress(oc::type::ButtonID id, oc::type::ScopeID excludeScope) {
     if (!bindings_enabled_) return 0;
 
     // Try scoped bindings first
@@ -319,7 +319,7 @@ ScopeID InputBinding::dispatchPress(ButtonID id, ScopeID excludeScope) {
     return 0;
 }
 
-bool InputBinding::dispatchReleaseToScope(ButtonID id, ScopeID scope) {
+bool InputBinding::dispatchReleaseToScope(oc::type::ButtonID id, oc::type::ScopeID scope) {
     for (auto& binding : button_registry_.bindings()) {
         if (!binding.enabled || binding.buttonId != id) continue;
         if (binding.type != ButtonBindingType::RELEASE) continue;
@@ -338,7 +338,7 @@ bool InputBinding::dispatchReleaseToScope(ButtonID id, ScopeID scope) {
 // Gesture Checks
 // ═══════════════════════════════════════════════════════════════════════════
 
-void InputBinding::checkLongPress(ButtonID id, uint32_t now) {
+void InputBinding::checkLongPress(oc::type::ButtonID id, uint32_t now) {
     if (id >= MAX_BUTTONS) return;
     if (!gesture_.isPressed(id) || gesture_.longPressTriggered(id)) return;
 
@@ -371,7 +371,7 @@ void InputBinding::checkLongPress(ButtonID id, uint32_t now) {
     }
 }
 
-void InputBinding::checkDoubleTap(ButtonID id, uint32_t now) {
+void InputBinding::checkDoubleTap(oc::type::ButtonID id, uint32_t now) {
     if (id >= MAX_BUTTONS) return;
     if (gesture_.tapCount(id) < 2) return;
 
@@ -412,7 +412,7 @@ void InputBinding::checkDoubleTap(ButtonID id, uint32_t now) {
     }
 }
 
-void InputBinding::checkCombo(ButtonID releasedId) {
+void InputBinding::checkCombo(oc::type::ButtonID releasedId) {
     // Try scoped bindings first
     for (auto& binding : button_registry_.bindings()) {
         if (!binding.enabled || binding.type != ButtonBindingType::COMBO) continue;
@@ -462,10 +462,10 @@ bool InputBinding::isBindingActive(const BindingType& binding) const {
 template bool InputBinding::isBindingActive(const ButtonBinding&) const;
 template bool InputBinding::isBindingActive(const EncoderBinding&) const;
 
-bool InputBinding::hasAuthority(ScopeID scope) const {
+bool InputBinding::hasAuthority(oc::type::ScopeID scope) const {
     if (!authority_resolver_) return true;
 
-    ScopeID authority = authority_resolver_->getAuthority();
+    oc::type::ScopeID authority = authority_resolver_->getAuthority();
     if (authority == 0) return true;
 
     return scope == authority;
@@ -475,7 +475,7 @@ bool InputBinding::checkRequiredButton(const EncoderBinding& binding) const {
     if (binding.type != EncoderBindingType::TURN_WHILE_PRESSED) return true;
     if (!binding.requiredButton.has_value()) return true;
 
-    ButtonID btn = *binding.requiredButton;
+    oc::type::ButtonID btn = *binding.requiredButton;
     return gesture_.isPressed(btn) || latch_.isLatched(btn);
 }
 

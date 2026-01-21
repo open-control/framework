@@ -29,7 +29,7 @@ public:
     std::array<uint8_t, 1024> storage{};
     int saveCount = 0;
 
-    oc::Result<void> init() override { return oc::Result<void>::ok(); }
+    oc::type::Result<void> init() override { return oc::type::Result<void>::ok(); }
 
     bool available() const override { return true; }
 

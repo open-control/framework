@@ -4,6 +4,7 @@
 
 #include "OpenControlApp.hpp"
 #include <oc/log/Log.hpp>
+#include <oc/time/Time.hpp>
 
 namespace oc::app {
 
@@ -37,14 +38,17 @@ AppBuilder& AppBuilder::inputConfig(const core::input::InputConfig& config) {
     return *this;
 }
 
-AppBuilder& AppBuilder::timeProvider(TimeProvider provider) {
+AppBuilder& AppBuilder::timeProvider(oc::type::TimeProvider provider) {
     time_provider_ = provider;
-    // Note: Log API now uses HAL's getTimeMs() directly via weak symbols
+    // Configure oc::time to use the same provider
+    if (provider) {
+        oc::time::setProvider(provider);
+    }
     return *this;
 }
 
 OpenControlApp AppBuilder::build() {
-    assert(time_provider_ && "AppBuilder: TimeProvider is required");
+    assert(time_provider_ && "AppBuilder: oc::type::TimeProvider is required");
 
     OpenControlApp app;
 

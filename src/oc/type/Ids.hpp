@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <type_traits>
 
-namespace oc {
+namespace oc::type {
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Input identifiers
@@ -64,4 +64,4 @@ struct is_uint16_enum<T, true>
 template <typename T>
 inline constexpr bool is_id_v = detail::is_uint16_enum<T>::value;
 
-}  // namespace oc
+}  // namespace oc::type

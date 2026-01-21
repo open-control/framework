@@ -40,8 +40,8 @@ namespace oc::context {
  * class MyContext : public IContext {
  *     bool initialize() override {
  *         // APIs are available via apis() after setAPIs() is called
- *         button().onPress(ButtonID::PLAY, [this] { play(); });
- *         encoder().onTurn(EncoderID::VOLUME, [this](int v) { setVolume(v); });
+ *         button().onPress(oc::type::ButtonID::PLAY, [this] { play(); });
+ *         encoder().onTurn(oc::type::EncoderID::VOLUME, [this](int v) { setVolume(v); });
  *         return true;
  *     }
  * };
@@ -95,7 +95,7 @@ struct APIs {
     interface::IContextSwitcher* contexts = nullptr;
 
     /**
-     * @brief Event bus for pub/sub messaging (required)
+     * @brief oc::type::Event bus for pub/sub messaging (required)
      *
      * Central event bus for decoupled communication between components.
      * Always valid - passed at construction.

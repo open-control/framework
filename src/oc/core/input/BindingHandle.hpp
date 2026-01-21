@@ -35,7 +35,7 @@ public:
      * @param registry Pointer to InputBinding that owns this binding
      * @param id Unique ID of the binding
      */
-    BindingHandle(InputBinding* registry, BindingID id)
+    BindingHandle(InputBinding* registry, oc::type::BindingID id)
         : registry_(registry), id_(id) {}
 
     /**
@@ -58,7 +58,7 @@ public:
      *
      * @return The internal binding ID, or 0 if invalid
      */
-    BindingID id() const { return id_; }
+    oc::type::BindingID id() const { return id_; }
 
     /**
      * @brief Create an invalid handle
@@ -69,7 +69,7 @@ public:
 
 private:
     InputBinding* registry_ = nullptr;
-    BindingID id_ = 0;
+    oc::type::BindingID id_ = 0;
 };
 
 }  // namespace oc::core::input

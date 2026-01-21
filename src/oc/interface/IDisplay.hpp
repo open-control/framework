@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include <oc/types/Result.hpp>
+#include <oc/type/Result.hpp>
 
 namespace oc::interface {
 
@@ -29,7 +29,7 @@ public:
      * @brief Initialize display hardware
      * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    virtual oc::Result<void> init() = 0;
+    virtual oc::type::Result<void> init() = 0;
 
     virtual void flush(const void* buffer, const Rect& area) = 0;
     virtual uint16_t width() const = 0;

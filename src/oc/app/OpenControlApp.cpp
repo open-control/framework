@@ -14,9 +14,9 @@ OpenControlApp& OpenControlApp::operator=(OpenControlApp&&) noexcept = default;
 
 void OpenControlApp::begin() {
     // Helper: check result and halt on error
-    auto check = [](const oc::Result<void>& result, const char* component) {
+    auto check = [](const oc::type::Result<void>& result, const char* component) {
         if (!result) {
-            OC_LOG_ERROR("{} init failed: {}", component, oc::errorCodeToString(result.error().code));
+            OC_LOG_ERROR("{} init failed: {}", component, oc::type::errorCodeToString(result.error().code));
             while (true) {}  // Halt - no recovery in embedded
         }
     };
@@ -30,8 +30,8 @@ void OpenControlApp::begin() {
 
     // Wire HAL callbacks to EventBus
     if (buttons_) {
-        buttons_->setCallback([this](ButtonID id, ButtonEvent evt) {
-            if (evt == ButtonEvent::PRESSED) {
+        buttons_->setCallback([this](oc::type::ButtonID id, oc::type::ButtonEvent evt) {
+            if (evt == oc::type::ButtonEvent::PRESSED) {
                 event_bus_.emit(core::event::ButtonPressEvent(id, true));
             } else {
                 event_bus_.emit(core::event::ButtonReleaseEvent(id));
@@ -40,7 +40,7 @@ void OpenControlApp::begin() {
     }
 
     if (encoders_) {
-        encoders_->setCallback([this](EncoderID id, float value) {
+        encoders_->setCallback([this](oc::type::EncoderID id, float value) {
             event_bus_.emit(core::event::EncoderChangedEvent(id, value));
         });
     }
@@ -71,6 +71,11 @@ void OpenControlApp::update() {
 
     uint32_t now = time_provider_();
 
+    // Process tick BEFORE hardware updates to update time state
+    if (input_binding_) {
+        input_binding_->processTick();
+    }
+
     if (midi_) {
         midi_->update();
     }
@@ -82,9 +87,6 @@ void OpenControlApp::update() {
     }
     if (buttons_) {
         buttons_->update(now);
-    }
-    if (input_binding_) {
-        input_binding_->processTick();
     }
 
     contexts_->update();

@@ -119,7 +119,15 @@ bool EncoderLogic::applyQuantization(float value, float& outValue) {
         return true;
     }
 
-    float quantized = std::round(value * (discrete_steps_ - 1)) / (discrete_steps_ - 1);
+    // Normalize to [0, 1] before quantization
+    float boundsRange = bounds_max_ - bounds_min_;
+    float normalized = (boundsRange > 0.0f) ? (value - bounds_min_) / boundsRange : 0.0f;
+
+    // Quantize in normalized space
+    float quantizedNorm = std::round(normalized * (discrete_steps_ - 1)) / (discrete_steps_ - 1);
+
+    // Map back to bounds space
+    float quantized = bounds_min_ + quantizedNorm * boundsRange;
 
     if (quantized == last_quantized_value_) {
         return false;

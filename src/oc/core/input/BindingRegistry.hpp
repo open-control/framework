@@ -13,7 +13,7 @@
 
 #include <oc/core/input/Binding.hpp>
 #include <oc/log/Log.hpp>
-#include <oc/types/Ids.hpp>
+#include <oc/type/Ids.hpp>
 
 namespace oc::core::input {
 
@@ -34,7 +34,7 @@ public:
      * @param maxBindings Maximum number of bindings allowed
      * @param nextId Reference to shared ID counter
      */
-    explicit BindingRegistry(size_t maxBindings, BindingID& nextId)
+    explicit BindingRegistry(size_t maxBindings, oc::type::BindingID& nextId)
         : max_bindings_(maxBindings), next_id_(nextId) {
         bindings_.reserve(maxBindings);
     }
@@ -42,15 +42,15 @@ public:
     /**
      * @brief Register a new binding
      * @param binding The binding to register (id field will be set)
-     * @return The assigned BindingID, or 0 if at capacity
+     * @return The assigned oc::type::BindingID, or 0 if at capacity
      */
-    BindingID add(BindingType binding) {
+    oc::type::BindingID add(BindingType binding) {
         if (bindings_.size() >= max_bindings_) {
             OC_LOG_WARN("BindingRegistry: max bindings ({}) reached", max_bindings_);
             return 0;
         }
 
-        BindingID id = next_id_++;
+        oc::type::BindingID id = next_id_++;
         if (id == 0) id = next_id_++;  // Skip 0 (invalid ID) on overflow
         binding.id = id;
 
@@ -66,7 +66,7 @@ public:
      * @param id The binding ID to remove
      * @return true if found and removed
      */
-    bool removeById(BindingID id) {
+    bool removeById(oc::type::BindingID id) {
         if (id == 0) return false;
 
         for (auto it = bindings_.begin(); it != bindings_.end(); ++it) {
@@ -82,7 +82,7 @@ public:
      * @brief Clear all bindings in a scope
      * @param scope The scope to clear
      */
-    void clearScope(ScopeID scope) {
+    void clearScope(oc::type::ScopeID scope) {
         auto it = bindings_.begin();
         while (it != bindings_.end()) {
             if (it->scopeId == scope) {
@@ -117,7 +117,7 @@ public:
 private:
     std::vector<BindingType> bindings_;
     size_t max_bindings_;
-    BindingID& next_id_;
+    oc::type::BindingID& next_id_;
 };
 
 }  // namespace oc::core::input

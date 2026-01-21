@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <oc/types/Ids.hpp>
-#include <oc/types/Callbacks.hpp>
+#include <oc/type/Ids.hpp>
+#include <oc/type/Callbacks.hpp>
 
 namespace oc::test {
 
@@ -20,8 +20,8 @@ class FakeTime {
 public:
     FakeTime() : current_time_(0) {}
 
-    /// Get the TimeProvider function pointer
-    TimeProvider provider() {
+    /// Get the oc::type::TimeProvider function pointer
+    oc::type::TimeProvider provider() {
         // Store pointer to this instance for the lambda
         instance_ = this;
         return []() -> uint32_t {

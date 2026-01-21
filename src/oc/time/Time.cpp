@@ -13,14 +13,14 @@ namespace {
 uint32_t noopProvider() { return 0; }
 
 /// Current provider (initialized to no-op)
-TimeProvider g_provider = noopProvider;
+oc::type::TimeProvider g_provider = noopProvider;
 
 /// Configuration flag
 bool g_configured = false;
 
 }  // namespace
 
-void setProvider(TimeProvider provider) {
+void setProvider(oc::type::TimeProvider provider) {
     if (provider) {
         g_provider = provider;
         g_configured = true;

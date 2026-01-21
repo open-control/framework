@@ -10,7 +10,7 @@
 
 #include "Ids.hpp"
 
-namespace oc {
+namespace oc::type {
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Time provider
@@ -69,4 +69,4 @@ using EncoderActionCallback = std::function<void(float)>;
  */
 using IsActiveFn = std::function<bool()>;
 
-}  // namespace oc
+}  // namespace oc::type

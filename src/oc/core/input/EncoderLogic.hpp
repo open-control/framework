@@ -5,8 +5,8 @@
 #include <optional>
 
 #include <oc/interface/IEncoder.hpp>
-#include <oc/types/Ids.hpp>
-#include <oc/types/Callbacks.hpp>
+#include <oc/type/Ids.hpp>
+#include <oc/type/Callbacks.hpp>
 
 namespace oc::core::input {
 
@@ -26,7 +26,7 @@ constexpr uint8_t FULL_QUADRATURE_MULTIPLIER = 4;
  *       - Pull-up/pull-down configuration
  */
 struct EncoderConfig {
-    EncoderID id;              ///< Unique encoder identifier
+    oc::type::EncoderID id;              ///< Unique encoder identifier
     uint16_t ppr = 24;              ///< Pulses per revolution (physical encoder spec)
     uint16_t rangeAngle = 270;      ///< Degrees of rotation for full [0..1] range
     uint8_t ticksPerEvent = 4;      ///< Ticks before event emission (4 = one detent)
@@ -96,7 +96,7 @@ public:
     // Getters
     // ═══════════════════════════════════════════════════
 
-    EncoderID getId() const { return config_.id; }
+    oc::type::EncoderID getId() const { return config_.id; }
     float getLastValue() const { return last_value_; }
     interface::EncoderMode getMode() const { return mode_; }
     int32_t getPosition() const { return position_; }

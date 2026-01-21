@@ -9,7 +9,7 @@ GestureDetector::GestureDetector(const InputConfig& config)
 // State Updates
 // ═══════════════════════════════════════════════════
 
-void GestureDetector::onButtonPress(ButtonID buttonId, uint32_t time) {
+void GestureDetector::onButtonPress(oc::type::ButtonID buttonId, uint32_t time) {
     if (buttonId >= MAX_BUTTONS) return;
 
     button_states_[buttonId] = true;
@@ -23,7 +23,7 @@ void GestureDetector::onButtonPress(ButtonID buttonId, uint32_t time) {
     }
 }
 
-void GestureDetector::onButtonRelease(ButtonID buttonId, uint32_t time) {
+void GestureDetector::onButtonRelease(oc::type::ButtonID buttonId, uint32_t time) {
     if (buttonId >= MAX_BUTTONS) return;
 
     button_states_[buttonId] = false;
@@ -31,7 +31,7 @@ void GestureDetector::onButtonRelease(ButtonID buttonId, uint32_t time) {
     long_press_triggered_[buttonId] = false;
 }
 
-void GestureDetector::resetButton(ButtonID buttonId) {
+void GestureDetector::resetButton(oc::type::ButtonID buttonId) {
     if (buttonId >= MAX_BUTTONS) return;
 
     button_states_[buttonId] = false;
@@ -53,7 +53,7 @@ void GestureDetector::reset() {
 // Gesture Detection
 // ═══════════════════════════════════════════════════
 
-bool GestureDetector::checkLongPress(ButtonID buttonId, uint32_t now, uint32_t requiredDuration) {
+bool GestureDetector::checkLongPress(oc::type::ButtonID buttonId, uint32_t now, uint32_t requiredDuration) {
     if (buttonId >= MAX_BUTTONS) return false;
     if (!button_states_[buttonId]) return false;
     if (long_press_triggered_[buttonId]) return false;
@@ -64,13 +64,13 @@ bool GestureDetector::checkLongPress(ButtonID buttonId, uint32_t now, uint32_t r
     return elapsed >= duration;
 }
 
-void GestureDetector::markLongPressTriggered(ButtonID buttonId) {
+void GestureDetector::markLongPressTriggered(oc::type::ButtonID buttonId) {
     if (buttonId < MAX_BUTTONS) {
         long_press_triggered_[buttonId] = true;
     }
 }
 
-bool GestureDetector::checkDoubleTap(ButtonID buttonId, uint32_t now, uint32_t windowMs) {
+bool GestureDetector::checkDoubleTap(oc::type::ButtonID buttonId, uint32_t now, uint32_t windowMs) {
     if (buttonId >= MAX_BUTTONS) return false;
     if (button_tap_count_[buttonId] < 2) return false;
 
@@ -80,13 +80,13 @@ bool GestureDetector::checkDoubleTap(ButtonID buttonId, uint32_t now, uint32_t w
     return elapsed < window;
 }
 
-void GestureDetector::resetTapCount(ButtonID buttonId) {
+void GestureDetector::resetTapCount(oc::type::ButtonID buttonId) {
     if (buttonId < MAX_BUTTONS) {
         button_tap_count_[buttonId] = 0;
     }
 }
 
-bool GestureDetector::isComboActive(ButtonID btn1, ButtonID btn2) const {
+bool GestureDetector::isComboActive(oc::type::ButtonID btn1, oc::type::ButtonID btn2) const {
     return isPressed(btn1) && isPressed(btn2);
 }
 
@@ -94,27 +94,27 @@ bool GestureDetector::isComboActive(ButtonID btn1, ButtonID btn2) const {
 // State Queries
 // ═══════════════════════════════════════════════════
 
-bool GestureDetector::isPressed(ButtonID buttonId) const {
+bool GestureDetector::isPressed(oc::type::ButtonID buttonId) const {
     if (buttonId >= MAX_BUTTONS) return false;
     return button_states_[buttonId];
 }
 
-uint32_t GestureDetector::pressTime(ButtonID buttonId) const {
+uint32_t GestureDetector::pressTime(oc::type::ButtonID buttonId) const {
     if (buttonId >= MAX_BUTTONS) return 0;
     return button_press_time_[buttonId];
 }
 
-uint32_t GestureDetector::releaseTime(ButtonID buttonId) const {
+uint32_t GestureDetector::releaseTime(oc::type::ButtonID buttonId) const {
     if (buttonId >= MAX_BUTTONS) return 0;
     return button_release_time_[buttonId];
 }
 
-uint8_t GestureDetector::tapCount(ButtonID buttonId) const {
+uint8_t GestureDetector::tapCount(oc::type::ButtonID buttonId) const {
     if (buttonId >= MAX_BUTTONS) return 0;
     return button_tap_count_[buttonId];
 }
 
-bool GestureDetector::longPressTriggered(ButtonID buttonId) const {
+bool GestureDetector::longPressTriggered(oc::type::ButtonID buttonId) const {
     if (buttonId >= MAX_BUTTONS) return false;
     return long_press_triggered_[buttonId];
 }

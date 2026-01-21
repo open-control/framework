@@ -24,8 +24,8 @@ class EventBus : public interface::IEventBus {
 public:
     EventBus();
 
-    interface::SubscriptionID on(EventCategoryType category, EventType type, interface::EventCallback callback) override;
-    void emit(const Event& event) override;
+    interface::SubscriptionID on(oc::type::EventCategoryType category, oc::type::EventType type, interface::EventCallback callback) override;
+    void emit(const oc::type::Event& event) override;
     void off(interface::SubscriptionID id) override;
 
     /// Remove all subscriptions and reset ID counter
@@ -66,7 +66,7 @@ private:
         bool alive = true;
     };
 
-    uint32_t makeKey(EventCategoryType category, EventType type) const;
+    uint32_t makeKey(oc::type::EventCategoryType category, oc::type::EventType type) const;
     void autoCompactIfNeeded();
 
     std::unordered_map<uint32_t, std::vector<Subscription>> subscriptions_;

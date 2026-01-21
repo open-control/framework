@@ -3,8 +3,8 @@
 #include <oc/core/input/BindingHandle.hpp>
 #include <oc/core/input/Traits.hpp>
 #include <oc/core/input/Binding.hpp>
-#include <oc/types/Ids.hpp>
-#include <oc/types/Callbacks.hpp>
+#include <oc/type/Ids.hpp>
+#include <oc/type/Callbacks.hpp>
 
 namespace oc::core::input {
 
@@ -34,7 +34,7 @@ public:
      * @param registry The InputBinding that will own the binding
      * @param buttonId The button this binding applies to
      */
-    ButtonBuilder(InputBinding* registry, ButtonID buttonId);
+    ButtonBuilder(InputBinding* registry, oc::type::ButtonID buttonId);
 
     /**
      * @brief Destructor warns if then() was never called
@@ -78,7 +78,7 @@ public:
      * @param other The second button in the combo
      * @return A ComboBuilder for the combo binding
      */
-    ComboBuilder combo(ButtonID other);
+    ComboBuilder combo(oc::type::ButtonID other);
 
     // ═══════════════════════════════════════════════════
     // Modifiers (optional, chainable)
@@ -88,14 +88,14 @@ public:
      * @brief Set the scope ID for this binding
      * @param s Scope identifier (non-zero for scoped bindings)
      */
-    ButtonBuilder& scope(ScopeID s);
+    ButtonBuilder& scope(oc::type::ScopeID s);
 
     /**
      * @brief Set scope from a duck-typed provider
      *
      * The provider must have:
-     * - getScopeID() const -> ScopeID (required)
-     * - getIsActive() const -> IsActiveFn (optional)
+     * - getScopeID() const -> oc::type::ScopeID (required)
+     * - getIsActive() const -> oc::type::IsActiveFn (optional)
      *
      * @tparam T Provider type (e.g., LVGLScope)
      * @param provider The scope provider
@@ -113,7 +113,7 @@ public:
      * @brief Set custom activation condition
      * @param fn Function returning true when binding should be active
      */
-    ButtonBuilder& when(IsActiveFn fn);
+    ButtonBuilder& when(oc::type::IsActiveFn fn);
 
     /**
      * @brief Enable latch (toggle) behavior
@@ -132,15 +132,15 @@ public:
      * @param cb Action to execute when binding triggers
      * @return Handle for optional unbinding
      */
-    BindingHandle then(ActionCallback cb);
+    BindingHandle then(oc::type::ActionCallback cb);
 
 private:
     InputBinding* registry_ = nullptr;
-    ButtonID buttonId_{};
+    oc::type::ButtonID buttonId_{};
     ButtonBindingType type_ = ButtonBindingType::PRESS;
     uint32_t timingMs_ = 0;
-    ScopeID scope_ = 0;
-    IsActiveFn isActive_ = nullptr;
+    oc::type::ScopeID scope_ = 0;
+    oc::type::IsActiveFn isActive_ = nullptr;
     bool latch_ = false;
     bool gestureSet_ = false;
     bool finalized_ = false;

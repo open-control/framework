@@ -14,12 +14,12 @@ namespace oc::core::input {
  * @brief SFINAE helper for duck-typed scope providers
  *
  * Detects if type T has a getIsActive() method returning something
- * convertible to IsActiveFn. Used by ButtonBuilder, EncoderBuilder,
+ * convertible to oc::type::IsActiveFn. Used by ButtonBuilder, EncoderBuilder,
  * and ComboBuilder to extract activation predicates from scope providers.
  *
  * @code
  * struct MyScope {
- *     IsActiveFn getIsActive() const { return [this]{ return active_; }; }
+ *     oc::type::IsActiveFn getIsActive() const { return [this]{ return active_; }; }
  * };
  *
  * if constexpr (has_getIsActive<MyScope>::value) {

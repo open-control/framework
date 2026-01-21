@@ -3,7 +3,7 @@
 #include <memory>
 
 #include <oc/api/ButtonAPI.hpp>
-#include <oc/types/Result.hpp>
+#include <oc/type/Result.hpp>
 #include <oc/api/EncoderAPI.hpp>
 #include <oc/api/MidiAPI.hpp>
 #include <oc/context/APIs.hpp>
@@ -16,8 +16,8 @@
 #include <oc/interface/IEncoder.hpp>
 #include <oc/interface/IMidi.hpp>
 #include <oc/interface/ITransport.hpp>
-#include <oc/types/Ids.hpp>
-#include <oc/types/Callbacks.hpp>
+#include <oc/type/Ids.hpp>
+#include <oc/type/Callbacks.hpp>
 
 namespace oc::app {
 
@@ -106,9 +106,9 @@ public:
      * @code
      * // Subscribe to context changes
      * app.eventBus().on(
-     *     EventCategory::CONTEXT,
+     *     oc::type::EventCategory::CONTEXT,
      *     SystemEvent::CONTEXT_ACTIVATED,
-     *     [](const Event& e) {
+     *     [](const oc::type::Event& e) {
      *         auto& ce = static_cast<const ContextActivatedEvent&>(e);
      *         Serial.printf("Context: %s\n", ce.contextName);
      *     }
@@ -263,7 +263,7 @@ private:
 
     // Configuration (trivial destruction, order doesn't matter)
     core::input::InputConfig input_config_;
-    TimeProvider time_provider_ = nullptr;
+    oc::type::TimeProvider time_provider_ = nullptr;
 
     // Statistics (only active when OC_ENABLE_STATS=1)
     mutable TimingStats timing_stats_{};

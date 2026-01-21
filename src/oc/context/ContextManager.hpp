@@ -13,7 +13,7 @@
 #include "Requirements.hpp"
 
 #include <oc/Config.hpp>
-#include <oc/types/Result.hpp>
+#include <oc/type/Result.hpp>
 #include <oc/log/Log.hpp>
 
 namespace oc::context {
@@ -317,7 +317,7 @@ public:
      *
      * @return Result<void> - ok() on success, err() with ErrorCode on failure
      */
-    oc::Result<void> begin();
+    oc::type::Result<void> begin();
 
     /**
      * @brief Update the active context and process pending switches

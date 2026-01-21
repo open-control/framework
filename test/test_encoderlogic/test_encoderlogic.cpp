@@ -7,7 +7,7 @@ using namespace oc;
 using oc::interface::EncoderMode;
 
 // Default config for tests
-static EncoderConfig makeConfig(EncoderID id = 0, uint16_t ppr = 24, uint16_t rangeAngle = 270) {
+static EncoderConfig makeConfig(oc::type::EncoderID id = 0, uint16_t ppr = 24, uint16_t rangeAngle = 270) {
     return EncoderConfig{id, ppr, rangeAngle, 4, false};
 }
 

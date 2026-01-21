@@ -2,7 +2,7 @@
 
 #include <oc/interface/IContext.hpp>
 #include <oc/context/Requirements.hpp>
-#include <oc/types/Result.hpp>
+#include <oc/type/Result.hpp>
 
 namespace oc::test {
 
@@ -17,13 +17,13 @@ public:
         .midi = false
     };
 
-    oc::Result<void> init() override {
+    oc::type::Result<void> init() override {
         initialized_ = true;
         initialize_count_++;
         if (should_init_succeed_) {
-            return oc::Result<void>::ok();
+            return oc::type::Result<void>::ok();
         }
-        return oc::Result<void>::err({oc::ErrorCode::CONTEXT_INIT_FAILED, "Mock init failed"});
+        return oc::type::Result<void>::err({oc::type::ErrorCode::CONTEXT_INIT_FAILED, "Mock init failed"});
     }
 
     void update() override {
@@ -75,7 +75,7 @@ public:
         .midi = false
     };
 
-    oc::Result<void> init() override { return oc::Result<void>::ok(); }
+    oc::type::Result<void> init() override { return oc::type::Result<void>::ok(); }
     void update() override {}
     void cleanup() override {}
     const char* getName() const override { return "MockContextRequiresButton"; }
@@ -92,9 +92,9 @@ public:
         .midi = false
     };
 
-    oc::Result<void> init() override {
+    oc::type::Result<void> init() override {
         initialized_ = true;
-        return oc::Result<void>::ok();
+        return oc::type::Result<void>::ok();
     }
 
     void update() override {}

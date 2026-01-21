@@ -11,7 +11,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace oc {
+namespace oc::type {
 
 /**
  * @brief Error codes for Result failures
@@ -220,4 +220,4 @@ private:
     explicit Result(Error e) : error_(e), ok_(false) {}
 };
 
-}  // namespace oc
+}  // namespace oc::type

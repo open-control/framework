@@ -4,8 +4,8 @@
 #include <oc/core/input/ButtonBuilder.hpp>
 #include <oc/core/input/Binding.hpp>
 #include <oc/interface/IButton.hpp>
-#include <oc/types/Ids.hpp>
-#include <oc/types/Callbacks.hpp>
+#include <oc/type/Ids.hpp>
+#include <oc/type/Callbacks.hpp>
 
 namespace oc::core::input {
 class InputBinding;
@@ -42,12 +42,12 @@ public:
      * @param id The button to bind (uint16_t or enum class : uint16_t)
      * @return ButtonBuilder for chained configuration
      */
-    [[nodiscard]] core::input::ButtonBuilder button(ButtonID id);
+    [[nodiscard]] core::input::ButtonBuilder button(oc::type::ButtonID id);
 
     /// @brief Template overload for enum class button IDs
-    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
     [[nodiscard]] core::input::ButtonBuilder button(EnumT id) {
-        return button(static_cast<ButtonID>(id));
+        return button(static_cast<oc::type::ButtonID>(id));
     }
 
     // ═══════════════════════════════════════════════════
@@ -58,7 +58,7 @@ public:
     void clearBindings();
 
     /// Clear button bindings in a specific scope
-    void clearScope(oc::ScopeID scope);
+    void clearScope(oc::type::ScopeID scope);
 
     /**
      * @brief Set the authority resolver for scope-based input filtering
@@ -75,14 +75,14 @@ public:
     // ═══════════════════════════════════════════════════
 
     /// Check if button is currently pressed (instantaneous state)
-    bool isPressed(ButtonID id) const;
-    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
-    bool isPressed(EnumT id) const { return isPressed(static_cast<ButtonID>(id)); }
+    bool isPressed(oc::type::ButtonID id) const;
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
+    bool isPressed(EnumT id) const { return isPressed(static_cast<oc::type::ButtonID>(id)); }
 
     /**
      * @brief Get a predicate for use with when()
      * @param id The button to check
-     * @return IsActiveFn that returns true when button is pressed
+     * @return oc::type::IsActiveFn that returns true when button is pressed
      *
      * @code
      * onEncoder(ENC_1).turn()
@@ -90,23 +90,23 @@ public:
      *     .then([](float v){ fineAdjust(v); });
      * @endcode
      */
-    oc::IsActiveFn pressed(ButtonID id) const;
-    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
-    oc::IsActiveFn pressed(EnumT id) const { return pressed(static_cast<ButtonID>(id)); }
+    oc::type::IsActiveFn pressed(oc::type::ButtonID id) const;
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
+    oc::type::IsActiveFn pressed(EnumT id) const { return pressed(static_cast<oc::type::ButtonID>(id)); }
 
     // ═══════════════════════════════════════════════════
     // Latch state
     // ═══════════════════════════════════════════════════
 
     /// Check if button is in latched state
-    bool isLatched(ButtonID id) const;
-    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
-    bool isLatched(EnumT id) const { return isLatched(static_cast<ButtonID>(id)); }
+    bool isLatched(oc::type::ButtonID id) const;
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
+    bool isLatched(EnumT id) const { return isLatched(static_cast<oc::type::ButtonID>(id)); }
 
     /// Clear button latch state
-    void clearLatch(ButtonID id);
-    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
-    void clearLatch(EnumT id) { clearLatch(static_cast<ButtonID>(id)); }
+    void clearLatch(oc::type::ButtonID id);
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
+    void clearLatch(EnumT id) { clearLatch(static_cast<oc::type::ButtonID>(id)); }
 
 private:
     core::input::InputBinding& binding_;

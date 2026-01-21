@@ -11,7 +11,7 @@
 #include <array>
 
 #include <oc/Config.hpp>
-#include <oc/types/Ids.hpp>
+#include <oc/type/Ids.hpp>
 
 namespace oc::core::input {
 
@@ -23,27 +23,27 @@ namespace oc::core::input {
 class OwnershipTracker {
 public:
     /// Get the scope that owns this button's press (0 = no owner)
-    ScopeID owner(ButtonID btn) const {
+    oc::type::ScopeID owner(oc::type::ButtonID btn) const {
         if (btn >= MAX_BUTTONS) return 0;
         return owner_[btn];
     }
 
     /// Set ownership for a button press
-    void setOwner(ButtonID btn, ScopeID scope) {
+    void setOwner(oc::type::ButtonID btn, oc::type::ScopeID scope) {
         if (btn < MAX_BUTTONS) {
             owner_[btn] = scope;
         }
     }
 
     /// Clear ownership (typically on release)
-    void clear(ButtonID btn) {
+    void clear(oc::type::ButtonID btn) {
         if (btn < MAX_BUTTONS) {
             owner_[btn] = 0;
         }
     }
 
     /// Clear ownership for all buttons owned by a scope
-    void clearForScope(ScopeID scope) {
+    void clearForScope(oc::type::ScopeID scope) {
         for (size_t i = 0; i < MAX_BUTTONS; ++i) {
             if (owner_[i] == scope) {
                 owner_[i] = 0;
@@ -57,7 +57,7 @@ public:
     }
 
 private:
-    std::array<ScopeID, MAX_BUTTONS> owner_{};
+    std::array<oc::type::ScopeID, MAX_BUTTONS> owner_{};
 };
 
 }  // namespace oc::core::input

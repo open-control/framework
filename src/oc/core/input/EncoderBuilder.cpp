@@ -5,7 +5,7 @@
 
 namespace oc::core::input {
 
-EncoderBuilder::EncoderBuilder(InputBinding* registry, EncoderID encoderId)
+EncoderBuilder::EncoderBuilder(InputBinding* registry, oc::type::EncoderID encoderId)
     : registry_(registry), encoderId_(encoderId) {}
 
 EncoderBuilder::~EncoderBuilder() {
@@ -48,17 +48,17 @@ EncoderBuilder& EncoderBuilder::turn() {
     return *this;
 }
 
-EncoderBuilder& EncoderBuilder::scope(ScopeID s) {
+EncoderBuilder& EncoderBuilder::scope(oc::type::ScopeID s) {
     scope_ = s;
     return *this;
 }
 
-EncoderBuilder& EncoderBuilder::when(IsActiveFn fn) {
+EncoderBuilder& EncoderBuilder::when(oc::type::IsActiveFn fn) {
     isActive_ = std::move(fn);
     return *this;
 }
 
-BindingHandle EncoderBuilder::then(EncoderActionCallback cb) {
+BindingHandle EncoderBuilder::then(oc::type::EncoderActionCallback cb) {
     finalized_ = true;
 
     if (!registry_) {
@@ -87,7 +87,7 @@ BindingHandle EncoderBuilder::then(EncoderActionCallback cb) {
         .scopeId = scope_
     };
 
-    BindingID id = registry_->registerEncoderBinding(std::move(binding));
+    oc::type::BindingID id = registry_->registerEncoderBinding(std::move(binding));
     return BindingHandle(registry_, id);
 }
 

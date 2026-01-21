@@ -11,7 +11,7 @@
 #include <array>
 
 #include <oc/Config.hpp>
-#include <oc/types/Ids.hpp>
+#include <oc/type/Ids.hpp>
 
 namespace oc::core::input {
 
@@ -26,33 +26,33 @@ namespace oc::core::input {
 class LatchManager {
 public:
     /// Check if button is latched by any scope
-    bool isLatched(ButtonID btn) const {
+    bool isLatched(oc::type::ButtonID btn) const {
         if (btn >= MAX_BUTTONS) return false;
         return owner_[btn] != 0;
     }
 
     /// Get the scope that owns the latch (0 = not latched)
-    ScopeID owner(ButtonID btn) const {
+    oc::type::ScopeID owner(oc::type::ButtonID btn) const {
         if (btn >= MAX_BUTTONS) return 0;
         return owner_[btn];
     }
 
     /// Activate latch for a button with given scope
-    void activate(ButtonID btn, ScopeID scope) {
+    void activate(oc::type::ButtonID btn, oc::type::ScopeID scope) {
         if (btn < MAX_BUTTONS) {
             owner_[btn] = scope;
         }
     }
 
     /// Release latch for a button
-    void release(ButtonID btn) {
+    void release(oc::type::ButtonID btn) {
         if (btn < MAX_BUTTONS) {
             owner_[btn] = 0;
         }
     }
 
     /// Release all latches owned by a scope
-    void releaseForScope(ScopeID scope) {
+    void releaseForScope(oc::type::ScopeID scope) {
         for (size_t i = 0; i < MAX_BUTTONS; ++i) {
             if (owner_[i] == scope) {
                 owner_[i] = 0;
@@ -66,7 +66,7 @@ public:
     }
 
 private:
-    std::array<ScopeID, MAX_BUTTONS> owner_{};
+    std::array<oc::type::ScopeID, MAX_BUTTONS> owner_{};
 };
 
 }  // namespace oc::core::input

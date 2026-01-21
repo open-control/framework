@@ -17,9 +17,9 @@ class MockEventBus : public interface::IEventBus {
 public:
     using EventCallback = interface::EventCallback;
     using SubscriptionID = interface::SubscriptionID;
-    using EventCategoryType = core::event::EventCategoryType;
-    using EventType = core::event::EventType;
-    using Event = core::event::Event;
+    using EventCategoryType = oc::type::EventCategoryType;
+    using EventType = oc::type::EventType;
+    using Event = oc::type::Event;
 
     struct Subscription {
         SubscriptionID id;
@@ -35,7 +35,7 @@ public:
         return id;
     }
 
-    void emit(const Event& event) override {
+    void emit(const oc::type::Event& event) override {
         emitted_count_++;
         for (auto& sub : subscriptions_) {
             if (sub.active &&

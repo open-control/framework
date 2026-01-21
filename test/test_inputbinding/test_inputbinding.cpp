@@ -39,7 +39,7 @@ void test_register_button_binding_returns_id() {
     btn.buttonId = 1;
     btn.action = []() { actionCount++; };
 
-    BindingID id = binding.registerButtonBinding(btn);
+    oc::type::BindingID id = binding.registerButtonBinding(btn);
     TEST_ASSERT_GREATER_THAN(0, id);
 }
 
@@ -51,7 +51,7 @@ void test_register_encoder_binding_returns_id() {
     enc.encoderId = 0;
     enc.action = [](float v) { lastEncoderValue = v; };
 
-    BindingID id = binding.registerEncoderBinding(enc);
+    oc::type::BindingID id = binding.registerEncoderBinding(enc);
     TEST_ASSERT_GREATER_THAN(0, id);
 }
 
@@ -63,9 +63,9 @@ void test_sequential_ids() {
     btn.buttonId = 1;
     btn.action = []() {};
 
-    BindingID id1 = binding.registerButtonBinding(btn);
-    BindingID id2 = binding.registerButtonBinding(btn);
-    BindingID id3 = binding.registerButtonBinding(btn);
+    oc::type::BindingID id1 = binding.registerButtonBinding(btn);
+    oc::type::BindingID id2 = binding.registerButtonBinding(btn);
+    oc::type::BindingID id3 = binding.registerButtonBinding(btn);
 
     TEST_ASSERT_EQUAL(id1 + 1, id2);
     TEST_ASSERT_EQUAL(id2 + 1, id3);
@@ -315,7 +315,7 @@ void test_remove_by_id() {
     btn.type = ButtonBindingType::PRESS;
     btn.buttonId = 1;
     btn.action = []() { actionCount++; };
-    BindingID id = binding.registerButtonBinding(btn);
+    oc::type::BindingID id = binding.registerButtonBinding(btn);
 
     bus.emit(ButtonPressEvent{1, true});
     TEST_ASSERT_EQUAL(1, actionCount);
@@ -781,7 +781,7 @@ void test_authority_resolver_blocks_non_authority_scope() {
     InputBinding binding(bus, fakeTime.provider());
     AuthorityResolver resolver;
 
-    ScopeID currentAuthority = 100;
+    oc::type::ScopeID currentAuthority = 100;
     resolver.setOverlayProvider([&]() { return currentAuthority; });
     binding.setAuthorityResolver(&resolver);
 
@@ -801,7 +801,7 @@ void test_authority_resolver_allows_authority_scope() {
     InputBinding binding(bus, fakeTime.provider());
     AuthorityResolver resolver;
 
-    ScopeID currentAuthority = 100;
+    oc::type::ScopeID currentAuthority = 100;
     resolver.setOverlayProvider([&]() { return currentAuthority; });
     binding.setAuthorityResolver(&resolver);
 
@@ -837,7 +837,7 @@ void test_authority_zero_allows_all_scopes() {
     AuthorityResolver resolver;
 
     // Authority = 0 means no overlay active
-    resolver.setOverlayProvider([]() { return ScopeID(0); });
+    resolver.setOverlayProvider([]() { return oc::type::ScopeID(0); });
     binding.setAuthorityResolver(&resolver);
 
     ButtonBinding btn{};
@@ -952,7 +952,7 @@ void test_button_id_out_of_range_ignored() {
     btn.action = []() { actionCount++; };
     binding.registerButtonBinding(btn);
 
-    // ButtonID >= MAX_BUTTONS should be ignored
+    // oc::type::ButtonID >= MAX_BUTTONS should be ignored
     bus.emit(ButtonPressEvent{255, true});  // Very high ID
     TEST_ASSERT_EQUAL(0, actionCount);
 
@@ -1149,12 +1149,12 @@ void test_max_button_bindings_returns_zero() {
 
     // Fill up to MAX_BUTTON_BINDINGS
     for (size_t i = 0; i < oc::MAX_BUTTON_BINDINGS; ++i) {
-        BindingID id = binding.registerButtonBinding(btn);
+        oc::type::BindingID id = binding.registerButtonBinding(btn);
         TEST_ASSERT_GREATER_THAN(0, id);
     }
 
     // Next one should return 0
-    BindingID overflow = binding.registerButtonBinding(btn);
+    oc::type::BindingID overflow = binding.registerButtonBinding(btn);
     TEST_ASSERT_EQUAL(0, overflow);
 }
 
@@ -1168,12 +1168,12 @@ void test_max_encoder_bindings_returns_zero() {
 
     // Fill up to MAX_ENCODER_BINDINGS
     for (size_t i = 0; i < oc::MAX_ENCODER_BINDINGS; ++i) {
-        BindingID id = binding.registerEncoderBinding(enc);
+        oc::type::BindingID id = binding.registerEncoderBinding(enc);
         TEST_ASSERT_GREATER_THAN(0, id);
     }
 
     // Next one should return 0
-    BindingID overflow = binding.registerEncoderBinding(enc);
+    oc::type::BindingID overflow = binding.registerEncoderBinding(enc);
     TEST_ASSERT_EQUAL(0, overflow);
 }
 
@@ -1205,7 +1205,7 @@ void test_config_getter() {
 void test_no_time_provider_disables_gestures() {
     InputConfig config;
     config.longPressMs = 100;
-    InputBinding binding(bus, nullptr, config);  // No TimeProvider
+    InputBinding binding(bus, nullptr, config);  // No oc::type::TimeProvider
 
     ButtonBinding btn{};
     btn.type = ButtonBindingType::LONG_PRESS;
@@ -1213,7 +1213,7 @@ void test_no_time_provider_disables_gestures() {
     btn.action = []() { actionCount++; };
     binding.registerButtonBinding(btn);
 
-    // Press and hold - but without TimeProvider, current_time_ stays 0
+    // Press and hold - but without oc::type::TimeProvider, current_time_ stays 0
     bus.emit(ButtonPressEvent{1, true});
     binding.processTick();
     binding.processTick();
@@ -1230,7 +1230,7 @@ void test_remove_encoder_binding_by_id() {
     enc.type = EncoderBindingType::TURN;
     enc.encoderId = 0;
     enc.action = [](float) { actionCount++; };
-    BindingID id = binding.registerEncoderBinding(enc);
+    oc::type::BindingID id = binding.registerEncoderBinding(enc);
 
     bus.emit(EncoderChangedEvent{0, 0.5f});
     TEST_ASSERT_EQUAL(1, actionCount);

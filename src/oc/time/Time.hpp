@@ -8,7 +8,7 @@
  * The HAL registers its time provider at boot via setProvider().
  *
  * Architecture:
- * - Framework defines the TimeProvider function type
+ * - Framework defines the oc::type::TimeProvider function type
  * - HAL provides implementation (e.g., Arduino millis())
  * - Consumer calls oc::time::millis() anywhere
  *
@@ -22,12 +22,11 @@
  * @endcode
  */
 
-#include <oc/types/Callbacks.hpp>
+#include <oc/type/Callbacks.hpp>
 
 namespace oc::time {
 
-// Use TimeProvider from oc::types (avoid duplication)
-using oc::TimeProvider;
+// Use oc::type::TimeProvider from oc::type (avoid duplication)
 
 /**
  * @brief Register the platform time provider
@@ -37,7 +36,7 @@ using oc::TimeProvider;
  *
  * @param provider Function returning current time in milliseconds
  */
-void setProvider(TimeProvider provider);
+void setProvider(oc::type::TimeProvider provider);
 
 /**
  * @brief Get current time in milliseconds

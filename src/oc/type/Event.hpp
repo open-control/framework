@@ -7,7 +7,7 @@
 
 #include <cstdint>
 
-namespace oc {
+namespace oc::type {
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Event type aliases
@@ -51,4 +51,4 @@ protected:
     EventType type_;
 };
 
-}  // namespace oc
+}  // namespace oc::type

@@ -6,7 +6,7 @@
 
 namespace oc::core::input {
 
-ButtonBuilder::ButtonBuilder(InputBinding* registry, ButtonID buttonId)
+ButtonBuilder::ButtonBuilder(InputBinding* registry, oc::type::ButtonID buttonId)
     : registry_(registry), buttonId_(buttonId) {}
 
 ButtonBuilder::~ButtonBuilder() {
@@ -88,17 +88,17 @@ ButtonBuilder& ButtonBuilder::doubleTap(uint32_t ms) {
     return *this;
 }
 
-ComboBuilder ButtonBuilder::combo(ButtonID other) {
+ComboBuilder ButtonBuilder::combo(oc::type::ButtonID other) {
     finalized_ = true;  // Ownership transferred to ComboBuilder
     return ComboBuilder(registry_, buttonId_, other);
 }
 
-ButtonBuilder& ButtonBuilder::scope(ScopeID s) {
+ButtonBuilder& ButtonBuilder::scope(oc::type::ScopeID s) {
     scope_ = s;
     return *this;
 }
 
-ButtonBuilder& ButtonBuilder::when(IsActiveFn fn) {
+ButtonBuilder& ButtonBuilder::when(oc::type::IsActiveFn fn) {
     isActive_ = std::move(fn);
     return *this;
 }
@@ -108,7 +108,7 @@ ButtonBuilder& ButtonBuilder::latch() {
     return *this;
 }
 
-BindingHandle ButtonBuilder::then(ActionCallback cb) {
+BindingHandle ButtonBuilder::then(oc::type::ActionCallback cb) {
     finalized_ = true;
 
     if (!registry_) {
@@ -151,7 +151,7 @@ BindingHandle ButtonBuilder::then(ActionCallback cb) {
         .scopeId = scope_
     };
 
-    BindingID id = registry_->registerButtonBinding(std::move(binding));
+    oc::type::BindingID id = registry_->registerButtonBinding(std::move(binding));
     return BindingHandle(registry_, id);
 }
 
