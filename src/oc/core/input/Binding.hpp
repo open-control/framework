@@ -7,7 +7,7 @@
 #include <oc/types/Ids.hpp>
 #include <oc/types/Callbacks.hpp>
 
-namespace oc::core {
+namespace oc::core::input {
 
 // Import types from oc:: for use in this namespace
 using oc::BindingID;
@@ -75,4 +75,4 @@ struct EncoderBinding {
     int8_t priority = 0;            ///< Higher priority = triggered first (default: 0)
 };
 
-}  // namespace oc::core
+}  // namespace oc::core::input

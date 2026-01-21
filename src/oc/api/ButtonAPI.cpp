@@ -27,7 +27,7 @@ bool ButtonAPI::isPressed(ButtonID id) const {
     return hw_.isPressed(id);
 }
 
-core::IsActiveFn ButtonAPI::pressed(ButtonID id) const {
+oc::IsActiveFn ButtonAPI::pressed(ButtonID id) const {
     return [this, id]() { return hw_.isPressed(id); };
 }
 

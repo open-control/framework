@@ -35,7 +35,7 @@ public:
     bool isPressed() const { return api_.isPressed(id_); }
 
     /// Get predicate for use with when()
-    core::IsActiveFn pressed() const { return api_.pressed(id_); }
+    oc::IsActiveFn pressed() const { return api_.pressed(id_); }
 
 private:
     ButtonAPI& api_;

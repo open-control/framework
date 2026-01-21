@@ -1,7 +1,5 @@
 #pragma once
 
-#include <type_traits>
-
 #include <oc/core/input/AuthorityResolver.hpp>
 #include <oc/core/input/ButtonBuilder.hpp>
 #include <oc/core/input/Binding.hpp>
@@ -14,20 +12,6 @@ class InputBinding;
 }
 
 namespace oc::api {
-
-/// @brief Type trait helper to safely check underlying type (only for enums)
-namespace detail {
-template <typename T, bool IsEnum = std::is_enum_v<T>>
-struct is_uint16_enum : std::false_type {};
-
-template <typename T>
-struct is_uint16_enum<T, true>
-    : std::bool_constant<std::is_same_v<std::underlying_type_t<T>, uint16_t>> {};
-}  // namespace detail
-
-/// @brief Type trait to detect enum class with uint16_t underlying type
-template <typename T>
-inline constexpr bool is_button_id_v = detail::is_uint16_enum<T>::value;
 
 /**
  * @brief API for button bindings and state management
@@ -61,7 +45,7 @@ public:
     [[nodiscard]] core::input::ButtonBuilder button(ButtonID id);
 
     /// @brief Template overload for enum class button IDs
-    template <typename EnumT, typename = std::enable_if_t<is_button_id_v<EnumT>>>
+    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
     [[nodiscard]] core::input::ButtonBuilder button(EnumT id) {
         return button(static_cast<ButtonID>(id));
     }
@@ -92,7 +76,7 @@ public:
 
     /// Check if button is currently pressed (instantaneous state)
     bool isPressed(ButtonID id) const;
-    template <typename EnumT, typename = std::enable_if_t<is_button_id_v<EnumT>>>
+    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
     bool isPressed(EnumT id) const { return isPressed(static_cast<ButtonID>(id)); }
 
     /**
@@ -106,9 +90,9 @@ public:
      *     .then([](float v){ fineAdjust(v); });
      * @endcode
      */
-    core::IsActiveFn pressed(ButtonID id) const;
-    template <typename EnumT, typename = std::enable_if_t<is_button_id_v<EnumT>>>
-    core::IsActiveFn pressed(EnumT id) const { return pressed(static_cast<ButtonID>(id)); }
+    oc::IsActiveFn pressed(ButtonID id) const;
+    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
+    oc::IsActiveFn pressed(EnumT id) const { return pressed(static_cast<ButtonID>(id)); }
 
     // ═══════════════════════════════════════════════════
     // Latch state
@@ -116,12 +100,12 @@ public:
 
     /// Check if button is in latched state
     bool isLatched(ButtonID id) const;
-    template <typename EnumT, typename = std::enable_if_t<is_button_id_v<EnumT>>>
+    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
     bool isLatched(EnumT id) const { return isLatched(static_cast<ButtonID>(id)); }
 
     /// Clear button latch state
     void clearLatch(ButtonID id);
-    template <typename EnumT, typename = std::enable_if_t<is_button_id_v<EnumT>>>
+    template <typename EnumT, typename = std::enable_if_t<oc::is_id_v<EnumT>>>
     void clearLatch(EnumT id) { clearLatch(static_cast<ButtonID>(id)); }
 
 private:

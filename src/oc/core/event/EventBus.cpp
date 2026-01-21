@@ -6,7 +6,11 @@
 
 namespace oc::core::event {
 
-EventBus::EventBus() : next_id_(1) {}
+EventBus::EventBus() : next_id_(1) {
+    // Pre-allocate buckets to reduce dynamic allocations at runtime.
+    // Typical usage: ~6 categories × ~5 event types = ~30 combinations.
+    subscriptions_.reserve(32);
+}
 
 interface::SubscriptionID EventBus::on(EventCategoryType category, EventType type, interface::EventCallback callback) {
     if (!callback) return 0;

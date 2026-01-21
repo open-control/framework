@@ -58,25 +58,32 @@ See [hal-teensy](https://github.com/open-control/hal-teensy):
 
 ```
 oc::
-├── hal/          # Hardware abstraction interfaces
-│   ├── IButtonController, IEncoderController
-│   ├── IMidiTransport, ISerialTransport
-│   ├── IDisplayDriver, IStorageBackend
-│   └── Types.hpp
-├── core/
+├── types/        # Level 0: Foundational types (no internal dependencies)
+│   ├── Ids.hpp, Result.hpp, Callbacks.hpp, Event.hpp
+├── interface/    # Level 1: Hardware abstraction interfaces
+│   ├── IButton, IEncoder, IMidi, IStorage
+│   ├── IDisplay, IGpio, IMultiplexer, ITransport
+│   └── IContext, IContextSwitcher, IEventBus
+├── impl/         # Level 2: Null/memory implementations for testing
+│   └── NullMidi, NullTransport, MemoryStorage
+├── core/         # Level 2: Core logic
 │   ├── event/    # EventBus, typed events
-│   ├── input/    # InputBinding, EncoderLogic, Builders
-│   └── Result.hpp
-├── state/        # Reactive state management
-│   ├── Signal.hpp, SignalVector.hpp, SignalString.hpp
-│   ├── SignalWatcher.hpp, Bind.hpp
-│   └── Settings.hpp
-├── codec/        # Protocol codecs
-│   └── CobsCodec.hpp
-├── log/          # Logging API
-├── context/      # IContext, ContextManager
-├── api/          # ButtonAPI, EncoderAPI, MidiAPI
-└── app/          # OpenControlApp, AppBuilder
+│   └── input/    # InputBinding, EncoderLogic, Builders
+├── state/        # Level 2: Reactive state management
+│   ├── Signal, SignalVector, SignalString
+│   └── SignalWatcher, Settings, NotificationQueue
+├── context/      # Level 3: Context management
+│   └── ContextManager, ContextBase, APIs
+├── api/          # Level 3: User-facing APIs
+│   └── ButtonAPI, EncoderAPI, MidiAPI
+├── app/          # Level 4: Application entry point
+│   └── OpenControlApp, AppBuilder
+├── log/          # Logging infrastructure
+├── time/         # Time providers
+├── codec/        # Protocol codecs (COBS)
+├── debug/        # Debug utilities
+├── util/         # General utilities
+└── Config.hpp    # Configurable limits
 ```
 
 ---

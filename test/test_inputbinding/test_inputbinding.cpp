@@ -1,7 +1,9 @@
 #include <unity.h>
 #include <vector>
 
+#include <oc/Config.hpp>
 #include <oc/core/input/InputBinding.hpp>
+#include <oc/core/input/AuthorityResolver.hpp>
 #include <oc/core/event/Events.hpp>
 #include "../mocks/MockEventBus.hpp"
 #include "../mocks/FakeTime.hpp"
@@ -698,6 +700,589 @@ void test_priority_default_is_zero() {
     TEST_ASSERT_EQUAL(0, enc.priority);
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// Combo Bindings
+// ═══════════════════════════════════════════════════════════════════
+
+void test_combo_triggers_on_release() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    ButtonBinding combo{};
+    combo.type = ButtonBindingType::COMBO;
+    combo.buttonId = 1;
+    combo.secondaryButton = 2;
+    combo.action = []() { actionCount++; };
+    binding.registerButtonBinding(combo);
+
+    // Press both buttons
+    bus.emit(ButtonPressEvent{1, true});
+    bus.emit(ButtonPressEvent{2, true});
+    TEST_ASSERT_EQUAL(0, actionCount);  // Not triggered yet
+
+    // Release one - combo triggers
+    bus.emit(ButtonReleaseEvent{1});
+    TEST_ASSERT_EQUAL(1, actionCount);
+}
+
+void test_combo_wrong_buttons_no_trigger() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    ButtonBinding combo{};
+    combo.type = ButtonBindingType::COMBO;
+    combo.buttonId = 1;
+    combo.secondaryButton = 2;
+    combo.action = []() { actionCount++; };
+    binding.registerButtonBinding(combo);
+
+    // Press wrong buttons
+    bus.emit(ButtonPressEvent{1, true});
+    bus.emit(ButtonPressEvent{3, true});  // Wrong button
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(0, actionCount);
+}
+
+void test_combo_scoped_priority() {
+    InputBinding binding(bus, fakeTime.provider());
+    int globalCount = 0;
+    int scopedCount = 0;
+
+    // Global combo
+    ButtonBinding globalCombo{};
+    globalCombo.type = ButtonBindingType::COMBO;
+    globalCombo.buttonId = 1;
+    globalCombo.secondaryButton = 2;
+    globalCombo.scopeId = 0;
+    globalCombo.action = [&]() { globalCount++; };
+    binding.registerButtonBinding(globalCombo);
+
+    // Scoped combo
+    ButtonBinding scopedCombo{};
+    scopedCombo.type = ButtonBindingType::COMBO;
+    scopedCombo.buttonId = 1;
+    scopedCombo.secondaryButton = 2;
+    scopedCombo.scopeId = 42;
+    scopedCombo.action = [&]() { scopedCount++; };
+    binding.registerButtonBinding(scopedCombo);
+
+    bus.emit(ButtonPressEvent{1, true});
+    bus.emit(ButtonPressEvent{2, true});
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(1, scopedCount);
+    TEST_ASSERT_EQUAL(0, globalCount);  // Blocked by scoped
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Authority Resolver Integration
+// ═══════════════════════════════════════════════════════════════════
+
+void test_authority_resolver_blocks_non_authority_scope() {
+    InputBinding binding(bus, fakeTime.provider());
+    AuthorityResolver resolver;
+
+    ScopeID currentAuthority = 100;
+    resolver.setOverlayProvider([&]() { return currentAuthority; });
+    binding.setAuthorityResolver(&resolver);
+
+    // Binding in scope 200 (NOT the authority)
+    ButtonBinding btn{};
+    btn.type = ButtonBindingType::PRESS;
+    btn.buttonId = 1;
+    btn.scopeId = 200;
+    btn.action = []() { actionCount++; };
+    binding.registerButtonBinding(btn);
+
+    bus.emit(ButtonPressEvent{1, true});
+    TEST_ASSERT_EQUAL(0, actionCount);  // Blocked - wrong scope
+}
+
+void test_authority_resolver_allows_authority_scope() {
+    InputBinding binding(bus, fakeTime.provider());
+    AuthorityResolver resolver;
+
+    ScopeID currentAuthority = 100;
+    resolver.setOverlayProvider([&]() { return currentAuthority; });
+    binding.setAuthorityResolver(&resolver);
+
+    // Binding in scope 100 (the authority)
+    ButtonBinding btn{};
+    btn.type = ButtonBindingType::PRESS;
+    btn.buttonId = 1;
+    btn.scopeId = 100;
+    btn.action = []() { actionCount++; };
+    binding.registerButtonBinding(btn);
+
+    bus.emit(ButtonPressEvent{1, true});
+    TEST_ASSERT_EQUAL(1, actionCount);  // Allowed
+}
+
+void test_authority_resolver_null_allows_all() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    // No resolver set - all scopes allowed
+    ButtonBinding btn{};
+    btn.type = ButtonBindingType::PRESS;
+    btn.buttonId = 1;
+    btn.scopeId = 999;
+    btn.action = []() { actionCount++; };
+    binding.registerButtonBinding(btn);
+
+    bus.emit(ButtonPressEvent{1, true});
+    TEST_ASSERT_EQUAL(1, actionCount);
+}
+
+void test_authority_zero_allows_all_scopes() {
+    InputBinding binding(bus, fakeTime.provider());
+    AuthorityResolver resolver;
+
+    // Authority = 0 means no overlay active
+    resolver.setOverlayProvider([]() { return ScopeID(0); });
+    binding.setAuthorityResolver(&resolver);
+
+    ButtonBinding btn{};
+    btn.type = ButtonBindingType::PRESS;
+    btn.buttonId = 1;
+    btn.scopeId = 42;
+    btn.action = []() { actionCount++; };
+    binding.registerButtonBinding(btn);
+
+    bus.emit(ButtonPressEvent{1, true});
+    TEST_ASSERT_EQUAL(1, actionCount);  // Allowed when authority = 0
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Clear Encoder Bindings
+// ═══════════════════════════════════════════════════════════════════
+
+void test_clear_encoder_bindings_only() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    ButtonBinding btn{};
+    btn.type = ButtonBindingType::PRESS;
+    btn.buttonId = 1;
+    btn.action = []() { actionCount++; };
+    binding.registerButtonBinding(btn);
+
+    EncoderBinding enc{};
+    enc.type = EncoderBindingType::TURN;
+    enc.encoderId = 0;
+    enc.action = [](float) { actionCount += 10; };
+    binding.registerEncoderBinding(enc);
+
+    binding.clearEncoderBindings();
+
+    bus.emit(EncoderChangedEvent{0, 0.5f});
+    TEST_ASSERT_EQUAL(0, actionCount);  // Encoder cleared
+
+    bus.emit(ButtonPressEvent{1, true});
+    TEST_ASSERT_EQUAL(1, actionCount);  // Button still works
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Clear Scoped Bindings (Button/Encoder separately)
+// ═══════════════════════════════════════════════════════════════════
+
+void test_clear_button_scope_only() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    // Button in scope 42
+    ButtonBinding btn{};
+    btn.type = ButtonBindingType::PRESS;
+    btn.buttonId = 1;
+    btn.scopeId = 42;
+    btn.action = []() { actionCount++; };
+    binding.registerButtonBinding(btn);
+
+    // Encoder in same scope 42
+    EncoderBinding enc{};
+    enc.type = EncoderBindingType::TURN;
+    enc.encoderId = 0;
+    enc.scopeId = 42;
+    enc.action = [](float) { actionCount += 10; };
+    binding.registerEncoderBinding(enc);
+
+    binding.clearButtonScope(42);
+
+    bus.emit(ButtonPressEvent{1, true});
+    TEST_ASSERT_EQUAL(0, actionCount);  // Button cleared
+
+    bus.emit(EncoderChangedEvent{0, 0.5f});
+    TEST_ASSERT_EQUAL(10, actionCount);  // Encoder still works
+}
+
+void test_clear_encoder_scope_only() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    // Button in scope 42
+    ButtonBinding btn{};
+    btn.type = ButtonBindingType::PRESS;
+    btn.buttonId = 1;
+    btn.scopeId = 42;
+    btn.action = []() { actionCount++; };
+    binding.registerButtonBinding(btn);
+
+    // Encoder in same scope 42
+    EncoderBinding enc{};
+    enc.type = EncoderBindingType::TURN;
+    enc.encoderId = 0;
+    enc.scopeId = 42;
+    enc.action = [](float) { actionCount += 10; };
+    binding.registerEncoderBinding(enc);
+
+    binding.clearEncoderScope(42);
+
+    bus.emit(EncoderChangedEvent{0, 0.5f});
+    TEST_ASSERT_EQUAL(0, actionCount);  // Encoder cleared
+
+    bus.emit(ButtonPressEvent{1, true});
+    TEST_ASSERT_EQUAL(1, actionCount);  // Button still works
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Boundary Checks
+// ═══════════════════════════════════════════════════════════════════
+
+void test_button_id_out_of_range_ignored() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    ButtonBinding btn{};
+    btn.type = ButtonBindingType::PRESS;
+    btn.buttonId = 1;
+    btn.action = []() { actionCount++; };
+    binding.registerButtonBinding(btn);
+
+    // ButtonID >= MAX_BUTTONS should be ignored
+    bus.emit(ButtonPressEvent{255, true});  // Very high ID
+    TEST_ASSERT_EQUAL(0, actionCount);
+
+    // Valid ID still works
+    bus.emit(ButtonPressEvent{1, true});
+    TEST_ASSERT_EQUAL(1, actionCount);
+}
+
+void test_is_button_pressed_out_of_range() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    // Out of range should return false, not crash
+    TEST_ASSERT_FALSE(binding.isButtonPressed(255));
+}
+
+void test_is_latched_out_of_range() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    // Out of range should return false, not crash
+    TEST_ASSERT_FALSE(binding.isLatched(255));
+}
+
+void test_clear_latch_out_of_range_no_crash() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    // Should not crash
+    binding.clearLatch(255);
+    TEST_ASSERT_TRUE(true);  // If we get here, no crash
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Latch Complex Flow
+// ═══════════════════════════════════════════════════════════════════
+
+void test_latch_blocks_press_allows_other_scopes() {
+    InputBinding binding(bus, fakeTime.provider());
+    int scope100Count = 0;
+    int scope200Count = 0;
+
+    // Latch binding in scope 100
+    ButtonBinding latchBtn{};
+    latchBtn.type = ButtonBindingType::PRESS;
+    latchBtn.buttonId = 1;
+    latchBtn.latch = true;
+    latchBtn.scopeId = 100;
+    latchBtn.action = [&]() { scope100Count++; };
+    binding.registerButtonBinding(latchBtn);
+
+    // Non-latch binding in scope 200
+    ButtonBinding otherBtn{};
+    otherBtn.type = ButtonBindingType::PRESS;
+    otherBtn.buttonId = 1;
+    otherBtn.scopeId = 200;
+    otherBtn.action = [&]() { scope200Count++; };
+    binding.registerButtonBinding(otherBtn);
+
+    // First press/release activates latch
+    fakeTime.set(0);
+    bus.emit(ButtonPressEvent{1, true});
+    fakeTime.set(100);
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(1, scope100Count);
+    TEST_ASSERT_TRUE(binding.isLatched(1));
+
+    // Second press - latch scope blocked, other scope gets it
+    fakeTime.set(200);
+    bus.emit(ButtonPressEvent{1, true});
+
+    TEST_ASSERT_EQUAL(1, scope100Count);  // Still 1 - blocked
+    TEST_ASSERT_EQUAL(1, scope200Count);  // Got the press
+}
+
+void test_latch_release_triggers_release_binding() {
+    InputBinding binding(bus, fakeTime.provider());
+    int pressCount = 0;
+    int releaseCount = 0;
+
+    // Press binding with latch
+    ButtonBinding press{};
+    press.type = ButtonBindingType::PRESS;
+    press.buttonId = 1;
+    press.latch = true;
+    press.scopeId = 100;
+    press.action = [&]() { pressCount++; };
+    binding.registerButtonBinding(press);
+
+    // Release binding in same scope
+    ButtonBinding release{};
+    release.type = ButtonBindingType::RELEASE;
+    release.buttonId = 1;
+    release.scopeId = 100;
+    release.action = [&]() { releaseCount++; };
+    binding.registerButtonBinding(release);
+
+    // Activate latch
+    fakeTime.set(0);
+    bus.emit(ButtonPressEvent{1, true});
+    fakeTime.set(100);
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(1, pressCount);
+    TEST_ASSERT_EQUAL(0, releaseCount);  // No release yet - latched
+    TEST_ASSERT_TRUE(binding.isLatched(1));
+
+    // Release latch
+    fakeTime.set(200);
+    bus.emit(ButtonPressEvent{1, true});
+    fakeTime.set(300);
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(1, releaseCount);  // Release triggered
+    TEST_ASSERT_FALSE(binding.isLatched(1));
+}
+
+void test_long_press_prevents_latch() {
+    InputConfig config;
+    config.longPressMs = 500;
+    config.latchThresholdMs = 300;
+    InputBinding binding(bus, fakeTime.provider(), config);
+
+    ButtonBinding btn{};
+    btn.type = ButtonBindingType::PRESS;
+    btn.buttonId = 1;
+    btn.latch = true;
+    btn.scopeId = 100;
+    btn.action = []() { actionCount++; };
+    binding.registerButtonBinding(btn);
+
+    // Long press (> latchThresholdMs)
+    fakeTime.set(0);
+    binding.processTick();
+    bus.emit(ButtonPressEvent{1, true});
+
+    fakeTime.set(400);  // > 300ms threshold
+    binding.processTick();
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_FALSE(binding.isLatched(1));  // Long press = no latch
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Encoder with Latch
+// ═══════════════════════════════════════════════════════════════════
+
+void test_encoder_turn_while_latched() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    // Latch binding for button
+    ButtonBinding latchBtn{};
+    latchBtn.type = ButtonBindingType::PRESS;
+    latchBtn.buttonId = 1;
+    latchBtn.latch = true;
+    latchBtn.scopeId = 100;
+    latchBtn.action = []() {};
+    binding.registerButtonBinding(latchBtn);
+
+    // Encoder requires button 1 pressed (or latched)
+    EncoderBinding enc{};
+    enc.type = EncoderBindingType::TURN_WHILE_PRESSED;
+    enc.encoderId = 0;
+    enc.requiredButton = 1;
+    enc.action = [](float) { actionCount++; };
+    binding.registerEncoderBinding(enc);
+
+    // Without latch - no trigger
+    bus.emit(EncoderChangedEvent{0, 0.5f});
+    TEST_ASSERT_EQUAL(0, actionCount);
+
+    // Activate latch
+    fakeTime.set(0);
+    bus.emit(ButtonPressEvent{1, true});
+    fakeTime.set(100);
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_TRUE(binding.isLatched(1));
+
+    // Now encoder should work (button latched)
+    bus.emit(EncoderChangedEvent{0, 0.6f});
+    TEST_ASSERT_EQUAL(1, actionCount);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Binding Limits
+// ═══════════════════════════════════════════════════════════════════
+
+void test_max_button_bindings_returns_zero() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    ButtonBinding btn{};
+    btn.type = ButtonBindingType::PRESS;
+    btn.buttonId = 1;
+    btn.action = []() {};
+
+    // Fill up to MAX_BUTTON_BINDINGS
+    for (size_t i = 0; i < oc::MAX_BUTTON_BINDINGS; ++i) {
+        BindingID id = binding.registerButtonBinding(btn);
+        TEST_ASSERT_GREATER_THAN(0, id);
+    }
+
+    // Next one should return 0
+    BindingID overflow = binding.registerButtonBinding(btn);
+    TEST_ASSERT_EQUAL(0, overflow);
+}
+
+void test_max_encoder_bindings_returns_zero() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    EncoderBinding enc{};
+    enc.type = EncoderBindingType::TURN;
+    enc.encoderId = 0;
+    enc.action = [](float) {};
+
+    // Fill up to MAX_ENCODER_BINDINGS
+    for (size_t i = 0; i < oc::MAX_ENCODER_BINDINGS; ++i) {
+        BindingID id = binding.registerEncoderBinding(enc);
+        TEST_ASSERT_GREATER_THAN(0, id);
+    }
+
+    // Next one should return 0
+    BindingID overflow = binding.registerEncoderBinding(enc);
+    TEST_ASSERT_EQUAL(0, overflow);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Edge Cases
+// ═══════════════════════════════════════════════════════════════════
+
+void test_remove_by_id_zero_returns_false() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    // ID 0 is invalid, should return false immediately
+    bool removed = binding.removeById(0);
+    TEST_ASSERT_FALSE(removed);
+}
+
+void test_config_getter() {
+    InputConfig config;
+    config.longPressMs = 1234;
+    config.doubleTapWindowMs = 567;
+    config.latchThresholdMs = 890;
+
+    InputBinding binding(bus, fakeTime.provider(), config);
+
+    TEST_ASSERT_EQUAL(1234, binding.config().longPressMs);
+    TEST_ASSERT_EQUAL(567, binding.config().doubleTapWindowMs);
+    TEST_ASSERT_EQUAL(890, binding.config().latchThresholdMs);
+}
+
+void test_no_time_provider_disables_gestures() {
+    InputConfig config;
+    config.longPressMs = 100;
+    InputBinding binding(bus, nullptr, config);  // No TimeProvider
+
+    ButtonBinding btn{};
+    btn.type = ButtonBindingType::LONG_PRESS;
+    btn.buttonId = 1;
+    btn.action = []() { actionCount++; };
+    binding.registerButtonBinding(btn);
+
+    // Press and hold - but without TimeProvider, current_time_ stays 0
+    bus.emit(ButtonPressEvent{1, true});
+    binding.processTick();
+    binding.processTick();
+    binding.processTick();
+
+    // Long press should NOT trigger because time never advances
+    TEST_ASSERT_EQUAL(0, actionCount);
+}
+
+void test_remove_encoder_binding_by_id() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    EncoderBinding enc{};
+    enc.type = EncoderBindingType::TURN;
+    enc.encoderId = 0;
+    enc.action = [](float) { actionCount++; };
+    BindingID id = binding.registerEncoderBinding(enc);
+
+    bus.emit(EncoderChangedEvent{0, 0.5f});
+    TEST_ASSERT_EQUAL(1, actionCount);
+
+    bool removed = binding.removeById(id);
+    TEST_ASSERT_TRUE(removed);
+
+    bus.emit(EncoderChangedEvent{0, 0.6f});
+    TEST_ASSERT_EQUAL(1, actionCount);  // No longer triggers
+}
+
+void test_disabled_binding_field() {
+    InputBinding binding(bus, fakeTime.provider());
+
+    ButtonBinding btn{};
+    btn.type = ButtonBindingType::PRESS;
+    btn.buttonId = 1;
+    btn.enabled = false;  // Disabled
+    btn.action = []() { actionCount++; };
+    binding.registerButtonBinding(btn);
+
+    bus.emit(ButtonPressEvent{1, true});
+    TEST_ASSERT_EQUAL(0, actionCount);  // Disabled binding doesn't trigger
+}
+
+void test_encoder_scoped_vs_global() {
+    InputBinding binding(bus, fakeTime.provider());
+    int globalCount = 0;
+    int scopedCount = 0;
+
+    // Global encoder
+    EncoderBinding global{};
+    global.type = EncoderBindingType::TURN;
+    global.encoderId = 0;
+    global.scopeId = 0;
+    global.action = [&](float) { globalCount++; };
+    binding.registerEncoderBinding(global);
+
+    // Scoped encoder
+    EncoderBinding scoped{};
+    scoped.type = EncoderBindingType::TURN;
+    scoped.encoderId = 0;
+    scoped.scopeId = 42;
+    scoped.action = [&](float) { scopedCount++; };
+    binding.registerEncoderBinding(scoped);
+
+    bus.emit(EncoderChangedEvent{0, 0.5f});
+
+    TEST_ASSERT_EQUAL(1, scopedCount);
+    TEST_ASSERT_EQUAL(0, globalCount);  // Blocked by scoped
+}
+
 int main(int argc, char **argv) {
     UNITY_BEGIN();
 
@@ -753,6 +1338,50 @@ int main(int argc, char **argv) {
     RUN_TEST(test_priority_encoder_bindings);
     RUN_TEST(test_priority_global_bindings_all_trigger);
     RUN_TEST(test_priority_default_is_zero);
+
+    // Combo
+    RUN_TEST(test_combo_triggers_on_release);
+    RUN_TEST(test_combo_wrong_buttons_no_trigger);
+    RUN_TEST(test_combo_scoped_priority);
+
+    // Authority Resolver
+    RUN_TEST(test_authority_resolver_blocks_non_authority_scope);
+    RUN_TEST(test_authority_resolver_allows_authority_scope);
+    RUN_TEST(test_authority_resolver_null_allows_all);
+    RUN_TEST(test_authority_zero_allows_all_scopes);
+
+    // Clear encoder bindings
+    RUN_TEST(test_clear_encoder_bindings_only);
+
+    // Clear scoped bindings
+    RUN_TEST(test_clear_button_scope_only);
+    RUN_TEST(test_clear_encoder_scope_only);
+
+    // Boundary checks
+    RUN_TEST(test_button_id_out_of_range_ignored);
+    RUN_TEST(test_is_button_pressed_out_of_range);
+    RUN_TEST(test_is_latched_out_of_range);
+    RUN_TEST(test_clear_latch_out_of_range_no_crash);
+
+    // Latch complex flow
+    RUN_TEST(test_latch_blocks_press_allows_other_scopes);
+    RUN_TEST(test_latch_release_triggers_release_binding);
+    RUN_TEST(test_long_press_prevents_latch);
+
+    // Encoder with latch
+    RUN_TEST(test_encoder_turn_while_latched);
+
+    // Binding limits
+    RUN_TEST(test_max_button_bindings_returns_zero);
+    RUN_TEST(test_max_encoder_bindings_returns_zero);
+
+    // Edge cases
+    RUN_TEST(test_remove_by_id_zero_returns_false);
+    RUN_TEST(test_config_getter);
+    RUN_TEST(test_no_time_provider_disables_gestures);
+    RUN_TEST(test_remove_encoder_binding_by_id);
+    RUN_TEST(test_disabled_binding_field);
+    RUN_TEST(test_encoder_scoped_vs_global);
 
     UNITY_END();
     return 0;
