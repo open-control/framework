@@ -3,7 +3,6 @@
 #include <oc/api/ButtonAPI.hpp>
 #include <oc/api/EncoderAPI.hpp>
 #include <oc/api/MidiAPI.hpp>
-#include <oc/context/IContextWithAPIs.hpp>
 #include <oc/core/event/Events.hpp>
 #include <oc/interface/IEventBus.hpp>
 #include <oc/log/Log.hpp>
@@ -70,9 +69,8 @@ bool ContextManager::switchToImpl(uint8_t id) {
         return false;
     }
 
-    if (auto* ctx = dynamic_cast<IContextWithAPIs*>(active_.get())) {
-        ctx->setAPIs(apis_);
-    }
+    // Inject APIs (no-op if context doesn't override setAPIs)
+    active_->setAPIs(apis_);
     auto initResult = active_->init();
     if (!initResult) {
         emitError(id);

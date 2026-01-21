@@ -12,6 +12,10 @@
 
 #include <oc/type/Result.hpp>
 
+namespace oc::context {
+struct APIs;  // Forward declaration
+}
+
 namespace oc::interface {
 
 /**
@@ -87,6 +91,19 @@ public:
      * @brief Called when the context is about to be deactivated
      */
     virtual void onDisconnected() {}
+
+    // ─────────────────────────────────────────────────────────────────────
+    // API Injection (optional override)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * @brief Receive injected APIs (ButtonAPI, EncoderAPI, MidiAPI)
+     * @param apis The APIs struct containing all available APIs
+     *
+     * Called by ContextManager before init(). Override in contexts that
+     * need access to input/output APIs. Default implementation does nothing.
+     */
+    virtual void setAPIs(const oc::context::APIs&) {}
 };
 
 }  // namespace oc::interface
