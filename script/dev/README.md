@@ -7,7 +7,8 @@ Utility scripts for development workflow.
 | Script | Purpose |
 |--------|---------|
 | `format.sh` | Format all C/C++ files in `src/` with clang-format |
-| `restart-clangd.sh` | Regenerate `compile_commands.json` and prompt to restart clangd |
+| `rebuild-compiledb.sh` | Regenerate `compile_commands.json` for clangd |
+| `check_architecture.py` | Enforce namespace/module dependency rules |
 
 ## Usage
 
@@ -17,8 +18,14 @@ From anywhere in the project:
 # Format entire codebase
 ./script/dev/format.sh
 
-# Restart clangd (after changing includes, build flags, etc.)
-./script/dev/restart-clangd.sh
+# Rebuild compile_commands.json (after changing includes, build flags, etc.)
+./script/dev/rebuild-compiledb.sh
+
+# Architecture guardrails (namespaces + module dependencies)
+python3 script/dev/check_architecture.py
+
+# Note: pio test runs this check automatically (and fails fast)
+pio test -e native
 ```
 
 ## Requirements

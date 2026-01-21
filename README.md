@@ -56,6 +56,8 @@ See [hal-teensy](https://github.com/open-control/hal-teensy):
 
 ## Architecture
 
+See `ARCHITECTURE.md` for the enforced rules (namespaces, module dependencies).
+
 ```
 oc::
 ├── type/         # Level 0: Foundational types (no internal dependencies)

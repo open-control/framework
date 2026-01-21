@@ -9,6 +9,7 @@
 #include <oc/api/EncoderProxy.hpp>
 #include <oc/api/MidiAPI.hpp>
 #include <oc/context/APIs.hpp>
+#include <oc/context/IContextWithAPIs.hpp>
 #include <oc/interface/IContextSwitcher.hpp>
 #include <oc/core/input/ButtonBuilder.hpp>
 #include <oc/core/input/EncoderBuilder.hpp>
@@ -28,6 +29,9 @@ namespace oc::context {
  * ## Implementation Example
  *
  * @code
+ * enum class Button : uint16_t { PLAY = 0 };
+ * enum class Encoder : uint16_t { VOLUME = 0 };
+ *
  * class MainContext : public ContextBase {
  * public:
  *     static constexpr Requirements REQUIRES{
@@ -37,8 +41,8 @@ namespace oc::context {
  *     };
  *
  *     oc::type::Result<void> init() override {
- *         onButton(oc::type::ButtonID::PLAY).press().then([this] { play(); });
- *         onEncoder(oc::type::EncoderID::VOLUME).turn().then([this](float v) { setVolume(v); });
+ *         onButton(Button::PLAY).press().then([this] { play(); });
+ *         onEncoder(Encoder::VOLUME).turn().then([this](float v) { setVolume(v); });
  *         return oc::type::Result<void>::ok();
  *     }
  *
@@ -51,15 +55,10 @@ namespace oc::context {
  * @see IContext for the pure interface
  * @see Requirements for declaring API dependencies
  */
-class ContextBase : public interface::IContext {
+class ContextBase : public interface::IContext, public IContextWithAPIs {
 public:
     ~ContextBase() override = default;
 
-    /**
-     * @brief Inject API references (called by ContextManager before initialize)
-     * @param apis Reference to the APIs container
-     * @note Do not call this directly - managed by ContextManager
-     */
     void setAPIs(const APIs& apis) override { apis_ = &apis; }
 
 protected:
@@ -75,7 +74,7 @@ protected:
      * @return ButtonBuilder for chaining configuration
      *
      * @code
-     * onButton(oc::type::ButtonID::PLAY).press().then([this] { transport.play(); });
+     * onButton(Button::PLAY).press().then([this] { transport.play(); });
      * @endcode
      */
     template <typename ID>
@@ -93,7 +92,7 @@ protected:
      * @return EncoderBuilder for chaining configuration
      *
      * @code
-     * onEncoder(oc::type::EncoderID::VOLUME).turn().then([this](float v) { setVolume(v); });
+     * onEncoder(Encoder::VOLUME).turn().then([this](float v) { setVolume(v); });
      * @endcode
      */
     template <typename ID>

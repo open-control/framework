@@ -30,11 +30,11 @@ namespace oc::core::input {
  * Supports complex patterns: combos, long press, double tap, and scoped
  * bindings with priority.
  *
- * This class is used internally by ControlAPI. Use the fluent API instead:
+ * This class is used internally by ButtonAPI / EncoderAPI. Prefer the fluent API instead:
  * @code
- * api.button(BTN_1).onPress().then([]{ doAction(); });
- * api.encoder(ENC_1).onTurn().then([](float v){ setParam(v); });
- * api.button(BTN_A).combo(BTN_B).then([]{ reset(); });
+ * onButton(BTN_1).press().then([]{ doAction(); });
+ * onEncoder(ENC_1).turn().then([](float v){ setParam(v); });
+ * onButton(BTN_A).combo(BTN_B).then([]{ reset(); });
  * @endcode
  */
 class InputBinding {

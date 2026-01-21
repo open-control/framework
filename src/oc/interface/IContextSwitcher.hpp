@@ -30,8 +30,8 @@ struct ContextInfo {
  * critical for safe lifecycle management - a context can request a switch
  * without causing use-after-free when it gets destroyed.
  *
- * For immediate switching (e.g., from main.cpp or boot sequence), use
- * ContextManager::switchToImmediate() directly.
+ * The framework performs an immediate switch only during initial boot
+ * (to activate the default context). All other requests are deferred.
  *
  * ## Usage from IContext
  *

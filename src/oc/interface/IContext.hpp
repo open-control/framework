@@ -4,14 +4,13 @@
  * @file IContext.hpp
  * @brief Pure interface for application contexts (Level 1)
  *
- * This file defines the pure interface. For the convenience API with
- * onButton(), onEncoder(), etc., use ContextBase from context/ContextBase.hpp.
+ * This file defines the pure lifecycle interface.
+ *
+ * For the convenience fluent API (onButton(), onEncoder(), switchTo(), ...),
+ * use `oc::context::ContextBase`.
  */
 
 #include <oc/type/Result.hpp>
-
-// Forward declaration to avoid circular dependency
-namespace oc::context { struct APIs; }
 
 namespace oc::interface {
 
@@ -30,33 +29,18 @@ namespace oc::interface {
  * ## Lifecycle
  *
  * 1. **Construction**: Factory creates instance
- * 2. **setAPIs()**: Framework injects API references (on ContextBase)
- * 3. **init()**: Context sets up bindings and initial state
- * 4. **onConnected()**: Called after successful initialization
- * 5. **update()**: Called every frame while active
- * 6. **onDisconnected()**: Called before cleanup
- * 7. **cleanup()**: Context releases resources
- * 8. **Destruction**: Instance is destroyed
+ * 2. **init()**: Context sets up bindings and initial state
+ * 3. **onConnected()**: Called after successful initialization
+ * 4. **update()**: Called every frame while active
+ * 5. **onDisconnected()**: Called before cleanup
+ * 6. **cleanup()**: Context releases resources
+ * 7. **Destruction**: Instance is destroyed
  *
  * @see oc::context::ContextBase for the implementation with fluent API
  */
 class IContext {
 public:
     virtual ~IContext() = default;
-
-    // ─────────────────────────────────────────────────────────────────────
-    // API Injection (called by ContextManager)
-    // ─────────────────────────────────────────────────────────────────────
-
-    /**
-     * @brief Inject API references (called by ContextManager before initialize)
-     *
-     * Override in ContextBase to store the APIs reference.
-     * Simple contexts that don't need APIs can ignore this.
-     *
-     * @param apis Reference to the APIs container
-     */
-    virtual void setAPIs(const context::APIs& /*apis*/) {}
 
     // ─────────────────────────────────────────────────────────────────────
     // Lifecycle (must implement)

@@ -4,11 +4,13 @@
 
 namespace oc::core::event {
 
-// Re-export types from oc:: for use within this namespace
-
-// Import event categories from oc::type::EventCategory
+// Re-export event categories from oc::type::EventCategory
 namespace EventCategory {
-using namespace oc::type::EventCategory;
+inline constexpr oc::type::EventCategoryType SYSTEM = oc::type::EventCategory::SYSTEM;
+inline constexpr oc::type::EventCategoryType USER_INPUT = oc::type::EventCategory::USER_INPUT;
+inline constexpr oc::type::EventCategoryType MIDI = oc::type::EventCategory::MIDI;
+inline constexpr oc::type::EventCategoryType UI = oc::type::EventCategory::UI;
+inline constexpr oc::type::EventCategoryType CONTEXT = oc::type::EventCategory::CONTEXT;
 }  // namespace EventCategory
 
 /// System-level event types
