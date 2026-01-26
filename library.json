@@ -1,5 +1,5 @@
 {
-  "name": "framework",
+  "name": "oc-framework",
   "version": "0.2.0",
   "description": "Open Control Framework - Core MIDI controller abstractions",
   "keywords": ["open-control", "midi", "controller", "framework", "embedded"],
