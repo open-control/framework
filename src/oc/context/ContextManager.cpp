@@ -47,6 +47,8 @@ bool ContextManager::switchToImpl(uint8_t id) {
 
         if (apis_.button) {
             apis_.button->clearBindings();
+            // Safety: authority resolver may point to objects owned by the old context
+            apis_.button->setAuthorityResolver(nullptr);
         }
         if (apis_.encoder) {
             apis_.encoder->clearBindings();

@@ -109,6 +109,22 @@ void InputBinding::setBindingsEnabled(bool enabled) {
 
 void InputBinding::setAuthorityResolver(const AuthorityResolver* resolver) {
     authority_resolver_ = resolver;
+    // Invalidate any outstanding tokens
+    authority_token_++;
+    if (authority_token_ == 0) authority_token_ = 1;
+}
+
+InputBinding::AuthorityToken InputBinding::setAuthorityResolverScoped(const AuthorityResolver* resolver) {
+    authority_resolver_ = resolver;
+    authority_token_++;
+    if (authority_token_ == 0) authority_token_ = 1;
+    return authority_token_;
+}
+
+void InputBinding::clearAuthorityResolver(AuthorityToken token) {
+    if (token != 0 && token == authority_token_) {
+        authority_resolver_ = nullptr;
+    }
 }
 
 void InputBinding::processTick() {

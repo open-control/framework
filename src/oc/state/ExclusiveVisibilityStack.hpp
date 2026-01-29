@@ -50,6 +50,54 @@ public:
     /// Cleanup callback type - called before hiding an item
     using CleanupCallback = std::function<void(EnumT)>;
 
+    /**
+     * @brief RAII handle for a registered cleanup callback
+     *
+     * Prevents use-after-free when a callback captures an object that
+     * may be destroyed before this stack.
+     */
+    class CleanupHandle {
+    public:
+        CleanupHandle() = default;
+
+        CleanupHandle(const CleanupHandle&) = delete;
+        CleanupHandle& operator=(const CleanupHandle&) = delete;
+
+        CleanupHandle(CleanupHandle&& other) noexcept
+            : owner_(other.owner_), token_(other.token_) {
+            other.owner_ = nullptr;
+            other.token_ = 0;
+        }
+
+        CleanupHandle& operator=(CleanupHandle&& other) noexcept {
+            if (this == &other) return *this;
+            reset();
+            owner_ = other.owner_;
+            token_ = other.token_;
+            other.owner_ = nullptr;
+            other.token_ = 0;
+            return *this;
+        }
+
+        ~CleanupHandle() { reset(); }
+
+        void reset() {
+            if (owner_ && token_ != 0) {
+                owner_->clearCleanupCallback(token_);
+            }
+            owner_ = nullptr;
+            token_ = 0;
+        }
+
+    private:
+        friend class ExclusiveVisibilityStack;
+        CleanupHandle(ExclusiveVisibilityStack* owner, uint32_t token)
+            : owner_(owner), token_(token) {}
+
+        ExclusiveVisibilityStack* owner_ = nullptr;
+        uint32_t token_ = 0;
+    };
+
     ExclusiveVisibilityStack() = default;
 
     // Non-copyable, non-movable (holds pointers to signals)
@@ -68,6 +116,21 @@ public:
      */
     void setCleanupCallback(CleanupCallback callback) {
         cleanupCallback_ = std::move(callback);
+        // Invalidate any outstanding handles
+        cleanup_token_++;
+        if (cleanup_token_ == 0) cleanup_token_ = 1;
+    }
+
+    /**
+     * @brief Set cleanup callback with automatic lifetime management
+     *
+     * The returned handle clears the callback when destroyed.
+     */
+    [[nodiscard]] CleanupHandle setCleanupCallbackScoped(CleanupCallback callback) {
+        cleanupCallback_ = std::move(callback);
+        cleanup_token_++;
+        if (cleanup_token_ == 0) cleanup_token_ = 1;  // avoid 0 as sentinel
+        return CleanupHandle(this, cleanup_token_);
     }
 
     /**
@@ -164,6 +227,12 @@ public:
     bool hasVisible() const { return current_ != EnumT::NONE; }
 
 private:
+    void clearCleanupCallback(uint32_t token) {
+        if (token != 0 && token == cleanup_token_) {
+            cleanupCallback_ = nullptr;
+        }
+    }
+
     void setVisible(EnumT type, bool visible) {
         auto idx = static_cast<size_t>(type);
         if (idx < COUNT && items_[idx] != nullptr) {
@@ -175,6 +244,7 @@ private:
     EnumT current_ = EnumT::NONE;
     EnumT previous_ = EnumT::NONE;  // For single-level stacking
     CleanupCallback cleanupCallback_;  // Called before hiding
+    uint32_t cleanup_token_ = 0;
 };
 
 }  // namespace oc::state

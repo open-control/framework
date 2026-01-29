@@ -9,14 +9,12 @@ namespace oc::api {
  *
  * Provides:
  * - MIDI output (CC, Note, SysEx, Program Change, Pitch Bend, etc.)
- * - MIDI input callbacks
  * - Safety operations (allNotesOff)
  *
  * @code
  * // Via IContext:
  * midi().sendCC(1, 20, 127);
  * midi().sendNoteOn(1, 60, 100);
- * midi().onCC([](uint8_t ch, uint8_t cc, uint8_t val) { ... });
  * @endcode
  */
 class MidiAPI {
@@ -59,22 +57,6 @@ public:
      * to prevent hanging notes.
      */
     void allNotesOff();
-
-    // ═══════════════════════════════════════════════════
-    // Input callbacks
-    // ═══════════════════════════════════════════════════
-
-    /// Set callback for incoming CC messages
-    void onCC(interface::IMidi::CCCallback cb);
-
-    /// Set callback for incoming Note On messages
-    void onNoteOn(interface::IMidi::NoteCallback cb);
-
-    /// Set callback for incoming Note Off messages
-    void onNoteOff(interface::IMidi::NoteCallback cb);
-
-    /// Set callback for incoming SysEx messages
-    void onSysEx(interface::IMidi::SysExCallback cb);
 
 private:
     interface::IMidi& transport_;

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
+#include <vector>
 
 #include <oc/interface/IContext.hpp>
 #include <oc/api/ButtonAPI.hpp>
@@ -13,7 +15,11 @@
 #include <oc/interface/IContextSwitcher.hpp>
 #include <oc/core/input/ButtonBuilder.hpp>
 #include <oc/core/input/EncoderBuilder.hpp>
+#include <oc/interface/IMidi.hpp>
 #include <oc/interface/ITransport.hpp>
+
+#include <oc/core/event/EventTypes.hpp>
+#include <oc/core/event/Events.hpp>
 
 namespace oc::context {
 
@@ -57,11 +63,110 @@ namespace oc::context {
  */
 class ContextBase : public interface::IContext, public IContextWithAPIs {
 public:
-    ~ContextBase() override = default;
+    ~ContextBase() override {
+        // Fallback safety: if cleanup() wasn't called for some reason.
+        clearEventSubscriptions_();
+    }
 
     void setAPIs(const APIs& apis) override { apis_ = &apis; }
 
+    // IContext
+    void cleanup() final {
+        // Framework responsibility: prevent callbacks from outliving the context.
+        clearEventSubscriptions_();
+        onCleanup();
+    }
+
 protected:
+    /**
+     * @brief Override point for derived contexts
+     *
+     * cleanup() is final to guarantee safe teardown ordering.
+     */
+    virtual void onCleanup() {}
+
+protected:
+    // ─────────────────────────────────────────────────────────────────────
+    // Event subscriptions (auto-unsubscribed in destructor)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * @brief Event bus proxy that auto-tracks subscriptions
+     */
+    class EventsProxy {
+    public:
+        explicit EventsProxy(ContextBase& ctx) : ctx_(ctx) {}
+
+        [[nodiscard]] interface::SubscriptionID on(oc::type::EventCategoryType category,
+                                                   oc::type::EventType type,
+                                                   interface::EventCallback callback) {
+            return ctx_.subscribe_(category, type, std::move(callback));
+        }
+
+        void emit(const oc::type::Event& event) {
+            ctx_.rawEvents_().emit(event);
+        }
+
+        void off(interface::SubscriptionID id) {
+            ctx_.unsubscribe_(id);
+        }
+
+    private:
+        ContextBase& ctx_;
+    };
+
+    /**
+     * @brief Access a scoped event bus (subscriptions auto-cleaned)
+     */
+    [[nodiscard]] EventsProxy events() {
+        assert(apis_ && "setAPIs() not called");
+        return EventsProxy(*this);
+    }
+
+    /**
+     * @brief Access the raw event bus (advanced)
+     *
+     * If you subscribe directly, you must unsubscribe manually.
+     */
+    interface::IEventBus& rawEvents() {
+        assert(apis_ && "setAPIs() not called");
+        return apis_->events;
+    }
+
+    /**
+     * @brief Typed MIDI CC subscription (auto-cleaned)
+     */
+    interface::SubscriptionID onMidiCC(interface::IMidi::CCCallback cb) {
+        return subscribe_(core::event::EventCategory::MIDI, core::event::MidiEvent::CC,
+                          [cb = std::move(cb)](const oc::type::Event& e) mutable {
+                              const auto& evt = static_cast<const core::event::MidiCCEvent&>(e);
+                              cb(evt.channel, evt.controller, evt.value);
+                          });
+    }
+
+    interface::SubscriptionID onMidiNoteOn(interface::IMidi::NoteCallback cb) {
+        return subscribe_(core::event::EventCategory::MIDI, core::event::MidiEvent::NOTE_ON,
+                          [cb = std::move(cb)](const oc::type::Event& e) mutable {
+                              const auto& evt = static_cast<const core::event::MidiNoteOnEvent&>(e);
+                              cb(evt.channel, evt.note, evt.velocity);
+                          });
+    }
+
+    interface::SubscriptionID onMidiNoteOff(interface::IMidi::NoteCallback cb) {
+        return subscribe_(core::event::EventCategory::MIDI, core::event::MidiEvent::NOTE_OFF,
+                          [cb = std::move(cb)](const oc::type::Event& e) mutable {
+                              const auto& evt = static_cast<const core::event::MidiNoteOffEvent&>(e);
+                              cb(evt.channel, evt.note, evt.velocity);
+                          });
+    }
+
+    interface::SubscriptionID onMidiSysEx(interface::IMidi::SysExCallback cb) {
+        return subscribe_(core::event::EventCategory::MIDI, core::event::MidiEvent::SYSEX,
+                          [cb = std::move(cb)](const oc::type::Event& e) mutable {
+                              const auto& evt = static_cast<const core::event::SysExEvent&>(e);
+                              cb(evt.data, static_cast<size_t>(evt.length));
+                          });
+    }
     // ─────────────────────────────────────────────────────────────────────
     // Input Binding Builders (fluent API)
     // ─────────────────────────────────────────────────────────────────────
@@ -150,10 +255,7 @@ protected:
         return *apis_->frames;
     }
 
-    interface::IEventBus& events() {
-        assert(apis_);
-        return apis_->events;
-    }
+    // NOTE: events() now returns EventsProxy above
 
     // ─────────────────────────────────────────────────────────────────────
     // Context Switching (deferred - safe to call from update/handlers)
@@ -223,6 +325,45 @@ protected:
 
 private:
     const APIs* apis_ = nullptr;
+
+    interface::IEventBus& rawEvents_() {
+        assert(apis_);
+        return apis_->events;
+    }
+
+    interface::SubscriptionID subscribe_(oc::type::EventCategoryType category,
+                                         oc::type::EventType type,
+                                         interface::EventCallback callback) {
+        assert(apis_);
+        interface::SubscriptionID id = apis_->events.on(category, type, std::move(callback));
+        if (id != 0) {
+            subscriptions_.push_back(id);
+        }
+        return id;
+    }
+
+    void unsubscribe_(interface::SubscriptionID id) {
+        if (!apis_ || id == 0) return;
+        apis_->events.off(id);
+        for (auto& tracked : subscriptions_) {
+            if (tracked == id) {
+                tracked = 0;
+                break;
+            }
+        }
+    }
+
+    void clearEventSubscriptions_() {
+        if (!apis_) return;
+        for (auto id : subscriptions_) {
+            if (id != 0) {
+                apis_->events.off(id);
+            }
+        }
+        subscriptions_.clear();
+    }
+
+    std::vector<interface::SubscriptionID> subscriptions_{};
 };
 
 }  // namespace oc::context

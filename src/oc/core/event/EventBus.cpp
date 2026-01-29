@@ -70,6 +70,10 @@ void EventBus::off(interface::SubscriptionID id) {
     for (auto& pair : subscriptions_) {
         for (auto& sub : pair.second) {
             if (sub.id == id) {
+                if (!sub.alive) {
+                    // Idempotent: already unsubscribed
+                    return;
+                }
                 sub.alive = false;
                 sub.callback = nullptr;  // Release memory
                 dead_count_++;

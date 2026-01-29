@@ -39,6 +39,7 @@ namespace oc::core::input {
  */
 class InputBinding {
 public:
+    using AuthorityToken = uint32_t;
     /**
      * @brief Construct InputBinding with optional oc::type::TimeProvider
      * @param eventBus oc::type::Event bus for input events
@@ -84,6 +85,17 @@ public:
      * @param resolver Pointer to the authority resolver (nullptr to disable)
      */
     void setAuthorityResolver(const AuthorityResolver* resolver);
+
+    /**
+     * @brief Set authority resolver and return a token for safe clearing
+     *
+     * The returned token can be used to clear the resolver only if it has
+     * not been replaced since.
+     */
+    [[nodiscard]] AuthorityToken setAuthorityResolverScoped(const AuthorityResolver* resolver);
+
+    /// Clear resolver only if token matches the current assignment
+    void clearAuthorityResolver(AuthorityToken token);
 
     // ═══════════════════════════════════════════════════
     // Separate button/encoder operations (for ButtonAPI/EncoderAPI)
@@ -180,6 +192,7 @@ private:
     uint32_t current_time_ = 0;
     oc::type::BindingID next_binding_id_ = 1;  ///< Next ID to assign (0 = invalid)
     const AuthorityResolver* authority_resolver_ = nullptr;  ///< Optional authority check
+    AuthorityToken authority_token_ = 0;
 };
 
 }  // namespace oc::core::input

@@ -4,6 +4,34 @@
 
 namespace oc::api {
 
+ButtonAPI::AuthorityResolverHandle::AuthorityResolverHandle(AuthorityResolverHandle&& other) noexcept
+    : binding_(other.binding_), token_(other.token_) {
+    other.binding_ = nullptr;
+    other.token_ = 0;
+}
+
+ButtonAPI::AuthorityResolverHandle& ButtonAPI::AuthorityResolverHandle::operator=(AuthorityResolverHandle&& other) noexcept {
+    if (this == &other) return *this;
+    reset();
+    binding_ = other.binding_;
+    token_ = other.token_;
+    other.binding_ = nullptr;
+    other.token_ = 0;
+    return *this;
+}
+
+ButtonAPI::AuthorityResolverHandle::~AuthorityResolverHandle() {
+    reset();
+}
+
+void ButtonAPI::AuthorityResolverHandle::reset() {
+    if (binding_ && token_ != 0) {
+        binding_->clearAuthorityResolver(token_);
+    }
+    binding_ = nullptr;
+    token_ = 0;
+}
+
 ButtonAPI::ButtonAPI(core::input::InputBinding& binding, interface::IButton& hw)
     : binding_(binding), hw_(hw) {}
 
@@ -21,6 +49,11 @@ void ButtonAPI::clearScope(oc::type::ScopeID scope) {
 
 void ButtonAPI::setAuthorityResolver(const core::input::AuthorityResolver* resolver) {
     binding_.setAuthorityResolver(resolver);
+}
+
+ButtonAPI::AuthorityResolverHandle ButtonAPI::setAuthorityResolverScoped(const core::input::AuthorityResolver* resolver) {
+    uint32_t token = binding_.setAuthorityResolverScoped(resolver);
+    return AuthorityResolverHandle(&binding_, token);
 }
 
 bool ButtonAPI::isPressed(oc::type::ButtonID id) const {

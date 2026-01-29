@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <oc/core/input/AuthorityResolver.hpp>
 #include <oc/core/input/ButtonBuilder.hpp>
 #include <oc/core/input/Binding.hpp>
@@ -32,6 +34,36 @@ namespace oc::api {
 class ButtonAPI {
 public:
     ButtonAPI(core::input::InputBinding& binding, interface::IButton& hw);
+
+    // ═══════════════════════════════════════════════════
+    // RAII handles
+    // ═══════════════════════════════════════════════════
+
+    /**
+     * @brief RAII handle for a scoped authority resolver assignment
+     */
+    class AuthorityResolverHandle {
+    public:
+        AuthorityResolverHandle() = default;
+
+        AuthorityResolverHandle(const AuthorityResolverHandle&) = delete;
+        AuthorityResolverHandle& operator=(const AuthorityResolverHandle&) = delete;
+
+        AuthorityResolverHandle(AuthorityResolverHandle&& other) noexcept;
+        AuthorityResolverHandle& operator=(AuthorityResolverHandle&& other) noexcept;
+
+        ~AuthorityResolverHandle();
+
+        void reset();
+
+    private:
+        friend class ButtonAPI;
+        AuthorityResolverHandle(core::input::InputBinding* binding, uint32_t token)
+            : binding_(binding), token_(token) {}
+
+        core::input::InputBinding* binding_ = nullptr;
+        uint32_t token_ = 0;
+    };
 
     // ═══════════════════════════════════════════════════
     // Binding fluent API
@@ -69,6 +101,11 @@ public:
      * @param resolver Pointer to the authority resolver (nullptr to disable)
      */
     void setAuthorityResolver(const core::input::AuthorityResolver* resolver);
+
+    /**
+     * @brief Set authority resolver and return a handle that clears it on destruction
+     */
+    [[nodiscard]] AuthorityResolverHandle setAuthorityResolverScoped(const core::input::AuthorityResolver* resolver);
 
     // ═══════════════════════════════════════════════════
     // Button state

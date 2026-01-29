@@ -99,24 +99,4 @@ void MidiAPI::allNotesOff() {
     transport_.allNotesOff();
 }
 
-// ═══════════════════════════════════════════════════
-// Input callbacks
-// ═══════════════════════════════════════════════════
-
-void MidiAPI::onCC(interface::IMidi::CCCallback cb) {
-    transport_.setOnCC(std::move(cb));
-}
-
-void MidiAPI::onNoteOn(interface::IMidi::NoteCallback cb) {
-    transport_.setOnNoteOn(std::move(cb));
-}
-
-void MidiAPI::onNoteOff(interface::IMidi::NoteCallback cb) {
-    transport_.setOnNoteOff(std::move(cb));
-}
-
-void MidiAPI::onSysEx(interface::IMidi::SysExCallback cb) {
-    transport_.setOnSysEx(std::move(cb));
-}
-
 }  // namespace oc::api
