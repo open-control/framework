@@ -16,7 +16,8 @@ inline constexpr oc::type::EventCategoryType CONTEXT = oc::type::EventCategory::
 /// System-level event types
 namespace SystemEvent {
 constexpr oc::type::EventType MODE_CHANGE = 4001;
-constexpr oc::type::EventType ERROR = 4002;
+// Avoid using the identifier ERROR because it commonly collides with Windows headers.
+constexpr oc::type::EventType ERROR_EVENT = 4002;
 constexpr oc::type::EventType BOOT_COMPLETE = 4003;
 constexpr oc::type::EventType CONTEXT_REGISTERED = 4004;
 constexpr oc::type::EventType CONTEXT_ACTIVATED = 4005;
