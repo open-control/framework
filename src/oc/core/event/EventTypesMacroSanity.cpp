@@ -14,8 +14,12 @@
 
 #include <oc/core/event/EventTypes.hpp>
 
-static_assert(oc::core::event::SystemEvent::ERROR_EVENT == 4002,
+namespace oc::core::event {
+
+static_assert(SystemEvent::ERROR_EVENT == 4002,
               "Unexpected SystemEvent::ERROR_EVENT value");
+
+}  // namespace oc::core::event
 
 #if defined(OC__EVENTTYPES__DEFINED_ERROR_MACRO)
 #undef ERROR
