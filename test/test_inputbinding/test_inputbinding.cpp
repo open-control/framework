@@ -851,6 +851,131 @@ void test_authority_zero_allows_all_scopes() {
     TEST_ASSERT_EQUAL(1, actionCount);  // Allowed when authority = 0
 }
 
+void test_authority_resolver_gates_long_press_scoped_bindings() {
+    InputConfig config;
+    config.longPressMs = 500;
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+
+    oc::type::ScopeID currentAuthority = 100;
+    resolver.setOverlayProvider([&]() { return currentAuthority; });
+    binding.setAuthorityResolver(&resolver);
+
+    int nonAuth = 0;
+    int auth = 0;
+
+    // Register NON-authority binding first to ensure it can't steal.
+    ButtonBinding non{};
+    non.type = ButtonBindingType::LONG_PRESS;
+    non.buttonId = 1;
+    non.scopeId = 200;
+    non.action = [&]() { nonAuth++; };
+    binding.registerButtonBinding(non);
+
+    ButtonBinding ok{};
+    ok.type = ButtonBindingType::LONG_PRESS;
+    ok.buttonId = 1;
+    ok.scopeId = 100;
+    ok.action = [&]() { auth++; };
+    binding.registerButtonBinding(ok);
+
+    // Press button
+    fakeTime.set(0);
+    binding.processTick();
+    bus.emit(ButtonPressEvent{1, true});
+
+    // Trigger long press
+    fakeTime.set(600);
+    binding.processTick();
+
+    TEST_ASSERT_EQUAL(1, auth);
+    TEST_ASSERT_EQUAL(0, nonAuth);
+}
+
+void test_authority_resolver_gates_double_tap_scoped_bindings() {
+    InputConfig config;
+    config.doubleTapWindowMs = 300;
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+
+    oc::type::ScopeID currentAuthority = 100;
+    resolver.setOverlayProvider([&]() { return currentAuthority; });
+    binding.setAuthorityResolver(&resolver);
+
+    int nonAuth = 0;
+    int auth = 0;
+
+    // Register NON-authority binding first to ensure it can't steal.
+    ButtonBinding non{};
+    non.type = ButtonBindingType::DOUBLE_TAP;
+    non.buttonId = 1;
+    non.scopeId = 200;
+    non.action = [&]() { nonAuth++; };
+    binding.registerButtonBinding(non);
+
+    ButtonBinding ok{};
+    ok.type = ButtonBindingType::DOUBLE_TAP;
+    ok.buttonId = 1;
+    ok.scopeId = 100;
+    ok.action = [&]() { auth++; };
+    binding.registerButtonBinding(ok);
+
+    // First tap
+    fakeTime.set(0);
+    binding.processTick();
+    bus.emit(ButtonPressEvent{1, true});
+    fakeTime.set(50);
+    binding.processTick();
+    bus.emit(ButtonReleaseEvent{1});
+
+    // Second tap within window
+    fakeTime.set(150);
+    binding.processTick();
+    bus.emit(ButtonPressEvent{1, true});
+    fakeTime.set(200);
+    binding.processTick();
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(1, auth);
+    TEST_ASSERT_EQUAL(0, nonAuth);
+}
+
+void test_authority_resolver_gates_combo_scoped_bindings() {
+    InputBinding binding(bus, fakeTime.provider());
+    AuthorityResolver resolver;
+
+    oc::type::ScopeID currentAuthority = 100;
+    resolver.setOverlayProvider([&]() { return currentAuthority; });
+    binding.setAuthorityResolver(&resolver);
+
+    int nonAuth = 0;
+    int auth = 0;
+
+    // Register NON-authority binding first to ensure it can't steal.
+    ButtonBinding non{};
+    non.type = ButtonBindingType::COMBO;
+    non.buttonId = 1;
+    non.secondaryButton = 2;
+    non.scopeId = 200;
+    non.action = [&]() { nonAuth++; };
+    binding.registerButtonBinding(non);
+
+    ButtonBinding ok{};
+    ok.type = ButtonBindingType::COMBO;
+    ok.buttonId = 1;
+    ok.secondaryButton = 2;
+    ok.scopeId = 100;
+    ok.action = [&]() { auth++; };
+    binding.registerButtonBinding(ok);
+
+    bus.emit(ButtonPressEvent{1, true});
+    bus.emit(ButtonPressEvent{2, true});
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(1, auth);
+    TEST_ASSERT_EQUAL(0, nonAuth);
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Clear Encoder Bindings
 // ═══════════════════════════════════════════════════════════════════
@@ -1349,6 +1474,9 @@ int main(int argc, char **argv) {
     RUN_TEST(test_authority_resolver_allows_authority_scope);
     RUN_TEST(test_authority_resolver_null_allows_all);
     RUN_TEST(test_authority_zero_allows_all_scopes);
+    RUN_TEST(test_authority_resolver_gates_long_press_scoped_bindings);
+    RUN_TEST(test_authority_resolver_gates_double_tap_scoped_bindings);
+    RUN_TEST(test_authority_resolver_gates_combo_scoped_bindings);
 
     // Clear encoder bindings
     RUN_TEST(test_clear_encoder_bindings_only);

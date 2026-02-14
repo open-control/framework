@@ -363,6 +363,7 @@ void InputBinding::checkLongPress(oc::type::ButtonID id, uint32_t now) {
         if (!binding.enabled || binding.type != ButtonBindingType::LONG_PRESS) continue;
         if (binding.buttonId != id || binding.scopeId == 0) continue;
         if (!isBindingActive(binding)) continue;
+        if (!hasAuthority(binding.scopeId)) continue;
 
         if (gesture_.checkLongPress(id, now, binding.longPressMs)) {
             gesture_.markLongPressTriggered(id);
@@ -398,6 +399,7 @@ void InputBinding::checkDoubleTap(oc::type::ButtonID id, uint32_t now) {
         if (!binding.enabled || binding.type != ButtonBindingType::DOUBLE_TAP) continue;
         if (binding.buttonId != id || binding.scopeId == 0) continue;
         if (!isBindingActive(binding)) continue;
+        if (!hasAuthority(binding.scopeId)) continue;
 
         if (gesture_.checkDoubleTap(id, now, binding.doubleTapWindowMs)) {
             if (binding.action) {
@@ -433,6 +435,7 @@ void InputBinding::checkCombo(oc::type::ButtonID releasedId) {
     for (auto& binding : button_registry_.bindings()) {
         if (!binding.enabled || binding.type != ButtonBindingType::COMBO) continue;
         if (binding.scopeId == 0 || !isBindingActive(binding)) continue;
+        if (!hasAuthority(binding.scopeId)) continue;
         if (!binding.secondaryButton.has_value()) continue;
 
         bool isPartOfCombo = (binding.buttonId == releasedId) ||
