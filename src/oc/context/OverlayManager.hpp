@@ -16,6 +16,7 @@
 
 #include <array>
 #include <cstddef>
+#include <utility>
 
 #include <oc/api/ButtonAPI.hpp>
 #include <oc/core/input/AuthorityResolver.hpp>
@@ -43,6 +44,8 @@ class OverlayManager {
     static constexpr size_t COUNT = static_cast<size_t>(EnumT::COUNT);
 
 public:
+    using ScopeProvider = typename oc::core::input::AuthorityResolver::ScopeProvider;
+
     explicit OverlayManager(oc::state::ExclusiveVisibilityStack<EnumT>& manager)
         : manager_(manager) {
         cleanup_handle_ = manager_.setCleanupCallbackScoped([this](EnumT type) { doCleanup(type); });
@@ -102,6 +105,10 @@ public:
     const oc::core::input::AuthorityResolver& authority() const { return authority_; }
 
     bool hasAuthority(oc::type::ScopeID scope) const { return authority_.hasAuthority(scope); }
+
+    void setActiveViewProvider(ScopeProvider provider) {
+        authority_.setActiveViewProvider(std::move(provider));
+    }
 
     oc::type::ScopeID getScopeFor(EnumT type) const {
         const auto idx = static_cast<size_t>(type);
