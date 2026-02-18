@@ -35,6 +35,12 @@ public:
     virtual void sendPitchBend(uint8_t channel, int16_t value) = 0;
     virtual void sendChannelPressure(uint8_t channel, uint8_t pressure) = 0;
 
+    // MIDI realtime output
+    virtual void sendClock() = 0;
+    virtual void sendStart() = 0;
+    virtual void sendStop() = 0;
+    virtual void sendContinue() = 0;
+
     /**
      * @brief Stop all active notes
      *
@@ -50,11 +56,21 @@ public:
     using CCCallback = std::function<void(uint8_t ch, uint8_t cc, uint8_t val)>;
     using NoteCallback = std::function<void(uint8_t ch, uint8_t note, uint8_t vel)>;
     using SysExCallback = std::function<void(const uint8_t* data, size_t len)>;
+    // Clock callback receives transport-captured timestamp (microseconds).
+    using ClockCallback = std::function<void(uint64_t timestampUs)>;
+    // Start/Continue/Stop callbacks are edge notifications.
+    using RealtimeCallback = std::function<void()>;
 
     virtual void setOnCC(CCCallback cb) = 0;
     virtual void setOnNoteOn(NoteCallback cb) = 0;
     virtual void setOnNoteOff(NoteCallback cb) = 0;
     virtual void setOnSysEx(SysExCallback cb) = 0;
+
+    // MIDI realtime callbacks
+    virtual void setOnClock(ClockCallback cb) = 0;
+    virtual void setOnStart(RealtimeCallback cb) = 0;
+    virtual void setOnStop(RealtimeCallback cb) = 0;
+    virtual void setOnContinue(RealtimeCallback cb) = 0;
 };
 
 }  // namespace oc::interface

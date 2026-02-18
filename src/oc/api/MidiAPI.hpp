@@ -46,6 +46,18 @@ public:
     /// Send MIDI Channel Pressure (Aftertouch)
     void sendChannelPressure(uint8_t channel, uint8_t pressure);
 
+    /// Send MIDI Clock realtime message (0xF8)
+    void sendClock();
+
+    /// Send MIDI Start realtime message (0xFA)
+    void sendStart();
+
+    /// Send MIDI Stop realtime message (0xFC)
+    void sendStop();
+
+    /// Send MIDI Continue realtime message (0xFB)
+    void sendContinue();
+
     // ═══════════════════════════════════════════════════
     // Safety
     // ═══════════════════════════════════════════════════

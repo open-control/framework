@@ -58,6 +58,18 @@ void OpenControlApp::begin() {
         midi_->setOnSysEx([this](const uint8_t* data, size_t len) {
             event_bus_.emit(core::event::SysExEvent(data, static_cast<uint16_t>(len)));
         });
+        midi_->setOnClock([this](uint64_t timestampUs) {
+            event_bus_.emit(core::event::MidiClockEvent(timestampUs));
+        });
+        midi_->setOnStart([this]() {
+            event_bus_.emit(core::event::MidiStartEvent());
+        });
+        midi_->setOnContinue([this]() {
+            event_bus_.emit(core::event::MidiContinueEvent());
+        });
+        midi_->setOnStop([this]() {
+            event_bus_.emit(core::event::MidiStopEvent());
+        });
     }
 
     check(contexts_->begin(), "Context");

@@ -95,6 +95,34 @@ public:
     uint16_t length;
 };
 
+/// MIDI Clock tick (24 PPQN)
+class MidiClockEvent : public oc::type::Event {
+public:
+    explicit MidiClockEvent(uint64_t tsUs)
+        : oc::type::Event(oc::type::EventCategory::MIDI, MidiEvent::CLOCK)
+        , timestampUs(tsUs) {}
+
+    uint64_t timestampUs;
+};
+
+/// MIDI realtime Start
+class MidiStartEvent : public oc::type::Event {
+public:
+    MidiStartEvent() : oc::type::Event(oc::type::EventCategory::MIDI, MidiEvent::START) {}
+};
+
+/// MIDI realtime Continue
+class MidiContinueEvent : public oc::type::Event {
+public:
+    MidiContinueEvent() : oc::type::Event(oc::type::EventCategory::MIDI, MidiEvent::CONTINUE) {}
+};
+
+/// MIDI realtime Stop
+class MidiStopEvent : public oc::type::Event {
+public:
+    MidiStopEvent() : oc::type::Event(oc::type::EventCategory::MIDI, MidiEvent::STOP) {}
+};
+
 /// System boot complete event
 class SystemBootCompleteEvent : public oc::type::Event {
 public:

@@ -167,6 +167,35 @@ protected:
                               cb(evt.data, static_cast<size_t>(evt.length));
                           });
     }
+
+    interface::SubscriptionID onMidiClock(interface::IMidi::ClockCallback cb) {
+        return subscribe_(core::event::EventCategory::MIDI, core::event::MidiEvent::CLOCK,
+                          [cb = std::move(cb)](const oc::type::Event& e) mutable {
+                              const auto& evt = static_cast<const core::event::MidiClockEvent&>(e);
+                              cb(evt.timestampUs);
+                          });
+    }
+
+    interface::SubscriptionID onMidiStart(interface::IMidi::RealtimeCallback cb) {
+        return subscribe_(core::event::EventCategory::MIDI, core::event::MidiEvent::START,
+                          [cb = std::move(cb)](const oc::type::Event&) mutable {
+                              cb();
+                          });
+    }
+
+    interface::SubscriptionID onMidiContinue(interface::IMidi::RealtimeCallback cb) {
+        return subscribe_(core::event::EventCategory::MIDI, core::event::MidiEvent::CONTINUE,
+                          [cb = std::move(cb)](const oc::type::Event&) mutable {
+                              cb();
+                          });
+    }
+
+    interface::SubscriptionID onMidiStop(interface::IMidi::RealtimeCallback cb) {
+        return subscribe_(core::event::EventCategory::MIDI, core::event::MidiEvent::STOP,
+                          [cb = std::move(cb)](const oc::type::Event&) mutable {
+                              cb();
+                          });
+    }
     // ─────────────────────────────────────────────────────────────────────
     // Input Binding Builders (fluent API)
     // ─────────────────────────────────────────────────────────────────────

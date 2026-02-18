@@ -32,6 +32,10 @@ public:
     void sendProgramChange(uint8_t, uint8_t) override {}
     void sendPitchBend(uint8_t, int16_t) override {}
     void sendChannelPressure(uint8_t, uint8_t) override {}
+    void sendClock() override {}
+    void sendStart() override {}
+    void sendStop() override {}
+    void sendContinue() override {}
     void allNotesOff() override {}
 
     // Input callbacks (all no-op)
@@ -39,6 +43,10 @@ public:
     void setOnNoteOn(NoteCallback) override {}
     void setOnNoteOff(NoteCallback) override {}
     void setOnSysEx(SysExCallback) override {}
+    void setOnClock(interface::IMidi::ClockCallback) override {}
+    void setOnStart(RealtimeCallback) override {}
+    void setOnStop(RealtimeCallback) override {}
+    void setOnContinue(RealtimeCallback) override {}
 };
 
 }  // namespace oc::impl

@@ -91,6 +91,22 @@ void MidiAPI::sendChannelPressure(uint8_t channel, uint8_t pressure) {
     transport_.sendChannelPressure(channel, pressure);
 }
 
+void MidiAPI::sendClock() {
+    transport_.sendClock();
+}
+
+void MidiAPI::sendStart() {
+    transport_.sendStart();
+}
+
+void MidiAPI::sendStop() {
+    transport_.sendStop();
+}
+
+void MidiAPI::sendContinue() {
+    transport_.sendContinue();
+}
+
 // ═══════════════════════════════════════════════════
 // Safety
 // ═══════════════════════════════════════════════════

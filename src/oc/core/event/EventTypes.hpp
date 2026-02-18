@@ -43,6 +43,10 @@ constexpr oc::type::EventType NOTE_OFF = 2001;
 constexpr oc::type::EventType PROGRAM_CHANGE = 2003;
 constexpr oc::type::EventType PITCH_BEND = 2004;
 constexpr oc::type::EventType SYSEX = 2006;
+constexpr oc::type::EventType CLOCK = 2007;
+constexpr oc::type::EventType START = 2008;
+constexpr oc::type::EventType CONTINUE = 2009;
+constexpr oc::type::EventType STOP = 2010;
 }  // namespace MidiEvent
 
 }  // namespace oc::core::event
