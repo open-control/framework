@@ -104,6 +104,14 @@ public:
     /// Check if a button is currently pressed (instantaneous state)
     bool isButtonPressed(oc::type::ButtonID id) const;
 
+    /**
+     * @brief Override current press ownership for a button
+     *
+     * Advanced API for flows that change authority/scope on press and need
+     * the paired release to be routed to a different scope.
+     */
+    void setPressOwner(oc::type::ButtonID id, oc::type::ScopeID scope);
+
     /// Clear only button bindings
     void clearButtonBindings();
 
@@ -158,7 +166,9 @@ private:
     void dispatchButtonEvent(oc::type::ButtonID id, ButtonBindingType type);
     void dispatchEncoderEvent(oc::type::EncoderID id, float value);
     oc::type::ScopeID dispatchPress(oc::type::ButtonID id, oc::type::ScopeID excludeScope = 0);
-    bool dispatchReleaseToScope(oc::type::ButtonID id, oc::type::ScopeID scope);
+    bool dispatchReleaseToScope(oc::type::ButtonID id,
+                                oc::type::ScopeID scope,
+                                bool enforceAuthority);
 
     // Binding filters
     template <typename BindingType>

@@ -976,6 +976,284 @@ void test_authority_resolver_gates_combo_scoped_bindings() {
     TEST_ASSERT_EQUAL(0, nonAuth);
 }
 
+void test_release_owner_dispatch_ignores_authority_changes() {
+    InputBinding binding(bus, fakeTime.provider());
+    AuthorityResolver resolver;
+
+    oc::type::ScopeID currentAuthority = 100;
+    resolver.setOverlayProvider([&]() { return currentAuthority; });
+    binding.setAuthorityResolver(&resolver);
+
+    int ownerPress = 0;
+    int ownerRelease = 0;
+    int otherRelease = 0;
+
+    ButtonBinding press{};
+    press.type = ButtonBindingType::PRESS;
+    press.buttonId = 1;
+    press.scopeId = 100;
+    press.action = [&]() { ownerPress++; };
+    binding.registerButtonBinding(press);
+
+    ButtonBinding ownerRel{};
+    ownerRel.type = ButtonBindingType::RELEASE;
+    ownerRel.buttonId = 1;
+    ownerRel.scopeId = 100;
+    ownerRel.action = [&]() { ownerRelease++; };
+    binding.registerButtonBinding(ownerRel);
+
+    ButtonBinding otherRel{};
+    otherRel.type = ButtonBindingType::RELEASE;
+    otherRel.buttonId = 1;
+    otherRel.scopeId = 200;
+    otherRel.action = [&]() { otherRelease++; };
+    binding.registerButtonBinding(otherRel);
+
+    fakeTime.set(0);
+    binding.processTick();
+    bus.emit(ButtonPressEvent{1, true});
+    TEST_ASSERT_EQUAL(1, ownerPress);
+
+    // Authority changes after press ownership capture.
+    currentAuthority = 200;
+
+    fakeTime.set(50);
+    binding.processTick();
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(1, ownerRelease);
+    TEST_ASSERT_EQUAL(0, otherRelease);
+}
+
+void test_release_owner_only_blocks_cross_scope_fallback() {
+    InputConfig config;
+    config.releaseRoutingPolicy = ReleaseRoutingPolicy::OwnerOnly;
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+
+    oc::type::ScopeID currentAuthority = 100;
+    resolver.setOverlayProvider([&]() { return currentAuthority; });
+    binding.setAuthorityResolver(&resolver);
+
+    int ownerPress = 0;
+    int fallbackRelease = 0;
+
+    ButtonBinding press{};
+    press.type = ButtonBindingType::PRESS;
+    press.buttonId = 1;
+    press.scopeId = 100;
+    press.action = [&]() { ownerPress++; };
+    binding.registerButtonBinding(press);
+
+    // No release handler in owner scope on purpose.
+    ButtonBinding fallback{};
+    fallback.type = ButtonBindingType::RELEASE;
+    fallback.buttonId = 1;
+    fallback.scopeId = 200;
+    fallback.action = [&]() { fallbackRelease++; };
+    binding.registerButtonBinding(fallback);
+
+    fakeTime.set(0);
+    binding.processTick();
+    bus.emit(ButtonPressEvent{1, true});
+    TEST_ASSERT_EQUAL(1, ownerPress);
+
+    // Switch authority so fallback scope is now active.
+    currentAuthority = 200;
+
+    fakeTime.set(40);
+    binding.processTick();
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(0, fallbackRelease);
+}
+
+void test_release_owner_then_fallback_keeps_legacy_behavior() {
+    InputConfig config;
+    config.releaseRoutingPolicy = ReleaseRoutingPolicy::OwnerThenFallback;
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+
+    oc::type::ScopeID currentAuthority = 100;
+    resolver.setOverlayProvider([&]() { return currentAuthority; });
+    binding.setAuthorityResolver(&resolver);
+
+    int ownerPress = 0;
+    int fallbackRelease = 0;
+
+    ButtonBinding press{};
+    press.type = ButtonBindingType::PRESS;
+    press.buttonId = 1;
+    press.scopeId = 100;
+    press.action = [&]() { ownerPress++; };
+    binding.registerButtonBinding(press);
+
+    // No owner release handler.
+    ButtonBinding fallback{};
+    fallback.type = ButtonBindingType::RELEASE;
+    fallback.buttonId = 1;
+    fallback.scopeId = 200;
+    fallback.action = [&]() { fallbackRelease++; };
+    binding.registerButtonBinding(fallback);
+
+    fakeTime.set(0);
+    binding.processTick();
+    bus.emit(ButtonPressEvent{1, true});
+    TEST_ASSERT_EQUAL(1, ownerPress);
+
+    currentAuthority = 200;
+
+    fakeTime.set(40);
+    binding.processTick();
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(1, fallbackRelease);
+}
+
+void test_owner_only_does_not_regress_latch_release_cycle() {
+    InputConfig config;
+    config.releaseRoutingPolicy = ReleaseRoutingPolicy::OwnerOnly;
+    config.latchThresholdMs = 300;
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+
+    oc::type::ScopeID currentAuthority = 100;
+    resolver.setOverlayProvider([&]() { return currentAuthority; });
+    binding.setAuthorityResolver(&resolver);
+
+    ButtonBinding latchBtn{};
+    latchBtn.type = ButtonBindingType::PRESS;
+    latchBtn.buttonId = 1;
+    latchBtn.latch = true;
+    latchBtn.scopeId = 100;
+    latchBtn.action = []() {};
+    binding.registerButtonBinding(latchBtn);
+
+    // First quick press-release activates latch.
+    fakeTime.set(0);
+    binding.processTick();
+    bus.emit(ButtonPressEvent{1, true});
+
+    fakeTime.set(100);
+    binding.processTick();
+    bus.emit(ButtonReleaseEvent{1});
+    TEST_ASSERT_TRUE(binding.isLatched(1));
+
+    // Authority change should not prevent latch release cycle.
+    currentAuthority = 200;
+
+    fakeTime.set(200);
+    binding.processTick();
+    bus.emit(ButtonPressEvent{1, true});
+
+    fakeTime.set(260);
+    binding.processTick();
+    bus.emit(ButtonReleaseEvent{1});
+    TEST_ASSERT_FALSE(binding.isLatched(1));
+}
+
+void test_owner_then_fallback_latch_toggle_allows_cross_scope_release() {
+    InputConfig config;
+    config.releaseRoutingPolicy = ReleaseRoutingPolicy::OwnerThenFallback;
+    config.latchThresholdMs = 300;
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+
+    oc::type::ScopeID currentAuthority = 100;
+    resolver.setOverlayProvider([&]() { return currentAuthority; });
+    binding.setAuthorityResolver(&resolver);
+
+    int openCount = 0;
+    int closeCount = 0;
+
+    // Typical overlay toggle pattern: latch-open in view scope.
+    ButtonBinding open{};
+    open.type = ButtonBindingType::PRESS;
+    open.buttonId = 1;
+    open.latch = true;
+    open.scopeId = 100;
+    open.action = [&]() { openCount++; };
+    binding.registerButtonBinding(open);
+
+    // Close on release in overlay scope (different from latch owner).
+    ButtonBinding close{};
+    close.type = ButtonBindingType::RELEASE;
+    close.buttonId = 1;
+    close.scopeId = 200;
+    close.action = [&]() { closeCount++; };
+    binding.registerButtonBinding(close);
+
+    // First press-release activates latch and keeps overlay open.
+    fakeTime.set(0);
+    binding.processTick();
+    bus.emit(ButtonPressEvent{1, true});
+
+    fakeTime.set(100);
+    binding.processTick();
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(1, openCount);
+    TEST_ASSERT_EQUAL(0, closeCount);
+    TEST_ASSERT_TRUE(binding.isLatched(1));
+
+    // Overlay now has authority.
+    currentAuthority = 200;
+
+    // Second press-release clears latch and must dispatch close release.
+    fakeTime.set(200);
+    binding.processTick();
+    bus.emit(ButtonPressEvent{1, true});
+
+    fakeTime.set(260);
+    binding.processTick();
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(1, closeCount);
+    TEST_ASSERT_FALSE(binding.isLatched(1));
+}
+
+void test_press_owner_handoff_routes_release_to_new_scope() {
+    InputConfig config;
+    config.releaseRoutingPolicy = ReleaseRoutingPolicy::OwnerOnly;
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+
+    // Keep authority on scope 100 for the whole sequence.
+    resolver.setOverlayProvider([]() { return oc::type::ScopeID(100); });
+    binding.setAuthorityResolver(&resolver);
+
+    int ownerPress = 0;
+    int handedRelease = 0;
+
+    ButtonBinding press{};
+    press.type = ButtonBindingType::PRESS;
+    press.buttonId = 1;
+    press.scopeId = 100;
+    press.action = [&]() {
+        ownerPress++;
+        binding.setPressOwner(1, 200);
+    };
+    binding.registerButtonBinding(press);
+
+    ButtonBinding release{};
+    release.type = ButtonBindingType::RELEASE;
+    release.buttonId = 1;
+    release.scopeId = 200;
+    release.action = [&]() { handedRelease++; };
+    binding.registerButtonBinding(release);
+
+    fakeTime.set(0);
+    binding.processTick();
+    bus.emit(ButtonPressEvent{1, true});
+    TEST_ASSERT_EQUAL(1, ownerPress);
+
+    fakeTime.set(20);
+    binding.processTick();
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(1, handedRelease);
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Clear Encoder Bindings
 // ═══════════════════════════════════════════════════════════════════
@@ -1477,6 +1755,12 @@ int main(int argc, char **argv) {
     RUN_TEST(test_authority_resolver_gates_long_press_scoped_bindings);
     RUN_TEST(test_authority_resolver_gates_double_tap_scoped_bindings);
     RUN_TEST(test_authority_resolver_gates_combo_scoped_bindings);
+    RUN_TEST(test_release_owner_dispatch_ignores_authority_changes);
+    RUN_TEST(test_release_owner_only_blocks_cross_scope_fallback);
+    RUN_TEST(test_release_owner_then_fallback_keeps_legacy_behavior);
+    RUN_TEST(test_owner_only_does_not_regress_latch_release_cycle);
+    RUN_TEST(test_owner_then_fallback_latch_toggle_allows_cross_scope_release);
+    RUN_TEST(test_press_owner_handoff_routes_release_to_new_scope);
 
     // Clear encoder bindings
     RUN_TEST(test_clear_encoder_bindings_only);

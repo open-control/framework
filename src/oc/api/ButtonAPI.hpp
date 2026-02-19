@@ -117,6 +117,18 @@ public:
     bool isPressed(EnumT id) const { return isPressed(static_cast<oc::type::ButtonID>(id)); }
 
     /**
+     * @brief Override current press ownership for a button
+     *
+     * Advanced API for flows that switch overlay scope on press and require
+     * release routing to follow the new scope.
+     */
+    void setPressOwner(oc::type::ButtonID id, oc::type::ScopeID scope);
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
+    void setPressOwner(EnumT id, oc::type::ScopeID scope) {
+        setPressOwner(static_cast<oc::type::ButtonID>(id), scope);
+    }
+
+    /**
      * @brief Get a predicate for use with when()
      * @param id The button to check
      * @return oc::type::IsActiveFn that returns true when button is pressed

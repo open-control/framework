@@ -60,6 +60,10 @@ bool ButtonAPI::isPressed(oc::type::ButtonID id) const {
     return hw_.isPressed(id);
 }
 
+void ButtonAPI::setPressOwner(oc::type::ButtonID id, oc::type::ScopeID scope) {
+    binding_.setPressOwner(id, scope);
+}
+
 oc::type::IsActiveFn ButtonAPI::pressed(oc::type::ButtonID id) const {
     return [this, id]() { return hw_.isPressed(id); };
 }

@@ -103,6 +103,11 @@ bool InputBinding::isButtonPressed(oc::type::ButtonID id) const {
     return gesture_.isPressed(id);
 }
 
+void InputBinding::setPressOwner(oc::type::ButtonID id, oc::type::ScopeID scope) {
+    if (id >= MAX_BUTTONS) return;
+    ownership_.setOwner(id, scope);
+}
+
 void InputBinding::setBindingsEnabled(bool enabled) {
     bindings_enabled_ = enabled;
 }
@@ -174,7 +179,13 @@ void InputBinding::onButtonPress(const oc::type::Event& event) {
 
     // Dispatch to scopes, excluding the one that owns the latch (if any)
     oc::type::ScopeID newOwner = dispatchPress(id, latch_.owner(id));
-    ownership_.setOwner(id, newOwner);
+
+    // Allow press handlers to transfer ownership (e.g. when opening a stacked
+    // overlay on press and routing the paired release to that new scope).
+    const oc::type::ScopeID overriddenOwner = ownership_.owner(id);
+    if (overriddenOwner == 0 || overriddenOwner == newOwner) {
+        ownership_.setOwner(id, newOwner);
+    }
 }
 
 void InputBinding::onButtonRelease(const oc::type::Event& event) {
@@ -215,14 +226,16 @@ void InputBinding::handleScopedRelease(oc::type::ButtonID id, oc::type::ScopeID 
     if (shouldActivateLatch(id, pressOwner, pressDuration)) {
         latch_.activate(id, pressOwner);
     } else {
-        if (!dispatchReleaseToScope(id, pressOwner)) {
+        if (!dispatchReleaseToScope(id, pressOwner, false) &&
+            config_.releaseRoutingPolicy == ReleaseRoutingPolicy::OwnerThenFallback) {
             dispatchButtonEvent(id, ButtonBindingType::RELEASE);
         }
     }
 }
 
 void InputBinding::handleLatchedRelease(oc::type::ButtonID id, oc::type::ScopeID latchOwner) {
-    if (!dispatchReleaseToScope(id, latchOwner)) {
+    if (!dispatchReleaseToScope(id, latchOwner, false) &&
+        config_.releaseRoutingPolicy == ReleaseRoutingPolicy::OwnerThenFallback) {
         dispatchButtonEvent(id, ButtonBindingType::RELEASE);
     }
     latch_.release(id);
@@ -335,12 +348,15 @@ oc::type::ScopeID InputBinding::dispatchPress(oc::type::ButtonID id, oc::type::S
     return 0;
 }
 
-bool InputBinding::dispatchReleaseToScope(oc::type::ButtonID id, oc::type::ScopeID scope) {
+bool InputBinding::dispatchReleaseToScope(oc::type::ButtonID id,
+                                          oc::type::ScopeID scope,
+                                          bool enforceAuthority) {
     for (auto& binding : button_registry_.bindings()) {
         if (!binding.enabled || binding.buttonId != id) continue;
         if (binding.type != ButtonBindingType::RELEASE) continue;
         if (binding.scopeId != scope) continue;
-        if (!isBindingActive(binding) || !hasAuthority(binding.scopeId)) continue;
+        if (!isBindingActive(binding)) continue;
+        if (enforceAuthority && !hasAuthority(binding.scopeId)) continue;
 
         if (binding.action) {
             binding.action();
