@@ -2,17 +2,20 @@
 
 #include <algorithm>
 
+#include <config/PlatformCompat.hpp>
 #include <oc/log/Log.hpp>
 
 namespace oc::core::event {
 
-EventBus::EventBus() : next_id_(1) {
+FLASHMEM EventBus::EventBus() : next_id_(1) {
     // Pre-allocate buckets to reduce dynamic allocations at runtime.
     // Typical usage: ~6 categories × ~5 event types = ~30 combinations.
     subscriptions_.reserve(32);
 }
 
-interface::SubscriptionID EventBus::on(oc::type::EventCategoryType category, oc::type::EventType type, interface::EventCallback callback) {
+FLASHMEM interface::SubscriptionID EventBus::on(oc::type::EventCategoryType category,
+                                                oc::type::EventType type,
+                                                interface::EventCallback callback) {
     if (!callback) return 0;
 
     uint32_t key = makeKey(category, type);
@@ -65,7 +68,7 @@ void EventBus::emit(const oc::type::Event& event) {
     }
 }
 
-void EventBus::off(interface::SubscriptionID id) {
+FLASHMEM void EventBus::off(interface::SubscriptionID id) {
     // Mark as dead instead of erasing - allows safe iteration during emit()
     for (auto& pair : subscriptions_) {
         for (auto& sub : pair.second) {
@@ -90,13 +93,13 @@ void EventBus::off(interface::SubscriptionID id) {
     }
 }
 
-void EventBus::clear() {
+FLASHMEM void EventBus::clear() {
     subscriptions_.clear();
     next_id_ = 1;
     dead_count_ = 0;
 }
 
-size_t EventBus::getSubscriberCount() const {
+FLASHMEM size_t EventBus::getSubscriberCount() const {
     size_t count = 0;
     for (const auto& pair : subscriptions_) {
         for (const auto& sub : pair.second) {
@@ -106,7 +109,7 @@ size_t EventBus::getSubscriberCount() const {
     return count;
 }
 
-void EventBus::compact() {
+FLASHMEM void EventBus::compact() {
     for (auto& pair : subscriptions_) {
         auto& vec = pair.second;
         vec.erase(std::remove_if(vec.begin(), vec.end(),
@@ -120,7 +123,7 @@ void EventBus::compact() {
     }
 }
 
-void EventBus::autoCompactIfNeeded() {
+FLASHMEM void EventBus::autoCompactIfNeeded() {
     if (dead_count_ >= EVENTBUS_COMPACT_THRESHOLD) {
         compact();
     }

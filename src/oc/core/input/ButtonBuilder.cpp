@@ -2,20 +2,21 @@
 
 #include "ComboBuilder.hpp"
 #include "InputBinding.hpp"
+#include <config/PlatformCompat.hpp>
 #include <oc/log/Log.hpp>
 
 namespace oc::core::input {
 
-ButtonBuilder::ButtonBuilder(InputBinding* registry, oc::type::ButtonID buttonId)
+FLASHMEM ButtonBuilder::ButtonBuilder(InputBinding* registry, oc::type::ButtonID buttonId)
     : registry_(registry), buttonId_(buttonId) {}
 
-ButtonBuilder::~ButtonBuilder() {
+FLASHMEM ButtonBuilder::~ButtonBuilder() {
     if (registry_ && !finalized_) {
         OC_LOG_WARN("{}", "[ButtonBuilder] then() was never called - binding discarded");
     }
 }
 
-ButtonBuilder::ButtonBuilder(ButtonBuilder&& other) noexcept
+FLASHMEM ButtonBuilder::ButtonBuilder(ButtonBuilder&& other) noexcept
     : registry_(other.registry_),
       buttonId_(other.buttonId_),
       type_(other.type_),
@@ -29,7 +30,7 @@ ButtonBuilder::ButtonBuilder(ButtonBuilder&& other) noexcept
     other.finalized_ = true;  // Prevent warning on moved-from object
 }
 
-ButtonBuilder& ButtonBuilder::operator=(ButtonBuilder&& other) noexcept {
+FLASHMEM ButtonBuilder& ButtonBuilder::operator=(ButtonBuilder&& other) noexcept {
     if (this != &other) {
         registry_ = other.registry_;
         buttonId_ = other.buttonId_;
@@ -46,7 +47,7 @@ ButtonBuilder& ButtonBuilder::operator=(ButtonBuilder&& other) noexcept {
     return *this;
 }
 
-ButtonBuilder& ButtonBuilder::press() {
+FLASHMEM ButtonBuilder& ButtonBuilder::press() {
     if (gestureSet_) {
         OC_LOG_WARN("{}", "[ButtonBuilder] Gesture already set - ignoring press()");
         return *this;
@@ -56,7 +57,7 @@ ButtonBuilder& ButtonBuilder::press() {
     return *this;
 }
 
-ButtonBuilder& ButtonBuilder::release() {
+FLASHMEM ButtonBuilder& ButtonBuilder::release() {
     if (gestureSet_) {
         OC_LOG_WARN("{}", "[ButtonBuilder] Gesture already set - ignoring release()");
         return *this;
@@ -66,7 +67,7 @@ ButtonBuilder& ButtonBuilder::release() {
     return *this;
 }
 
-ButtonBuilder& ButtonBuilder::longPress(uint32_t ms) {
+FLASHMEM ButtonBuilder& ButtonBuilder::longPress(uint32_t ms) {
     if (gestureSet_) {
         OC_LOG_WARN("{}", "[ButtonBuilder] Gesture already set - ignoring longPress()");
         return *this;
@@ -77,7 +78,7 @@ ButtonBuilder& ButtonBuilder::longPress(uint32_t ms) {
     return *this;
 }
 
-ButtonBuilder& ButtonBuilder::doubleTap(uint32_t ms) {
+FLASHMEM ButtonBuilder& ButtonBuilder::doubleTap(uint32_t ms) {
     if (gestureSet_) {
         OC_LOG_WARN("{}", "[ButtonBuilder] Gesture already set - ignoring doubleTap()");
         return *this;
@@ -88,27 +89,27 @@ ButtonBuilder& ButtonBuilder::doubleTap(uint32_t ms) {
     return *this;
 }
 
-ComboBuilder ButtonBuilder::combo(oc::type::ButtonID other) {
+FLASHMEM ComboBuilder ButtonBuilder::combo(oc::type::ButtonID other) {
     finalized_ = true;  // Ownership transferred to ComboBuilder
     return ComboBuilder(registry_, buttonId_, other);
 }
 
-ButtonBuilder& ButtonBuilder::scope(oc::type::ScopeID s) {
+FLASHMEM ButtonBuilder& ButtonBuilder::scope(oc::type::ScopeID s) {
     scope_ = s;
     return *this;
 }
 
-ButtonBuilder& ButtonBuilder::when(oc::type::IsActiveFn fn) {
+FLASHMEM ButtonBuilder& ButtonBuilder::when(oc::type::IsActiveFn fn) {
     isActive_ = std::move(fn);
     return *this;
 }
 
-ButtonBuilder& ButtonBuilder::latch() {
+FLASHMEM ButtonBuilder& ButtonBuilder::latch() {
     latch_ = true;
     return *this;
 }
 
-BindingHandle ButtonBuilder::then(oc::type::ActionCallback cb) {
+FLASHMEM BindingHandle ButtonBuilder::then(oc::type::ActionCallback cb) {
     finalized_ = true;
 
     if (!registry_) {

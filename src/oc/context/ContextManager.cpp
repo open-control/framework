@@ -1,5 +1,6 @@
 #include "ContextManager.hpp"
 
+#include <config/PlatformCompat.hpp>
 #include <oc/api/ButtonAPI.hpp>
 #include <oc/api/EncoderAPI.hpp>
 #include <oc/api/MidiAPI.hpp>
@@ -18,7 +19,7 @@ ContextManager::~ContextManager() {
     }
 }
 
-oc::type::Result<void> ContextManager::begin() {
+FLASHMEM oc::type::Result<void> ContextManager::begin() {
     using R = oc::type::Result<void>;
     using E = oc::type::ErrorCode;
 
@@ -31,7 +32,7 @@ oc::type::Result<void> ContextManager::begin() {
     return R::ok();
 }
 
-bool ContextManager::switchToImpl(uint8_t id) {
+FLASHMEM bool ContextManager::switchToImpl(uint8_t id) {
     if (id >= MAX_CONTEXTS || factories_[id] == nullptr) {
         return false;
     }

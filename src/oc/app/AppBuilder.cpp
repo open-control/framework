@@ -2,6 +2,7 @@
 
 #include <cassert>
 
+#include <config/PlatformCompat.hpp>
 #include "OpenControlApp.hpp"
 #include <oc/log/Log.hpp>
 #include <oc/time/Time.hpp>
@@ -47,7 +48,7 @@ AppBuilder& AppBuilder::timeProvider(oc::type::TimeProvider provider) {
     return *this;
 }
 
-OpenControlApp AppBuilder::build() {
+FLASHMEM OpenControlApp AppBuilder::build() {
     assert(time_provider_ && "AppBuilder: oc::type::TimeProvider is required");
 
     OpenControlApp app;

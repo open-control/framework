@@ -1,20 +1,21 @@
 #include "EncoderBuilder.hpp"
 
 #include "InputBinding.hpp"
+#include <config/PlatformCompat.hpp>
 #include <oc/log/Log.hpp>
 
 namespace oc::core::input {
 
-EncoderBuilder::EncoderBuilder(InputBinding* registry, oc::type::EncoderID encoderId)
+FLASHMEM EncoderBuilder::EncoderBuilder(InputBinding* registry, oc::type::EncoderID encoderId)
     : registry_(registry), encoderId_(encoderId) {}
 
-EncoderBuilder::~EncoderBuilder() {
+FLASHMEM EncoderBuilder::~EncoderBuilder() {
     if (registry_ && !finalized_) {
         OC_LOG_WARN("{}", "[EncoderBuilder] then() was never called - binding discarded");
     }
 }
 
-EncoderBuilder::EncoderBuilder(EncoderBuilder&& other) noexcept
+FLASHMEM EncoderBuilder::EncoderBuilder(EncoderBuilder&& other) noexcept
     : registry_(other.registry_),
       encoderId_(other.encoderId_),
       scope_(other.scope_),
@@ -25,7 +26,7 @@ EncoderBuilder::EncoderBuilder(EncoderBuilder&& other) noexcept
     other.finalized_ = true;
 }
 
-EncoderBuilder& EncoderBuilder::operator=(EncoderBuilder&& other) noexcept {
+FLASHMEM EncoderBuilder& EncoderBuilder::operator=(EncoderBuilder&& other) noexcept {
     if (this != &other) {
         registry_ = other.registry_;
         encoderId_ = other.encoderId_;
@@ -39,7 +40,7 @@ EncoderBuilder& EncoderBuilder::operator=(EncoderBuilder&& other) noexcept {
     return *this;
 }
 
-EncoderBuilder& EncoderBuilder::turn() {
+FLASHMEM EncoderBuilder& EncoderBuilder::turn() {
     if (gestureSet_) {
         OC_LOG_WARN("{}", "[EncoderBuilder] Gesture already set - ignoring turn()");
         return *this;
@@ -48,17 +49,17 @@ EncoderBuilder& EncoderBuilder::turn() {
     return *this;
 }
 
-EncoderBuilder& EncoderBuilder::scope(oc::type::ScopeID s) {
+FLASHMEM EncoderBuilder& EncoderBuilder::scope(oc::type::ScopeID s) {
     scope_ = s;
     return *this;
 }
 
-EncoderBuilder& EncoderBuilder::when(oc::type::IsActiveFn fn) {
+FLASHMEM EncoderBuilder& EncoderBuilder::when(oc::type::IsActiveFn fn) {
     isActive_ = std::move(fn);
     return *this;
 }
 
-BindingHandle EncoderBuilder::then(oc::type::EncoderActionCallback cb) {
+FLASHMEM BindingHandle EncoderBuilder::then(oc::type::EncoderActionCallback cb) {
     finalized_ = true;
 
     if (!registry_) {

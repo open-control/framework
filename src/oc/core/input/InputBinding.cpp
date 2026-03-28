@@ -1,5 +1,6 @@
 #include "InputBinding.hpp"
 
+#include <config/PlatformCompat.hpp>
 #include <oc/core/event/Events.hpp>
 #include <oc/log/Log.hpp>
 
@@ -11,7 +12,9 @@ using namespace event;
 // Construction / Destruction
 // ═══════════════════════════════════════════════════════════════════════════
 
-InputBinding::InputBinding(interface::IEventBus& eventBus, oc::type::TimeProvider timeProvider, const InputConfig& config)
+FLASHMEM InputBinding::InputBinding(interface::IEventBus& eventBus,
+                                    oc::type::TimeProvider timeProvider,
+                                    const InputConfig& config)
     : button_registry_(MAX_BUTTON_BINDINGS, next_binding_id_),
       encoder_registry_(MAX_ENCODER_BINDINGS, next_binding_id_),
       gesture_(config),
@@ -33,7 +36,7 @@ InputBinding::InputBinding(interface::IEventBus& eventBus, oc::type::TimeProvide
                                         [this](const oc::type::Event& e) { onButtonRelease(e); });
 }
 
-InputBinding::~InputBinding() {
+FLASHMEM InputBinding::~InputBinding() {
     event_bus_.off(encoder_sub_);
     event_bus_.off(button_press_sub_);
     event_bus_.off(button_release_sub_);
@@ -43,14 +46,14 @@ InputBinding::~InputBinding() {
 // Public API - Scope Management
 // ═══════════════════════════════════════════════════════════════════════════
 
-void InputBinding::clearScope(oc::type::ScopeID scope) {
+FLASHMEM void InputBinding::clearScope(oc::type::ScopeID scope) {
     button_registry_.clearScope(scope);
     encoder_registry_.clearScope(scope);
     ownership_.clearForScope(scope);
     latch_.releaseForScope(scope);
 }
 
-void InputBinding::clearBindings() {
+FLASHMEM void InputBinding::clearBindings() {
     button_registry_.clear();
     encoder_registry_.clear();
     ownership_.reset();
@@ -58,24 +61,24 @@ void InputBinding::clearBindings() {
     gesture_.reset();
 }
 
-void InputBinding::clearButtonBindings() {
+FLASHMEM void InputBinding::clearButtonBindings() {
     button_registry_.clear();
     ownership_.reset();
     latch_.reset();
     gesture_.reset();
 }
 
-void InputBinding::clearEncoderBindings() {
+FLASHMEM void InputBinding::clearEncoderBindings() {
     encoder_registry_.clear();
 }
 
-void InputBinding::clearButtonScope(oc::type::ScopeID scope) {
+FLASHMEM void InputBinding::clearButtonScope(oc::type::ScopeID scope) {
     button_registry_.clearScope(scope);
     ownership_.clearForScope(scope);
     latch_.releaseForScope(scope);
 }
 
-void InputBinding::clearEncoderScope(oc::type::ScopeID scope) {
+FLASHMEM void InputBinding::clearEncoderScope(oc::type::ScopeID scope) {
     encoder_registry_.clearScope(scope);
 }
 
@@ -108,25 +111,25 @@ void InputBinding::setPressOwner(oc::type::ButtonID id, oc::type::ScopeID scope)
     ownership_.setOwner(id, scope);
 }
 
-void InputBinding::setBindingsEnabled(bool enabled) {
+FLASHMEM void InputBinding::setBindingsEnabled(bool enabled) {
     bindings_enabled_ = enabled;
 }
 
-void InputBinding::setAuthorityResolver(const AuthorityResolver* resolver) {
+FLASHMEM void InputBinding::setAuthorityResolver(const AuthorityResolver* resolver) {
     authority_resolver_ = resolver;
     // Invalidate any outstanding tokens
     authority_token_++;
     if (authority_token_ == 0) authority_token_ = 1;
 }
 
-InputBinding::AuthorityToken InputBinding::setAuthorityResolverScoped(const AuthorityResolver* resolver) {
+FLASHMEM InputBinding::AuthorityToken InputBinding::setAuthorityResolverScoped(const AuthorityResolver* resolver) {
     authority_resolver_ = resolver;
     authority_token_++;
     if (authority_token_ == 0) authority_token_ = 1;
     return authority_token_;
 }
 
-void InputBinding::clearAuthorityResolver(AuthorityToken token) {
+FLASHMEM void InputBinding::clearAuthorityResolver(AuthorityToken token) {
     if (token != 0 && token == authority_token_) {
         authority_resolver_ = nullptr;
     }
@@ -147,15 +150,15 @@ void InputBinding::processTick() {
 // Public API - Registration
 // ═══════════════════════════════════════════════════════════════════════════
 
-oc::type::BindingID InputBinding::registerButtonBinding(ButtonBinding binding) {
+FLASHMEM oc::type::BindingID InputBinding::registerButtonBinding(ButtonBinding binding) {
     return button_registry_.add(std::move(binding));
 }
 
-oc::type::BindingID InputBinding::registerEncoderBinding(EncoderBinding binding) {
+FLASHMEM oc::type::BindingID InputBinding::registerEncoderBinding(EncoderBinding binding) {
     return encoder_registry_.add(std::move(binding));
 }
 
-bool InputBinding::removeById(oc::type::BindingID id) {
+FLASHMEM bool InputBinding::removeById(oc::type::BindingID id) {
     if (id == 0) return false;
     if (button_registry_.removeById(id)) return true;
     return encoder_registry_.removeById(id);

@@ -47,6 +47,7 @@
 #include <memory>
 #include <vector>
 
+#include <config/PlatformCompat.hpp>
 #include "NotificationQueue.hpp"
 #include "Signal.hpp"
 #include "SignalString.hpp"
@@ -76,14 +77,7 @@ public:
      */
     template <typename T, size_t N>
     WatchGroup& watch(Signal<T, N>& signal) {
-        auto& cb = callback_;
-        auto key = key_;
-
-        auto sub = signal.subscribe([key, &cb](const T&) {
-            NotificationQueue::instance().enqueue(key, [&cb]() { cb(); });
-        });
-
-        subscriptions_.push_back(std::move(sub));
+        subscriptions_.push_back(signal.subscribe(NotificationThunk{this}));
         return *this;
     }
 
@@ -92,14 +86,7 @@ public:
      */
     template <typename T, size_t N>
     WatchGroup& watch(SignalVector<T, N>& signal) {
-        auto& cb = callback_;
-        auto key = key_;
-
-        auto sub = signal.subscribe([key, &cb]() {
-            NotificationQueue::instance().enqueue(key, [&cb]() { cb(); });
-        });
-
-        subscriptions_.push_back(std::move(sub));
+        subscriptions_.push_back(signal.subscribe(NotificationThunk{this}));
         return *this;
     }
 
@@ -108,20 +95,30 @@ public:
      */
     template <size_t N, size_t M>
     WatchGroup& watch(SignalStringBase<N, M>& signal) {
-        auto& cb = callback_;
-        auto key = key_;
-
-        auto sub = signal.subscribe([key, &cb](const char*) {
-            NotificationQueue::instance().enqueue(key, [&cb]() { cb(); });
-        });
-
-        subscriptions_.push_back(std::move(sub));
+        subscriptions_.push_back(signal.subscribe(NotificationThunk{this}));
         return *this;
     }
 
     [[nodiscard]] size_t subscriptionCount() const { return subscriptions_.size(); }
 
 private:
+    struct NotificationThunk {
+        WatchGroup* group = nullptr;
+
+        void operator()() const {
+            group->enqueue();
+        }
+
+        template <typename T>
+        void operator()(const T&) const {
+            group->enqueue();
+        }
+    };
+
+    void enqueue() {
+        NotificationQueue::instance().enqueue(key_, [this]() { callback_(); });
+    }
+
     NotificationQueue::Key key_;
     std::function<void()> callback_;
     std::vector<Subscription> subscriptions_;

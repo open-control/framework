@@ -1,5 +1,6 @@
 #include "OpenControlApp.hpp"
 
+#include <config/PlatformCompat.hpp>
 #include <oc/Config.hpp>
 #include <oc/core/event/Events.hpp>
 #include <oc/log/Log.hpp>
@@ -28,7 +29,7 @@ bool OpenControlApp::registerPreContextUpdateHook(oc::type::ActionCallback callb
     return false;
 }
 
-void OpenControlApp::begin() {
+FLASHMEM void OpenControlApp::begin() {
     // Helper: check result and halt on error
     auto check = [](const oc::type::Result<void>& result, const char* component) {
         if (!result) {
