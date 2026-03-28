@@ -109,6 +109,8 @@ public:
     void setBounds(float min, float max);
     void setDelta(float delta);
     void setDiscreteSteps(uint8_t steps);
+    void setDiscreteTicksPerStep(uint16_t ticksPerStep);
+    void setNormalizedTurns(float turns);
     void setContinuous();
 
     /**
@@ -156,6 +158,16 @@ private:
     int32_t calculateDefaultVirtualRange() const;
 
     /**
+     * @brief Calculate virtual range in ticks for a target number of turns
+     */
+    int32_t calculateVirtualRangeForTurns(float turns) const;
+
+    /**
+     * @brief Calculate currently configured virtual range (override or hardware default)
+     */
+    int32_t calculateConfiguredVirtualRange() const;
+
+    /**
      * @brief Recalculate virtual range for discrete steps
      */
     void recalculateVirtualRangeForDiscreteSteps();
@@ -164,6 +176,7 @@ private:
 
     // Virtual range (may be adjusted for discrete steps)
     int32_t virtual_range_ = 0;
+    float normalized_turns_ = 0.0f;
 
     // State
     interface::EncoderMode mode_ = interface::EncoderMode::NORMALIZED;
@@ -181,6 +194,7 @@ private:
 
     // Discrete steps (quantization)
     uint8_t discrete_steps_ = 0;
+    uint16_t discrete_ticks_per_step_ = 2;
     float last_quantized_value_ = -1.0f;
 
     // Pending pattern (prevents ISR callback crash)

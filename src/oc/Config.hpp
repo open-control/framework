@@ -96,6 +96,12 @@ inline constexpr size_t EVENTBUS_COMPACT_THRESHOLD = OC_EVENTBUS_COMPACT_THRESHO
 #endif
 inline constexpr size_t MAX_PENDING_NOTIFICATIONS = OC_MAX_PENDING_NOTIFICATIONS;
 
+/// Maximum number of app-level pre-context update hooks
+#ifndef OC_MAX_APP_PRE_CONTEXT_HOOKS
+#define OC_MAX_APP_PRE_CONTEXT_HOOKS 8
+#endif
+inline constexpr size_t MAX_APP_PRE_CONTEXT_HOOKS = OC_MAX_APP_PRE_CONTEXT_HOOKS;
+
 // ═══════════════════════════════════════════════════════════════════════════
 // SIGNAL LIMITS
 // ═══════════════════════════════════════════════════════════════════════════

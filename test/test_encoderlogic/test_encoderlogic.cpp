@@ -11,6 +11,10 @@ static EncoderConfig makeConfig(oc::type::EncoderID id = 0, uint16_t ppr = 24, u
     return EncoderConfig{id, ppr, rangeAngle, 4, false};
 }
 
+static void processTicks(EncoderLogic& logic, int count, int direction = 1) {
+    for (int i = 0; i < count; ++i) logic.processDelta(direction);
+}
+
 void setUp() {}
 void tearDown() {}
 
@@ -239,6 +243,58 @@ void test_continuous_disables_quantization() {
     // Value can be any float, not quantized
 }
 
+void test_custom_discrete_ticks_per_step_slows_progress() {
+    EncoderLogic logic(makeConfig());
+    logic.setPosition(0.0f);
+    logic.setDiscreteTicksPerStep(4);
+    logic.setDiscreteSteps(10);
+
+    processTicks(logic, 20);
+
+    auto value = logic.flush();
+    TEST_ASSERT_TRUE(value.has_value());
+    TEST_ASSERT_TRUE(value.value() < 1.0f);
+}
+
+void test_discrete_ticks_per_step_recalculates_existing_quantization() {
+    EncoderLogic logic(makeConfig());
+    logic.setPosition(0.0f);
+    logic.setDiscreteSteps(10);
+    logic.setDiscreteTicksPerStep(4);
+
+    processTicks(logic, 20);
+
+    auto value = logic.flush();
+    TEST_ASSERT_TRUE(value.has_value());
+    TEST_ASSERT_TRUE(value.value() < 1.0f);
+}
+
+void test_normalized_turns_override_updates_continuous_range() {
+    EncoderLogic logic(makeConfig());
+    logic.setNormalizedTurns(2.0f);
+    logic.setPosition(1.0f);
+
+    TEST_ASSERT_EQUAL(192, logic.getPosition());
+}
+
+void test_normalized_turns_override_updates_discrete_range() {
+    EncoderLogic logic(makeConfig());
+    logic.setDiscreteSteps(128);
+    logic.setNormalizedTurns(3.0f);
+    logic.setPosition(1.0f);
+
+    TEST_ASSERT_EQUAL(288, logic.getPosition());
+}
+
+void test_normalized_turns_zero_restores_hardware_default() {
+    EncoderLogic logic(makeConfig());
+    logic.setNormalizedTurns(2.0f);
+    logic.setNormalizedTurns(0.0f);
+    logic.setPosition(1.0f);
+
+    TEST_ASSERT_EQUAL(72, logic.getPosition());
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // setPosition
 // ═══════════════════════════════════════════════════════════════════
@@ -383,6 +439,11 @@ int main(int argc, char **argv) {
     // Discrete steps
     RUN_TEST(test_discrete_steps_quantizes_output);
     RUN_TEST(test_continuous_disables_quantization);
+    RUN_TEST(test_custom_discrete_ticks_per_step_slows_progress);
+    RUN_TEST(test_discrete_ticks_per_step_recalculates_existing_quantization);
+    RUN_TEST(test_normalized_turns_override_updates_continuous_range);
+    RUN_TEST(test_normalized_turns_override_updates_discrete_range);
+    RUN_TEST(test_normalized_turns_zero_restores_hardware_default);
 
     // setPosition
     RUN_TEST(test_set_position_updates_value);

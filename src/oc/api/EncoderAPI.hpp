@@ -93,6 +93,20 @@ public:
     template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
     void setDiscreteSteps(EnumT id, uint8_t steps) { setDiscreteSteps(static_cast<oc::type::EncoderID>(id), steps); }
 
+    /// Configure the number of virtual ticks required per discrete step
+    void setDiscreteTicksPerStep(oc::type::EncoderID id, uint16_t ticksPerStep);
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
+    void setDiscreteTicksPerStep(EnumT id, uint16_t ticksPerStep) {
+        setDiscreteTicksPerStep(static_cast<oc::type::EncoderID>(id), ticksPerStep);
+    }
+
+    /// Override normalized full-scale travel in turns (0 = hardware default)
+    void setNormalizedTurns(oc::type::EncoderID id, float turns);
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
+    void setNormalizedTurns(EnumT id, float turns) {
+        setNormalizedTurns(static_cast<oc::type::EncoderID>(id), turns);
+    }
+
     /// Configure encoder for continuous mode
     void setContinuous(oc::type::EncoderID id);
     template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>

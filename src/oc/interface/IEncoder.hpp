@@ -94,6 +94,8 @@ public:
     virtual void setBounds(oc::type::EncoderID id, float min, float max) = 0;
     virtual void setDelta(oc::type::EncoderID id, float delta) = 0;  ///< Set delta per detent (relative mode)
     virtual void setDiscreteSteps(oc::type::EncoderID id, uint8_t steps) = 0;
+    virtual void setDiscreteTicksPerStep(oc::type::EncoderID id, uint16_t ticksPerStep) = 0;
+    virtual void setNormalizedTurns(oc::type::EncoderID id, float turns) = 0;
     virtual void setContinuous(oc::type::EncoderID id) = 0;
 
     virtual void setCallback(oc::type::EncoderCallback cb) = 0;

@@ -40,6 +40,14 @@ public:
     /// Configure encoder for discrete steps
     void setDiscreteSteps(uint8_t steps) { api_.setDiscreteSteps(id_, steps); }
 
+    /// Configure the number of virtual ticks required per discrete step
+    void setDiscreteTicksPerStep(uint16_t ticksPerStep) {
+        api_.setDiscreteTicksPerStep(id_, ticksPerStep);
+    }
+
+    /// Override normalized full-scale travel in turns (0 = hardware default)
+    void setNormalizedTurns(float turns) { api_.setNormalizedTurns(id_, turns); }
+
     /// Configure encoder for continuous mode
     void setContinuous() { api_.setContinuous(id_); }
 

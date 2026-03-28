@@ -12,6 +12,22 @@ OpenControlApp::~OpenControlApp() = default;
 OpenControlApp::OpenControlApp(OpenControlApp&&) noexcept = default;
 OpenControlApp& OpenControlApp::operator=(OpenControlApp&&) noexcept = default;
 
+bool OpenControlApp::registerPreContextUpdateHook(oc::type::ActionCallback callback) {
+    if (!callback) {
+        return false;
+    }
+
+    for (auto& slot : pre_context_update_hooks_) {
+        if (!slot) {
+            slot = std::move(callback);
+            return true;
+        }
+    }
+
+    OC_LOG_WARN("{}", "[OpenControlApp] pre-context update hook registry full");
+    return false;
+}
+
 void OpenControlApp::begin() {
     // Helper: check result and halt on error
     auto check = [](const oc::type::Result<void>& result, const char* component) {
@@ -99,6 +115,12 @@ void OpenControlApp::update() {
     }
     if (buttons_) {
         buttons_->update(now);
+    }
+
+    for (auto& hook : pre_context_update_hooks_) {
+        if (hook) {
+            hook();
+        }
     }
 
     contexts_->update();

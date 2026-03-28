@@ -6,7 +6,7 @@
 namespace oc::core::input {
 
 EncoderLogic::EncoderLogic(const EncoderConfig& config) : config_(config) {
-    virtual_range_ = calculateDefaultVirtualRange();
+    virtual_range_ = calculateConfiguredVirtualRange();
     position_ = virtual_range_ / 2;
     last_value_ = 0.5f;
 }
@@ -144,22 +144,36 @@ void EncoderLogic::setPending(float value) {
 }
 
 int32_t EncoderLogic::calculateDefaultVirtualRange() const {
+    return calculateVirtualRangeForTurns(config_.rangeAngle / 360.0f);
+}
+
+int32_t EncoderLogic::calculateVirtualRangeForTurns(float turns) const {
     // Always use full quadrature resolution (x4) for maximum precision
     int32_t ticksPerRevolution = config_.ppr * FULL_QUADRATURE_MULTIPLIER;
-    return static_cast<int32_t>(ticksPerRevolution * (config_.rangeAngle / 360.0f));
+    return static_cast<int32_t>(ticksPerRevolution * turns);
+}
+
+int32_t EncoderLogic::calculateConfiguredVirtualRange() const {
+    if (normalized_turns_ > 0.0f) {
+        return calculateVirtualRangeForTurns(normalized_turns_);
+    }
+
+    return calculateDefaultVirtualRange();
 }
 
 void EncoderLogic::recalculateVirtualRangeForDiscreteSteps() {
-    constexpr float DISCRETE_VALUES_SENSITIVITY = 0.5f;
-
-    int32_t defaultRange = calculateDefaultVirtualRange();
-    int32_t minRangeForSteps = static_cast<int32_t>(discrete_steps_ / DISCRETE_VALUES_SENSITIVITY);
+    int32_t defaultRange = calculateConfiguredVirtualRange();
+    int32_t minRangeForSteps = static_cast<int32_t>(discrete_steps_) *
+                               static_cast<int32_t>(discrete_ticks_per_step_);
 
     virtual_range_ = (discrete_steps_ > 0 && minRangeForSteps > defaultRange)
         ? minRangeForSteps
         : defaultRange;
 
-    position_ = static_cast<int32_t>(last_value_ * virtual_range_);
+    float boundsRange = bounds_max_ - bounds_min_;
+    float normalized = (boundsRange > 0.0f) ? (last_value_ - bounds_min_) / boundsRange : 0.0f;
+    normalized = std::clamp(normalized, 0.0f, 1.0f);
+    position_ = static_cast<int32_t>(normalized * virtual_range_);
 }
 
 // ═══════════════════════════════════════════════════
@@ -195,6 +209,32 @@ void EncoderLogic::setDiscreteSteps(uint8_t steps) {
     last_quantized_value_ = -1.0f;
 
     recalculateVirtualRangeForDiscreteSteps();
+}
+
+void EncoderLogic::setDiscreteTicksPerStep(uint16_t ticksPerStep) {
+    discrete_ticks_per_step_ = std::max<uint16_t>(1, ticksPerStep);
+
+    if (mode_ == interface::EncoderMode::NORMALIZED && discrete_steps_ > 0) {
+        recalculateVirtualRangeForDiscreteSteps();
+    }
+}
+
+void EncoderLogic::setNormalizedTurns(float turns) {
+    normalized_turns_ = std::max(0.0f, turns);
+
+    if (mode_ != interface::EncoderMode::NORMALIZED) return;
+
+    if (discrete_steps_ > 0) {
+        recalculateVirtualRangeForDiscreteSteps();
+        return;
+    }
+
+    virtual_range_ = calculateConfiguredVirtualRange();
+
+    float boundsRange = bounds_max_ - bounds_min_;
+    float normalized = (boundsRange > 0.0f) ? (last_value_ - bounds_min_) / boundsRange : 0.0f;
+    normalized = std::clamp(normalized, 0.0f, 1.0f);
+    position_ = static_cast<int32_t>(normalized * virtual_range_);
 }
 
 void EncoderLogic::setContinuous() {

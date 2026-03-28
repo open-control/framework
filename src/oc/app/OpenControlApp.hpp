@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <memory>
 
 #include <oc/api/ButtonAPI.hpp>
@@ -74,6 +75,15 @@ public:
      * Call every frame in loop()
      */
     void update();
+
+    /**
+     * @brief Register a hook executed after hardware polling and before context update
+     *
+     * Intended for runtime services that must not be blocked behind context/UI work.
+     *
+     * @return true if the hook was registered, false if the fixed-capacity registry is full
+     */
+    bool registerPreContextUpdateHook(oc::type::ActionCallback callback);
 
     // ═══════════════════════════════════════════════════
     // API ACCESSORS
@@ -267,6 +277,9 @@ private:
 
     // Statistics (only active when OC_ENABLE_STATS=1)
     mutable TimingStats timing_stats_{};
+
+    // Runtime hooks executed between hardware polling and active context update.
+    std::array<oc::type::ActionCallback, oc::MAX_APP_PRE_CONTEXT_HOOKS> pre_context_update_hooks_{};
 };
 
 }  // namespace oc::app

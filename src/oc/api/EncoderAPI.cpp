@@ -43,6 +43,14 @@ void EncoderAPI::setDiscreteSteps(oc::type::EncoderID id, uint8_t steps) {
     hw_.setDiscreteSteps(id, steps);
 }
 
+void EncoderAPI::setDiscreteTicksPerStep(oc::type::EncoderID id, uint16_t ticksPerStep) {
+    hw_.setDiscreteTicksPerStep(id, ticksPerStep);
+}
+
+void EncoderAPI::setNormalizedTurns(oc::type::EncoderID id, float turns) {
+    hw_.setNormalizedTurns(id, turns);
+}
+
 void EncoderAPI::setContinuous(oc::type::EncoderID id) {
     hw_.setContinuous(id);
 }
