@@ -45,6 +45,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include <config/PlatformCompat.hpp>
@@ -59,49 +60,6 @@ namespace oc::state {
  * @brief A group of signals that share a single coalesced callback
  */
 class WatchGroup {
-public:
-    WatchGroup(void* owner, size_t index, std::function<void()> callback)
-        : key_(owner, index), callback_(std::move(callback)) {}
-
-    // Non-copyable, movable
-    WatchGroup(const WatchGroup&) = delete;
-    WatchGroup& operator=(const WatchGroup&) = delete;
-    WatchGroup(WatchGroup&&) = default;
-    WatchGroup& operator=(WatchGroup&&) = default;
-
-    /**
-     * @brief Add a signal to this watch group
-     *
-     * When the signal changes, the group's callback is enqueued.
-     * Multiple signals changing → one callback call (coalesced).
-     */
-    template <typename T, size_t N>
-    WatchGroup& watch(Signal<T, N>& signal) {
-        subscriptions_.push_back(signal.subscribe(NotificationThunk{this}));
-        return *this;
-    }
-
-    /**
-     * @brief Add a SignalVector to this watch group
-     */
-    template <typename T, size_t N>
-    WatchGroup& watch(SignalVector<T, N>& signal) {
-        subscriptions_.push_back(signal.subscribe(NotificationThunk{this}));
-        return *this;
-    }
-
-    /**
-     * @brief Add a SignalString to this watch group
-     */
-    template <size_t N, size_t M>
-    WatchGroup& watch(SignalStringBase<N, M>& signal) {
-        subscriptions_.push_back(signal.subscribe(NotificationThunk{this}));
-        return *this;
-    }
-
-    [[nodiscard]] size_t subscriptionCount() const { return subscriptions_.size(); }
-
-private:
     struct NotificationThunk {
         WatchGroup* group = nullptr;
 
@@ -115,6 +73,43 @@ private:
         }
     };
 
+public:
+    WatchGroup(void* owner, size_t index, std::function<void()> callback, const char* debugLabel = nullptr)
+        : key_(owner, index), callback_(std::move(callback)), debug_label_(debugLabel) {}
+
+    // Non-copyable, movable
+    WatchGroup(const WatchGroup&) = delete;
+    WatchGroup& operator=(const WatchGroup&) = delete;
+    WatchGroup(WatchGroup&&) = default;
+    WatchGroup& operator=(WatchGroup&&) = default;
+
+    /**
+     * @brief Add any subscribable signal-like object to this watch group
+     *
+     * Supported objects must expose:
+     * `Subscription subscribe(CallbackLike)`
+     *
+     * The callback may be either:
+     * - `void()`
+     * - `void(const T&)`
+     * - `void(const char*)`
+     *
+     * This keeps SignalWatcher compatible with both fixed-capacity and
+     * adaptive signal families without duplicating overloads.
+     */
+    template <typename SignalLike>
+        auto watch(SignalLike& signal)
+        -> decltype(signal.subscribe(std::declval<NotificationThunk>()), std::declval<WatchGroup&>()) {
+        detail::ScopedSubscriptionDebugContext context(debug_label_);
+        subscriptions_.push_back(signal.subscribe(NotificationThunk{this}));
+        return *this;
+    }
+
+    void setDebugLabel(const char* label) { debug_label_ = label; }
+    [[nodiscard]] const char* debugLabel() const { return debug_label_; }
+    [[nodiscard]] size_t subscriptionCount() const { return subscriptions_.size(); }
+
+private:
     void enqueue() {
         NotificationQueue::instance().enqueue(key_, [this]() { callback_(); });
     }
@@ -122,6 +117,7 @@ private:
     NotificationQueue::Key key_;
     std::function<void()> callback_;
     std::vector<Subscription> subscriptions_;
+    const char* debug_label_ = nullptr;
 };
 
 /**
@@ -156,9 +152,14 @@ public:
      * @endcode
      */
     WatchGroup& group(std::function<void()> callback) {
+        return group(nullptr, std::move(callback));
+    }
+
+    WatchGroup& group(const char* debugLabel, std::function<void()> callback) {
         size_t index = groups_.size();
         groups_.push_back(
-            std::make_unique<WatchGroup>(static_cast<void*>(this), index, std::move(callback)));
+            std::make_unique<WatchGroup>(
+                static_cast<void*>(this), index, std::move(callback), debugLabel));
         return *groups_.back();
     }
 
@@ -179,6 +180,13 @@ public:
     SignalWatcher& watchAll(Callback&& callback, Signals&... signals) {
         auto& g = group(std::forward<Callback>(callback));
         (g.watch(signals), ...);  // Fold expression
+        return *this;
+    }
+
+    template <typename Callback, typename... Signals>
+    SignalWatcher& watchAll(const char* debugLabel, Callback&& callback, Signals&... signals) {
+        auto& g = group(debugLabel, std::forward<Callback>(callback));
+        (g.watch(signals), ...);
         return *this;
     }
 

@@ -10,11 +10,12 @@
 #include <utility>
 #include <vector>
 
+#include <oc/log/Log.hpp>
+
 #include "NotificationQueue.hpp"
 
 namespace oc::state {
 
-// Forward declaration
 class Subscription;
 
 namespace detail {
@@ -41,6 +42,35 @@ bool equal(const T& a, const T& b) {
         return std::memcmp(&a, &b, sizeof(T)) == 0;
     }
 }
+
+struct SubscriptionDebugContext {
+    const char* requesterLabel = nullptr;
+};
+
+inline const SubscriptionDebugContext*& currentSubscriptionDebugContext() {
+    static const SubscriptionDebugContext* context = nullptr;
+    return context;
+}
+
+class ScopedSubscriptionDebugContext {
+public:
+    explicit ScopedSubscriptionDebugContext(const char* requesterLabel)
+        : previous_(currentSubscriptionDebugContext()) {
+        context_.requesterLabel = requesterLabel;
+        currentSubscriptionDebugContext() = &context_;
+    }
+
+    ScopedSubscriptionDebugContext(const ScopedSubscriptionDebugContext&) = delete;
+    ScopedSubscriptionDebugContext& operator=(const ScopedSubscriptionDebugContext&) = delete;
+
+    ~ScopedSubscriptionDebugContext() {
+        currentSubscriptionDebugContext() = previous_;
+    }
+
+private:
+    SubscriptionDebugContext context_{};
+    const SubscriptionDebugContext* previous_ = nullptr;
+};
 
 }  // namespace detail
 
@@ -92,6 +122,19 @@ public:
     Signal& operator=(Signal&&) = delete;
 
     ~Signal() = default;
+
+    /**
+     * @brief Attach an optional debug label used in overflow diagnostics
+     *
+     * This is intended for high-fan-out UI signals where subscriber overflow
+     * is otherwise hard to localize from a crash log alone.
+     */
+    void setDebugLabel(const char* label) { debug_label_ = label; }
+
+    /**
+     * @brief Return the debug label, or nullptr if unset
+     */
+    [[nodiscard]] const char* debugLabel() const { return debug_label_; }
 
     /// Get current value (const reference)
     [[nodiscard]] const T& get() const { return value_; }
@@ -203,6 +246,19 @@ private:
 
     T value_;
     std::array<Callback, MaxSubscribers> callbacks_{};
+    const char* debug_label_ = nullptr;
+
+    void reportSubscriberOverflow_() const {
+        const auto* context = detail::currentSubscriptionDebugContext();
+        OC_LOG_ERROR(
+            "[Signal] MaxSubscribers exceeded label={} subscribers={} max={} requester={} address={}",
+            debug_label_ ? debug_label_ : "<unnamed>",
+            subscriberCount(),
+            MaxSubscribers,
+            (context && context->requesterLabel) ? context->requesterLabel : "<unknown>",
+            static_cast<const void*>(this)
+        );
+    }
 
     /// Add subscriber, returns slot index or -1 if full
     int addSubscriber(Callback callback) {
@@ -248,7 +304,8 @@ public:
 
     /// Move constructor
     Subscription(Subscription&& other) noexcept
-        : unsubscribe_(std::move(other.unsubscribe_)), slot_(other.slot_) {
+        : owner_(other.owner_), unsubscribe_(other.unsubscribe_), slot_(other.slot_) {
+        other.owner_ = nullptr;
         other.unsubscribe_ = nullptr;
         other.slot_ = -1;
     }
@@ -257,8 +314,10 @@ public:
     Subscription& operator=(Subscription&& other) noexcept {
         if (this != &other) {
             reset();
-            unsubscribe_ = std::move(other.unsubscribe_);
+            owner_ = other.owner_;
+            unsubscribe_ = other.unsubscribe_;
             slot_ = other.slot_;
+            other.owner_ = nullptr;
             other.unsubscribe_ = nullptr;
             other.slot_ = -1;
         }
@@ -273,16 +332,19 @@ public:
     ~Subscription() { reset(); }
 
     /// Check if subscription is active
-    [[nodiscard]] bool isValid() const { return unsubscribe_ != nullptr && slot_ >= 0; }
+    [[nodiscard]] bool isValid() const {
+        return owner_ != nullptr && unsubscribe_ != nullptr && slot_ >= 0;
+    }
 
     /// Explicit bool conversion
     [[nodiscard]] explicit operator bool() const { return isValid(); }
 
     /// Manually unsubscribe (also called by destructor)
     void reset() {
-        if (unsubscribe_ && slot_ >= 0) {
-            unsubscribe_(slot_);
+        if (unsubscribe_ && owner_ && slot_ >= 0) {
+            unsubscribe_(owner_, slot_);
         }
+        owner_ = nullptr;
         unsubscribe_ = nullptr;
         slot_ = -1;
     }
@@ -291,12 +353,13 @@ private:
     template <typename T, size_t N>
     friend class Signal;
 
-    using UnsubscribeFn = std::function<void(int)>;
+    using UnsubscribeFn = void (*)(void*, int);
 
-    Subscription(UnsubscribeFn unsubscribe, int slot)
-        : unsubscribe_(std::move(unsubscribe)), slot_(slot) {}
+    Subscription(void* owner, UnsubscribeFn unsubscribe, int slot)
+        : owner_(owner), unsubscribe_(unsubscribe), slot_(slot) {}
 
-    UnsubscribeFn unsubscribe_;
+    void* owner_ = nullptr;
+    UnsubscribeFn unsubscribe_ = nullptr;
     int slot_ = -1;
 };
 
@@ -310,12 +373,19 @@ Subscription Signal<T, MaxSubscribers>::subscribe(Callback callback) {
     int slot = addSubscriber(std::move(callback));
     if (slot < 0) {
         // Max subscribers reached - fail loudly in debug builds
-        assert(false && "Signal: MaxSubscribers exceeded. Increase template parameter.");
+        reportSubscriberOverflow_();
+        assert(false && "Signal: MaxSubscribers exceeded. Check logs for label/subscriber count.");
         return Subscription{};
     }
 
     // Capture 'this' to call removeSubscriber when Subscription is destroyed
-    return Subscription{[this](int s) { removeSubscriber(s); }, slot};
+    return Subscription{
+        static_cast<void*>(this),
+        [](void* owner, int s) {
+            static_cast<Signal*>(owner)->removeSubscriber(s);
+        },
+        slot
+    };
 }
 
 // =============================================================================

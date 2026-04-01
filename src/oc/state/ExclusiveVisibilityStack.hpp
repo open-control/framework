@@ -12,12 +12,12 @@
  *         - COUNT as last value
  */
 
-#include <oc/log/Log.hpp>
-#include <oc/state/Signal.hpp>
-
 #include <array>
 #include <cstdint>
 #include <functional>
+
+#include <config/PlatformCompat.hpp>
+#include <oc/log/Log.hpp>
 
 namespace oc::state {
 
@@ -114,7 +114,7 @@ public:
      *
      * @param callback Function called with item type before hide
      */
-    void setCleanupCallback(CleanupCallback callback) {
+    FLASHMEM void setCleanupCallback(CleanupCallback callback) {
         cleanupCallback_ = std::move(callback);
         // Invalidate any outstanding handles
         cleanup_token_++;
@@ -126,7 +126,7 @@ public:
      *
      * The returned handle clears the callback when destroyed.
      */
-    [[nodiscard]] CleanupHandle setCleanupCallbackScoped(CleanupCallback callback) {
+    [[nodiscard]] FLASHMEM CleanupHandle setCleanupCallbackScoped(CleanupCallback callback) {
         cleanupCallback_ = std::move(callback);
         cleanup_token_++;
         if (cleanup_token_ == 0) cleanup_token_ = 1;  // avoid 0 as sentinel
@@ -134,23 +134,11 @@ public:
     }
 
     /**
-     * @brief Register an item's visible signal
-     * @param type Item identifier
-     * @param visible Signal controlling this item's visibility
-     */
-    void registerItem(EnumT type, Signal<bool>& visible) {
-        auto idx = static_cast<size_t>(type);
-        if (idx < COUNT) {
-            items_[idx] = &visible;
-        }
-    }
-
-    /**
      * @brief Show an item
      * @param type The item to show
      * @param stack If true, current item stays visible underneath
      */
-    void show(EnumT type, bool stack = false) {
+    FLASHMEM void show(EnumT type, bool stack = false) {
         if (type == EnumT::NONE || static_cast<size_t>(type) >= COUNT) {
             hideAll();
             return;
@@ -175,7 +163,7 @@ public:
      *
      * Calls cleanup callback (if set) before hiding.
      */
-    void hide() {
+    FLASHMEM void hide() {
         if (current_ == EnumT::NONE) return;
 
         // Call cleanup callback before hiding
@@ -200,19 +188,19 @@ public:
      *
      * Calls cleanup callback for each visible item before hiding.
      */
-    void hideAll() {
+    FLASHMEM void hideAll() {
         // Call cleanup for all potentially visible items
         if (cleanupCallback_) {
             for (size_t i = 1; i < COUNT; ++i) {
-                if (items_[i] != nullptr && items_[i]->get()) {
+                if (items_[i].valid() && items_[i].get(items_[i].object)) {
                     cleanupCallback_(static_cast<EnumT>(i));
                 }
             }
         }
 
         for (size_t i = 1; i < COUNT; ++i) {
-            if (items_[i] != nullptr) {
-                items_[i]->set(false);
+            if (items_[i].valid()) {
+                items_[i].set(items_[i].object, false);
             }
         }
         current_ = EnumT::NONE;
@@ -227,20 +215,48 @@ public:
     bool hasVisible() const { return current_ != EnumT::NONE; }
 
 private:
-    void clearCleanupCallback(uint32_t token) {
+    struct ItemBinding {
+        void* object = nullptr;
+        bool (*get)(void*) = nullptr;
+        void (*set)(void*, bool) = nullptr;
+
+        [[nodiscard]] bool valid() const {
+            return object != nullptr && get != nullptr && set != nullptr;
+        }
+    };
+
+    FLASHMEM void clearCleanupCallback(uint32_t token) {
         if (token != 0 && token == cleanup_token_) {
             cleanupCallback_ = nullptr;
         }
     }
 
-    void setVisible(EnumT type, bool visible) {
+    FLASHMEM void setVisible(EnumT type, bool visible) {
         auto idx = static_cast<size_t>(type);
-        if (idx < COUNT && items_[idx] != nullptr) {
-            items_[idx]->set(visible);
+        if (idx < COUNT && items_[idx].valid()) {
+            items_[idx].set(items_[idx].object, visible);
         }
     }
 
-    std::array<Signal<bool>*, COUNT> items_{};
+public:
+    template <typename VisibleSignal>
+    FLASHMEM void registerItem(EnumT type, VisibleSignal& visible) {
+        auto idx = static_cast<size_t>(type);
+        if (idx < COUNT) {
+            items_[idx] = ItemBinding{
+                .object = static_cast<void*>(&visible),
+                .get = [](void* object) -> bool {
+                    return static_cast<VisibleSignal*>(object)->get();
+                },
+                .set = [](void* object, bool value) {
+                    static_cast<VisibleSignal*>(object)->set(value);
+                }
+            };
+        }
+    }
+
+private:
+    std::array<ItemBinding, COUNT> items_{};
     EnumT current_ = EnumT::NONE;
     EnumT previous_ = EnumT::NONE;  // For single-level stacking
     CleanupCallback cleanupCallback_;  // Called before hiding

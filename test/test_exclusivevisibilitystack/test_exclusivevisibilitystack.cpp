@@ -67,10 +67,32 @@ void test_cleanup_handle_does_not_clear_replaced_callback() {
     TEST_ASSERT_TRUE(called2);
 }
 
+void test_register_item_accepts_custom_capacity_signal() {
+    ExclusiveVisibilityStack<Overlay> stack;
+
+    Signal<bool, 8> a{false};
+    Signal<bool, 8> b{false};
+    stack.registerItem(Overlay::A, a);
+    stack.registerItem(Overlay::B, b);
+
+    stack.show(Overlay::A);
+    TEST_ASSERT_TRUE(a.get());
+    TEST_ASSERT_FALSE(b.get());
+
+    stack.show(Overlay::B);
+    TEST_ASSERT_FALSE(a.get());
+    TEST_ASSERT_TRUE(b.get());
+
+    stack.hideAll();
+    TEST_ASSERT_FALSE(a.get());
+    TEST_ASSERT_FALSE(b.get());
+}
+
 int main(int argc, char** argv) {
     UNITY_BEGIN();
     RUN_TEST(test_cleanup_handle_clears_callback_on_destruction);
     RUN_TEST(test_cleanup_handle_does_not_clear_replaced_callback);
+    RUN_TEST(test_register_item_accepts_custom_capacity_signal);
     UNITY_END();
     return 0;
 }
