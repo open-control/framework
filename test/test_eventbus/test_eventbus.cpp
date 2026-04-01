@@ -6,10 +6,22 @@ using namespace oc::core::event;
 
 static int callCount = 0;
 static oc::type::ButtonID lastButtonId = 0;
+static int secondaryCallCount = 0;
+
+namespace {
+
+class TestEvent : public oc::type::Event {
+public:
+    TestEvent(oc::type::EventCategoryType category, oc::type::EventType type)
+        : oc::type::Event(category, type) {}
+};
+
+}  // namespace
 
 void setUp() {
     callCount = 0;
     lastButtonId = 0;
+    secondaryCallCount = 0;
 }
 
 void tearDown() {}
@@ -130,6 +142,84 @@ void test_subscriber_count() {
     TEST_ASSERT_EQUAL(0, bus.getSubscriberCount());
 }
 
+void test_max_subscribers_per_topic_is_bounded() {
+    EventBus bus;
+
+    for (size_t i = 0; i < EventBus::maxSubscribersPerEvent(); ++i) {
+        auto id = bus.on(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS,
+            [](const oc::type::Event&) {});
+        TEST_ASSERT_GREATER_THAN(0, id);
+    }
+
+    auto overflowId = bus.on(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS,
+        [](const oc::type::Event&) {});
+
+    TEST_ASSERT_EQUAL(0, overflowId);
+    TEST_ASSERT_EQUAL(EventBus::maxSubscribersPerEvent(), bus.getSubscriberCount());
+}
+
+void test_dead_slots_are_reused_before_compaction() {
+    EventBus bus;
+    auto firstId = bus.on(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS,
+        [](const oc::type::Event&) {});
+    auto secondId = bus.on(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS,
+        [](const oc::type::Event&) {});
+
+    TEST_ASSERT_GREATER_THAN(0, firstId);
+    TEST_ASSERT_GREATER_THAN(0, secondId);
+
+    bus.off(firstId);
+    TEST_ASSERT_EQUAL(1, bus.getSubscriberCount());
+
+    auto reusedId = bus.on(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS,
+        [](const oc::type::Event&) {});
+
+    TEST_ASSERT_GREATER_THAN(0, reusedId);
+    TEST_ASSERT_EQUAL(2, bus.getSubscriberCount());
+}
+
+void test_max_topics_is_bounded() {
+    EventBus bus;
+
+    for (size_t i = 0; i < EventBus::maxTopics(); ++i) {
+        auto id = bus.on(EventCategory::UI,
+                         static_cast<oc::type::EventType>(1000 + i),
+                         [](const oc::type::Event&) {});
+        TEST_ASSERT_GREATER_THAN(0, id);
+    }
+
+    auto overflowId = bus.on(EventCategory::UI,
+                             static_cast<oc::type::EventType>(5000),
+                             [](const oc::type::Event&) {});
+
+    TEST_ASSERT_EQUAL(0, overflowId);
+    TEST_ASSERT_EQUAL(EventBus::maxTopics(), bus.getSubscriberCount());
+}
+
+void test_off_during_emit_is_safe_and_skips_later_callback() {
+    EventBus bus;
+    oc::interface::SubscriptionID secondId = 0;
+
+    bus.on(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS,
+        [&](const oc::type::Event&) {
+            callCount++;
+            bus.off(secondId);
+        });
+
+    secondId = bus.on(EventCategory::USER_INPUT, InputEvent::BUTTON_PRESS,
+        [](const oc::type::Event&) { secondaryCallCount++; });
+
+    bus.emit(ButtonPressEvent{7, true});
+
+    TEST_ASSERT_EQUAL(1, callCount);
+    TEST_ASSERT_EQUAL(0, secondaryCallCount);
+
+    bus.emit(ButtonPressEvent{8, true});
+
+    TEST_ASSERT_EQUAL(2, callCount);
+    TEST_ASSERT_EQUAL(0, secondaryCallCount);
+}
+
 int main(int argc, char **argv) {
     UNITY_BEGIN();
     RUN_TEST(test_on_and_emit);
@@ -139,6 +229,10 @@ int main(int argc, char **argv) {
     RUN_TEST(test_type_filtering);
     RUN_TEST(test_clear_removes_all);
     RUN_TEST(test_subscriber_count);
+    RUN_TEST(test_max_subscribers_per_topic_is_bounded);
+    RUN_TEST(test_dead_slots_are_reused_before_compaction);
+    RUN_TEST(test_max_topics_is_bounded);
+    RUN_TEST(test_off_during_emit_is_safe_and_skips_later_callback);
     UNITY_END();
     return 0;
 }

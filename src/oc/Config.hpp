@@ -80,6 +80,18 @@ inline constexpr size_t MAX_CONTEXTS = OC_MAX_CONTEXTS;
 #endif
 inline constexpr size_t MAX_SUBSCRIBERS_PER_EVENT = OC_MAX_SUBSCRIBERS_PER_EVENT;
 
+/// Maximum number of distinct event topics (category+type combinations)
+#ifndef OC_MAX_EVENT_TOPICS
+#define OC_MAX_EVENT_TOPICS 32
+#endif
+inline constexpr size_t MAX_EVENT_TOPICS = OC_MAX_EVENT_TOPICS;
+
+/// Maximum total event-bus subscriptions across all topics
+#ifndef OC_MAX_EVENT_SUBSCRIPTIONS
+#define OC_MAX_EVENT_SUBSCRIPTIONS 64
+#endif
+inline constexpr size_t MAX_EVENT_SUBSCRIPTIONS = OC_MAX_EVENT_SUBSCRIPTIONS;
+
 /// Dead entries threshold before automatic compaction
 #ifndef OC_EVENTBUS_COMPACT_THRESHOLD
 #define OC_EVENTBUS_COMPACT_THRESHOLD 16
@@ -142,6 +154,8 @@ constexpr size_t estimateInputBindingMemory() {
 constexpr size_t estimateFrameworkMemory() {
     return estimateInputBindingMemory() +
            MAX_CONTEXTS * sizeof(void*) * 2 +  // factories + names
+           MAX_EVENT_TOPICS * 8 +
+           MAX_EVENT_SUBSCRIPTIONS * 24 +
            MAX_PENDING_NOTIFICATIONS * 32;      // Rough notification size
 }
 

@@ -1,8 +1,7 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
-#include <unordered_map>
-#include <vector>
 
 #include <oc/interface/IEventBus.hpp>
 
@@ -11,14 +10,17 @@
 namespace oc::core::event {
 
 using oc::MAX_SUBSCRIBERS_PER_EVENT;
+using oc::MAX_EVENT_TOPICS;
+using oc::MAX_EVENT_SUBSCRIPTIONS;
 using oc::EVENTBUS_COMPACT_THRESHOLD;
 using oc::ENABLE_STATS;
 
 /**
  * @brief Default implementation of IEventBus using pub/sub pattern
  *
- * Uses category+type key for O(1) lookup of subscribers.
- * Supports configurable limits via OC_MAX_SUBSCRIBERS_PER_EVENT.
+ * Uses a fixed-capacity topic table keyed by category+type, with bounded
+ * subscribers per topic. This keeps memory usage deterministic while
+ * preserving the familiar on/off/emit API.
  */
 class EventBus : public interface::IEventBus {
 public:
@@ -43,6 +45,12 @@ public:
     /// Get maximum subscribers per event type
     static constexpr size_t maxSubscribersPerEvent() { return MAX_SUBSCRIBERS_PER_EVENT; }
 
+    /// Get maximum distinct event topics supported
+    static constexpr size_t maxTopics() { return MAX_EVENT_TOPICS; }
+
+    /// Get maximum total subscriptions supported across all topics
+    static constexpr size_t maxSubscriptions() { return MAX_EVENT_SUBSCRIPTIONS; }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // Statistics (only available when OC_ENABLE_STATS=1)
     // ═══════════════════════════════════════════════════════════════════════════
@@ -60,18 +68,34 @@ public:
     void resetStats() { stats_ = {}; }
 
 private:
-    struct Subscription {
-        interface::SubscriptionID id;
-        interface::EventCallback callback;
-        bool alive = true;
+    struct SubscriptionSlot {
+        interface::SubscriptionID id = 0;
+        uint32_t key = 0;
+        interface::EventCallback callback{};
+        bool alive = false;
+    };
+
+    struct TopicSlot {
+        uint32_t key = 0;
+        bool used = false;
     };
 
     uint32_t makeKey(oc::type::EventCategoryType category, oc::type::EventType type) const;
+    TopicSlot* findTopic_(uint32_t key);
+    const TopicSlot* findTopic_(uint32_t key) const;
+    TopicSlot* findOrCreateTopic_(uint32_t key);
+    bool topicHasActiveSubscribers_(uint32_t key) const;
+    size_t activeSubscriberCountForKey_(uint32_t key) const;
+    void clearTopic_(TopicSlot& topic);
+    void reclaimEmptyTopics_();
     void autoCompactIfNeeded();
 
-    std::unordered_map<uint32_t, std::vector<Subscription>> subscriptions_;
+    std::array<TopicSlot, MAX_EVENT_TOPICS> topics_{};
+    std::array<SubscriptionSlot, MAX_EVENT_SUBSCRIPTIONS> subscriptions_{};
     interface::SubscriptionID next_id_;
-    size_t dead_count_ = 0;  ///< Number of dead entries across all vectors
+    size_t topic_count_ = 0;
+    size_t dead_count_ = 0;  ///< Number of dead subscriber slots pending compaction
+    size_t emit_depth_ = 0;
     Stats stats_{};
 };
 
