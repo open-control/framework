@@ -58,6 +58,9 @@ public:
     /// Send MIDI Continue realtime message (0xFB)
     void sendContinue();
 
+    /// Drain buffered transport output when supported by the backend.
+    void serviceOutput();
+
     // ═══════════════════════════════════════════════════
     // Safety
     // ═══════════════════════════════════════════════════

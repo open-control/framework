@@ -22,6 +22,7 @@ public:
     virtual oc::type::Result<void> init() = 0;
 
     virtual void update() = 0;
+    virtual void serviceOutput() {}
 
     // ═══════════════════════════════════════════════════
     // Output

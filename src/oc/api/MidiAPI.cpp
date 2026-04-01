@@ -107,6 +107,10 @@ void MidiAPI::sendContinue() {
     transport_.sendContinue();
 }
 
+void MidiAPI::serviceOutput() {
+    transport_.serviceOutput();
+}
+
 // ═══════════════════════════════════════════════════
 // Safety
 // ═══════════════════════════════════════════════════

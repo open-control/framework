@@ -124,7 +124,15 @@ void OpenControlApp::update() {
         }
     }
 
+    if (midi_) {
+        midi_->serviceOutput();
+    }
+
     contexts_->update();
+
+    if (midi_) {
+        midi_->serviceOutput();
+    }
 
     // Flush deferred signal notifications (coalesced updates)
     state::NotificationQueue::instance().flush();
