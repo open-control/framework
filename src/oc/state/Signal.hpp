@@ -184,17 +184,15 @@ public:
                 // Unique key = (signal address, slot index)
                 auto key = NotificationQueue::Key(static_cast<void*>(this), i);
 
-                // Capture by value to ensure correct execution at flush time
-                // The callback reads value_ at flush time (final value)
-                Signal* self = this;
-                size_t slot = i;
-
-                NotificationQueue::instance().enqueue(key, [self, slot]() {
-                    // Re-check callback validity (could have been unsubscribed)
-                    if (self->callbacks_[slot]) {
-                        self->callbacks_[slot](self->value_);
-                    }
-                });
+                NotificationQueue::instance().enqueue(
+                    key,
+                    static_cast<void*>(this),
+                    [](void* context, size_t slot) {
+                        auto* self = static_cast<Signal*>(context);
+                        if (self->callbacks_[slot]) {
+                            self->callbacks_[slot](self->value_);
+                        }
+                    });
             }
         }
     }

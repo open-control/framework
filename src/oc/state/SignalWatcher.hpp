@@ -111,7 +111,12 @@ public:
 
 private:
     void enqueue() {
-        NotificationQueue::instance().enqueue(key_, [this]() { callback_(); });
+        NotificationQueue::instance().enqueue(
+            key_,
+            static_cast<void*>(this),
+            [](void* context, size_t) {
+                static_cast<WatchGroup*>(context)->callback_();
+            });
     }
 
     NotificationQueue::Key key_;

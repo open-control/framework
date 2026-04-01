@@ -36,12 +36,10 @@
  * @endcode
  */
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
-#include <functional>
-#include <unordered_set>
 #include <utility>
-#include <vector>
 
 #include <oc/Config.hpp>
 
@@ -55,24 +53,13 @@ using oc::ENABLE_STATS;
  *
  * Thread safety: NOT thread-safe (single-threaded embedded use only)
  */
-class NotificationQueue {
+class alignas(std::max_align_t) NotificationQueue {
 public:
     /// Notification key: (signal_ptr, slot_index) uniquely identifies a callback
     using Key = std::pair<void*, size_t>;
 
-    /// Notification function (captures signal/slot for deferred execution)
-    using NotifyFn = std::function<void()>;
-
-private:
-    /// Hash function for Key (signal_ptr, slot_index)
-    struct KeyHash {
-        size_t operator()(const Key& k) const noexcept {
-            // Combine pointer and slot index into hash
-            auto h1 = std::hash<void*>{}(k.first);
-            auto h2 = std::hash<size_t>{}(k.second);
-            return h1 ^ (h2 << 1);
-        }
-    };
+    /// Notification function (context + slot for deferred execution)
+    using NotifyFn = void (*)(void*, size_t);
 
 public:
 
@@ -88,9 +75,10 @@ public:
      * this call is ignored (coalescing).
      *
      * @param key Unique identifier (signal_ptr, slot_index)
+     * @param context Opaque callback context
      * @param fn Function to call at flush time
      */
-    void enqueue(Key key, NotifyFn fn);
+    void enqueue(Key key, void* context, NotifyFn fn);
 
     /**
      * @brief Execute all pending notifications and clear the queue
@@ -103,12 +91,12 @@ public:
     /**
      * @brief Check if there are pending notifications
      */
-    [[nodiscard]] bool hasPending() const { return !pending_.empty(); }
+    [[nodiscard]] bool hasPending() const { return pendingCount_ != 0; }
 
     /**
      * @brief Get count of pending notifications (for debugging)
      */
-    [[nodiscard]] size_t pendingCount() const { return pending_.size(); }
+    [[nodiscard]] size_t pendingCount() const { return pendingCount_; }
 
     /**
      * @brief Enable/disable deferred mode
@@ -210,13 +198,19 @@ public:
 private:
     NotificationQueue() = default;
 
-    struct PendingNotification {
-        Key key;
-        NotifyFn fn;
+    struct Entry {
+        Key key{nullptr, 0};
+        void* context = nullptr;
+        NotifyFn fn = nullptr;
     };
 
-    std::vector<PendingNotification> pending_;
-    std::unordered_set<Key, KeyHash> pending_keys_;  ///< O(1) coalescing lookup
+    bool containsKey_(const std::array<Entry, MAX_PENDING_NOTIFICATIONS>& entries,
+                      size_t count,
+                      Key key) const;
+
+    std::array<Entry, MAX_PENDING_NOTIFICATIONS> pending_{};
+    std::array<Entry, MAX_PENDING_NOTIFICATIONS> processing_{};
+    size_t pendingCount_ = 0;
     bool deferredMode_ = true;
     bool isFlushing_ = false;  ///< Prevent re-entrancy issues
     size_t overflowCount_ = 0; ///< Number of dropped notifications

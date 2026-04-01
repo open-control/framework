@@ -5,30 +5,40 @@
 
 #include "NotificationQueue.hpp"
 
-#include <algorithm>
-
 #include <oc/log/Log.hpp>
 
 namespace oc::state {
 
 NotificationQueue& NotificationQueue::instance() {
-    static NotificationQueue instance;
-    return instance;
+    static NotificationQueue queue;
+    return queue;
 }
 
-void NotificationQueue::enqueue(Key key, NotifyFn fn) {
+bool NotificationQueue::containsKey_(
+    const std::array<Entry, MAX_PENDING_NOTIFICATIONS>& entries,
+    size_t count,
+    Key key) const {
+    for (size_t i = 0; i < count; ++i) {
+        if (entries[i].key == key) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void NotificationQueue::enqueue(Key key, void* context, NotifyFn fn) {
     // Immediate mode: execute directly (legacy behavior)
     if (!deferredMode_) {
         if constexpr (ENABLE_STATS) {
             stats_.totalEnqueued++;
             stats_.totalFlushed++;
         }
-        fn();
+        fn(context, key.second);
         return;
     }
 
-    // O(1) check if this key is already queued (coalescing)
-    if (pending_keys_.count(key)) {
+    // O(N) check against fixed-capacity queue (deterministic, allocation-free)
+    if (containsKey_(pending_, pendingCount_, key)) {
         // Already queued - ignore duplicate
         // The existing entry will use the final value at flush time
         if constexpr (ENABLE_STATS) {
@@ -38,21 +48,21 @@ void NotificationQueue::enqueue(Key key, NotifyFn fn) {
     }
 
     // Check overflow before adding
-    if (pending_.size() >= MAX_PENDING_NOTIFICATIONS) {
+    if (pendingCount_ >= MAX_PENDING_NOTIFICATIONS) {
         overflowCount_++;
         OC_LOG_WARN("NotificationQueue overflow! Dropped notification (total dropped: {})",
                     overflowCount_);
         return;
     }
 
-    // Add to queue and tracking set
-    pending_keys_.insert(key);
-    pending_.push_back({key, std::move(fn)});
+    // Add to fixed-capacity queue
+    pending_[pendingCount_] = Entry{key, context, fn};
+    ++pendingCount_;
 
     if constexpr (ENABLE_STATS) {
         stats_.totalEnqueued++;
-        if (pending_.size() > stats_.peakPending) {
-            stats_.peakPending = pending_.size();
+        if (pendingCount_ > stats_.peakPending) {
+            stats_.peakPending = pendingCount_;
         }
     }
 }
@@ -68,18 +78,22 @@ void NotificationQueue::flush() {
 
     // Process until queue is empty
     // (new notifications during processing go to next iteration)
-    while (!pending_.empty()) {
-        // Move to local to handle notifications that enqueue more notifications
-        auto toProcess = std::move(pending_);
-        pending_.clear();
-        pending_keys_.clear();
+    while (pendingCount_ != 0) {
+        const size_t processingCount = pendingCount_;
+        for (size_t i = 0; i < processingCount; ++i) {
+            processing_[i] = pending_[i];
+        }
+        pendingCount_ = 0;
 
         // Execute all pending notifications
-        for (auto& p : toProcess) {
+        for (size_t i = 0; i < processingCount; ++i) {
             if constexpr (ENABLE_STATS) {
                 stats_.totalFlushed++;
             }
-            p.fn();
+            auto& entry = processing_[i];
+            if (entry.fn != nullptr) {
+                entry.fn(entry.context, entry.key.second);
+            }
         }
     }
 
