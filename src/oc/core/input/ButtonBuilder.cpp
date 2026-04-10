@@ -153,6 +153,15 @@ FLASHMEM BindingHandle ButtonBuilder::then(oc::type::ActionCallback cb) {
     };
 
     oc::type::BindingID id = registry_->registerButtonBinding(std::move(binding));
+    if (id == 0) {
+        OC_LOG_ERROR("[ButtonBuilder] failed to register binding button={} type={} scope={} latch={} used={}/{}",
+                     static_cast<unsigned>(buttonId_),
+                     static_cast<unsigned>(type_),
+                     static_cast<unsigned>(scope_),
+                     latch_ ? 1U : 0U,
+                     static_cast<unsigned>(registry_->buttonBindingCount()),
+                     static_cast<unsigned>(registry_->buttonBindingCapacity()));
+    }
     return BindingHandle(registry_, id);
 }
 

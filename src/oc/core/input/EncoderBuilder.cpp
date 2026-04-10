@@ -89,6 +89,13 @@ FLASHMEM BindingHandle EncoderBuilder::then(oc::type::EncoderActionCallback cb) 
     };
 
     oc::type::BindingID id = registry_->registerEncoderBinding(std::move(binding));
+    if (id == 0) {
+        OC_LOG_ERROR("[EncoderBuilder] failed to register binding encoder={} scope={} used={}/{}",
+                     static_cast<unsigned>(encoderId_),
+                     static_cast<unsigned>(scope_),
+                     static_cast<unsigned>(registry_->encoderBindingCount()),
+                     static_cast<unsigned>(registry_->encoderBindingCapacity()));
+    }
     return BindingHandle(registry_, id);
 }
 

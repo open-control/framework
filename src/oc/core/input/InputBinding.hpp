@@ -154,6 +154,14 @@ public:
      */
     const InputConfig& config() const { return config_; }
 
+    /**
+     * @brief Runtime binding registry stats
+     */
+    size_t buttonBindingCount() const { return button_registry_.size(); }
+    size_t encoderBindingCount() const { return encoder_registry_.size(); }
+    size_t buttonBindingCapacity() const { return button_registry_.capacity(); }
+    size_t encoderBindingCapacity() const { return encoder_registry_.capacity(); }
+
 private:
     BindingRegistry<ButtonBinding> button_registry_;
     BindingRegistry<EncoderBinding> encoder_registry_;

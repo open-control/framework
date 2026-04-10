@@ -19,6 +19,14 @@ void EncoderAPI::clearScope(oc::type::ScopeID scope) {
     binding_.clearEncoderScope(scope);
 }
 
+size_t EncoderAPI::bindingCount() const {
+    return binding_.encoderBindingCount();
+}
+
+size_t EncoderAPI::bindingCapacity() const {
+    return binding_.encoderBindingCapacity();
+}
+
 float EncoderAPI::getPosition(oc::type::EncoderID id) const {
     return hw_.getPosition(id);
 }

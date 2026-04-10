@@ -92,6 +92,9 @@ public:
     /// Clear button bindings in a specific scope
     void clearScope(oc::type::ScopeID scope);
 
+    size_t bindingCount() const;
+    size_t bindingCapacity() const;
+
     /**
      * @brief Set the authority resolver for scope-based input filtering
      *

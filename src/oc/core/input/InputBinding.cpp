@@ -170,6 +170,14 @@ FLASHMEM bool InputBinding::removeById(oc::type::BindingID id) {
 
 void InputBinding::onEncoderChanged(const oc::type::Event& event) {
     auto& evt = static_cast<const EncoderChangedEvent&>(event);
+    if (evt.encoderId == 400) {
+        const oc::type::ScopeID authority =
+            authority_resolver_ ? authority_resolver_->getAuthority() : 0;
+        OC_LOG_DEBUG("[InputBinding] encoder event id={} value={} authority={}",
+                     static_cast<unsigned>(evt.encoderId),
+                     evt.normalizedValue,
+                     static_cast<unsigned>(authority));
+    }
     dispatchEncoderEvent(evt.encoderId, evt.normalizedValue);
 }
 
@@ -293,14 +301,41 @@ void InputBinding::dispatchButtonEvent(oc::type::ButtonID id, ButtonBindingType 
 void InputBinding::dispatchEncoderEvent(oc::type::EncoderID id, float value) {
     if (!bindings_enabled_) return;
 
+    const bool traceNav = (id == 400);
+    if (traceNav) {
+        const oc::type::ScopeID authority =
+            authority_resolver_ ? authority_resolver_->getAuthority() : 0;
+        OC_LOG_DEBUG("[InputBinding] dispatch encoder id={} value={} authority={} scopedBindings={}",
+                     static_cast<unsigned>(id),
+                     value,
+                     static_cast<unsigned>(authority),
+                     static_cast<unsigned>(encoder_registry_.size()));
+    }
+
     // Try scoped bindings first
     for (auto& binding : encoder_registry_.bindings()) {
         if (!binding.enabled || binding.encoderId != id) continue;
         if (binding.scopeId == 0) continue;
-        if (!isBindingActive(binding) || !hasAuthority(binding.scopeId)) continue;
-        if (!checkRequiredButton(binding)) continue;
+        const bool active = isBindingActive(binding);
+        const bool authority = hasAuthority(binding.scopeId);
+        const bool requiredButton = checkRequiredButton(binding);
+        if (traceNav) {
+            OC_LOG_DEBUG("[InputBinding] scoped candidate binding={} scope={} active={} authority={} requiredButton={}",
+                         static_cast<unsigned>(binding.id),
+                         static_cast<unsigned>(binding.scopeId),
+                         active ? 1U : 0U,
+                         authority ? 1U : 0U,
+                         requiredButton ? 1U : 0U);
+        }
+        if (!active || !authority) continue;
+        if (!requiredButton) continue;
 
         if (binding.action) {
+            if (traceNav) {
+                OC_LOG_DEBUG("[InputBinding] dispatch scoped binding={} scope={}",
+                             static_cast<unsigned>(binding.id),
+                             static_cast<unsigned>(binding.scopeId));
+            }
             binding.action(value);
             return;
         }
@@ -310,12 +345,29 @@ void InputBinding::dispatchEncoderEvent(oc::type::EncoderID id, float value) {
     for (auto& binding : encoder_registry_.bindings()) {
         if (!binding.enabled || binding.encoderId != id) continue;
         if (binding.scopeId != 0) continue;
-        if (!isBindingActive(binding)) continue;
-        if (!checkRequiredButton(binding)) continue;
+        const bool active = isBindingActive(binding);
+        const bool requiredButton = checkRequiredButton(binding);
+        if (traceNav) {
+            OC_LOG_DEBUG("[InputBinding] global candidate binding={} active={} requiredButton={}",
+                         static_cast<unsigned>(binding.id),
+                         active ? 1U : 0U,
+                         requiredButton ? 1U : 0U);
+        }
+        if (!active) continue;
+        if (!requiredButton) continue;
 
         if (binding.action) {
+            if (traceNav) {
+                OC_LOG_DEBUG("[InputBinding] dispatch global binding={}",
+                             static_cast<unsigned>(binding.id));
+            }
             binding.action(value);
         }
+    }
+
+    if (traceNav) {
+        OC_LOG_DEBUG("[InputBinding] no encoder binding dispatched for id={}",
+                     static_cast<unsigned>(id));
     }
 }
 

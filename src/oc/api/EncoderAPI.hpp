@@ -59,6 +59,9 @@ public:
     /// Clear encoder bindings in a specific scope
     void clearScope(oc::type::ScopeID scope);
 
+    size_t bindingCount() const;
+    size_t bindingCapacity() const;
+
     // ═══════════════════════════════════════════════════
     // Hardware state
     // ═══════════════════════════════════════════════════

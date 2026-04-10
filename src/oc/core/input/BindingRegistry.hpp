@@ -46,7 +46,9 @@ public:
      */
     oc::type::BindingID add(BindingType binding) {
         if (bindings_.size() >= max_bindings_) {
-            OC_LOG_WARN("BindingRegistry: max bindings ({}) reached", max_bindings_);
+            OC_LOG_ERROR("BindingRegistry: capacity reached used={} max={}",
+                         bindings_.size(),
+                         max_bindings_);
             return 0;
         }
 
@@ -113,6 +115,11 @@ public:
      * @brief Check if at capacity
      */
     bool isFull() const { return bindings_.size() >= max_bindings_; }
+
+    /**
+     * @brief Get registry capacity
+     */
+    size_t capacity() const { return max_bindings_; }
 
 private:
     std::vector<BindingType> bindings_;

@@ -47,6 +47,14 @@ void ButtonAPI::clearScope(oc::type::ScopeID scope) {
     binding_.clearButtonScope(scope);
 }
 
+size_t ButtonAPI::bindingCount() const {
+    return binding_.buttonBindingCount();
+}
+
+size_t ButtonAPI::bindingCapacity() const {
+    return binding_.buttonBindingCapacity();
+}
+
 void ButtonAPI::setAuthorityResolver(const core::input::AuthorityResolver* resolver) {
     binding_.setAuthorityResolver(resolver);
 }
