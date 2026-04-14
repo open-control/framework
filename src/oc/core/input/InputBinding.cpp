@@ -8,6 +8,16 @@ namespace oc::core::input {
 
 using namespace event;
 
+namespace {
+
+#ifdef OC_INPUT_BINDING_TRACE_NAV
+constexpr bool INPUT_BINDING_TRACE_NAV = true;
+#else
+constexpr bool INPUT_BINDING_TRACE_NAV = false;
+#endif
+
+}  // namespace
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Construction / Destruction
 // ═══════════════════════════════════════════════════════════════════════════
@@ -170,7 +180,7 @@ FLASHMEM bool InputBinding::removeById(oc::type::BindingID id) {
 
 void InputBinding::onEncoderChanged(const oc::type::Event& event) {
     auto& evt = static_cast<const EncoderChangedEvent&>(event);
-    if (evt.encoderId == 400) {
+    if (INPUT_BINDING_TRACE_NAV && evt.encoderId == 400) {
         const oc::type::ScopeID authority =
             authority_resolver_ ? authority_resolver_->getAuthority() : 0;
         OC_LOG_DEBUG("[InputBinding] encoder event id={} value={} authority={}",
@@ -301,7 +311,7 @@ void InputBinding::dispatchButtonEvent(oc::type::ButtonID id, ButtonBindingType 
 void InputBinding::dispatchEncoderEvent(oc::type::EncoderID id, float value) {
     if (!bindings_enabled_) return;
 
-    const bool traceNav = (id == 400);
+    const bool traceNav = INPUT_BINDING_TRACE_NAV && (id == 400);
     if (traceNav) {
         const oc::type::ScopeID authority =
             authority_resolver_ ? authority_resolver_->getAuthority() : 0;
