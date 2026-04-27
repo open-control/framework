@@ -24,7 +24,7 @@ This document exists to make the framework structure predictable and reproducibl
 The `src/oc/` tree is split into modules by the first directory level:
 
 - `src/oc/type/` (Level 0): foundational types (Result, IDs, callbacks, events)
-- `src/oc/log/`, `src/oc/time/`, `src/oc/util/`, `src/oc/codec/`, `src/oc/debug/` (Level 0): platform-agnostic utilities
+- `src/oc/log/`, `src/oc/time/`, `src/oc/util/`, `src/oc/codec/`, `src/oc/debug/`, `src/oc/realtime/` (Level 0): platform-agnostic utilities
 - `src/oc/interface/` (Level 1): pure abstractions (HAL + service interfaces)
 - `src/oc/core/`, `src/oc/state/`, `src/oc/impl/` (Level 2): framework internals
 - `src/oc/api/`, `src/oc/context/` (Level 3): user-facing facade + context orchestration
@@ -33,6 +33,7 @@ The `src/oc/` tree is split into modules by the first directory level:
 ## "If I Create A New X, Where Does It Go?"
 
 - New ID / error type / basic POD used everywhere: `src/oc/type/`
+- New realtime primitive with no framework ownership: `src/oc/realtime/`
 - New HAL abstraction (driver contract): `src/oc/interface/`
 - New mock/null implementation of an interface: `src/oc/impl/`
 - New internal algorithm (input logic, routing, etc.): `src/oc/core/`
@@ -70,8 +71,8 @@ Allowed high-level dependencies:
 - `type`: must not include any `oc/...` header
 - `interface`: may include `type`
 - `impl`: may include `interface`, `type`
-- `core`: may include `interface`, `type`, `oc/Config.hpp`, and Level-0 utilities (`log`, `time`, `util`, `codec`, `debug`)
-- `state`: may include `interface`, `type`, `oc/Config.hpp`, and Level-0 utilities (`log`, `time`, `util`, `codec`, `debug`)
+- `core`: may include `interface`, `type`, `oc/Config.hpp`, and Level-0 utilities (`log`, `time`, `util`, `codec`, `debug`, `realtime`)
+- `state`: may include `interface`, `type`, `oc/Config.hpp`, and Level-0 utilities (`log`, `time`, `util`, `codec`, `debug`, `realtime`)
 - `api`: may include `core`, `interface`, `type` (+ Level-0 utilities)
 - `context`: may include `api`, `core`, `state`, `interface`, `type` (+ Level-0 utilities)
 - `app`: may include everything (composition root)

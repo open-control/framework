@@ -4,8 +4,7 @@
  * @file Time.hpp
  * @brief Platform-agnostic time provider API
  *
- * Provides a clean, generic way to access system time across the framework.
- * The HAL registers its time provider at boot via setProvider().
+ * Provides application and realtime time providers.
  *
  * Architecture:
  * - Framework defines the oc::type::TimeProvider function type
@@ -52,5 +51,19 @@ uint32_t millis();
  * @return true if setProvider() has been called
  */
 bool isConfigured();
+
+/// Register the realtime microsecond provider.
+void setMicrosProvider(oc::type::MicrosProvider provider);
+
+/// Current realtime in microseconds. Use signedDeltaUs() for deadline checks.
+uint32_t micros32();
+
+/// True when a realtime microsecond provider is available.
+bool isMicrosConfigured();
+
+/// Positive: late. Zero: on time. Negative: early.
+inline int32_t signedDeltaUs(uint32_t nowUs, uint32_t deadlineUs) {
+    return static_cast<int32_t>(nowUs - deadlineUs);
+}
 
 }  // namespace oc::time

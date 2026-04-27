@@ -23,6 +23,9 @@ namespace oc::type {
  */
 using TimeProvider = uint32_t (*)();
 
+/// Function pointer for current realtime in microseconds.
+using MicrosProvider = uint32_t (*)();
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Button types
 // ═══════════════════════════════════════════════════════════════════════════
