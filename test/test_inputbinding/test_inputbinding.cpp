@@ -1068,7 +1068,7 @@ void test_release_owner_only_blocks_cross_scope_fallback() {
     TEST_ASSERT_EQUAL(0, fallbackRelease);
 }
 
-void test_release_owner_then_fallback_keeps_legacy_behavior() {
+void test_release_owner_then_fallback_uses_owner_first_policy() {
     InputConfig config;
     config.releaseRoutingPolicy = ReleaseRoutingPolicy::OwnerThenFallback;
     InputBinding binding(bus, fakeTime.provider(), config);
@@ -1757,7 +1757,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_authority_resolver_gates_combo_scoped_bindings);
     RUN_TEST(test_release_owner_dispatch_ignores_authority_changes);
     RUN_TEST(test_release_owner_only_blocks_cross_scope_fallback);
-    RUN_TEST(test_release_owner_then_fallback_keeps_legacy_behavior);
+    RUN_TEST(test_release_owner_then_fallback_uses_owner_first_policy);
     RUN_TEST(test_owner_only_does_not_regress_latch_release_cycle);
     RUN_TEST(test_owner_then_fallback_latch_toggle_allows_cross_scope_release);
     RUN_TEST(test_press_owner_handoff_routes_release_to_new_scope);

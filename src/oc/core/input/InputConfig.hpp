@@ -13,7 +13,7 @@ enum class ReleaseRoutingPolicy : uint8_t {
     /**
      * @brief Try press owner first, then fall back to normal scoped/global release dispatch
      *
-     * This preserves legacy behavior and backward compatibility.
+     * This preserves the existing release routing contract.
      */
     OwnerThenFallback,
 

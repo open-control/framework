@@ -101,7 +101,7 @@ public:
     /**
      * @brief Enable/disable deferred mode
      *
-     * When disabled, notifications execute immediately (legacy behavior).
+     * When disabled, notifications execute immediately.
      * Useful for debugging or specific use cases.
      *
      * @param enabled true for deferred mode (default), false for immediate

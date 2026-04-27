@@ -27,7 +27,7 @@ bool NotificationQueue::containsKey_(
 }
 
 void NotificationQueue::enqueue(Key key, void* context, NotifyFn fn) {
-    // Immediate mode: execute directly (legacy behavior)
+    // Immediate mode executes synchronously.
     if (!deferredMode_) {
         if constexpr (ENABLE_STATS) {
             stats_.totalEnqueued++;
