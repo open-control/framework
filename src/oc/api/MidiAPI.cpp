@@ -111,6 +111,10 @@ void MidiAPI::serviceOutput() {
     transport_.serviceOutput();
 }
 
+void MidiAPI::serviceOutput(uint32_t budgetUs) {
+    transport_.serviceOutput(budgetUs);
+}
+
 // ═══════════════════════════════════════════════════
 // Safety
 // ═══════════════════════════════════════════════════

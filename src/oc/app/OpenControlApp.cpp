@@ -8,6 +8,11 @@
 
 namespace oc::app {
 
+namespace {
+constexpr uint32_t MIDI_PRE_CONTEXT_DRAIN_BUDGET_US = 500;
+constexpr uint32_t MIDI_POST_CONTEXT_DRAIN_BUDGET_US = 500;
+}  // namespace
+
 OpenControlApp::~OpenControlApp() = default;
 
 OpenControlApp::OpenControlApp(OpenControlApp&&) noexcept = default;
@@ -106,7 +111,7 @@ void OpenControlApp::update() {
     }
 
     if (midi_) {
-        midi_->update();
+        midi_->pollInput();
     }
     if (frames_) {
         frames_->update();
@@ -125,13 +130,13 @@ void OpenControlApp::update() {
     }
 
     if (midi_) {
-        midi_->serviceOutput();
+        midi_->serviceOutput(MIDI_PRE_CONTEXT_DRAIN_BUDGET_US);
     }
 
     contexts_->update();
 
     if (midi_) {
-        midi_->serviceOutput();
+        midi_->serviceOutput(MIDI_POST_CONTEXT_DRAIN_BUDGET_US);
     }
 
     // Flush deferred signal notifications (coalesced updates)

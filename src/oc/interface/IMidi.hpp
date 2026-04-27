@@ -22,7 +22,12 @@ public:
     virtual oc::type::Result<void> init() = 0;
 
     virtual void update() = 0;
+    virtual void pollInput() { update(); }
     virtual void serviceOutput() {}
+    virtual void serviceOutput(uint32_t budgetUs) {
+        (void)budgetUs;
+        serviceOutput();
+    }
 
     // ═══════════════════════════════════════════════════
     // Output
