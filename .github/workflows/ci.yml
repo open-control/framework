@@ -15,7 +15,7 @@ concurrency:
 
 env:
   MS_DEV_ENV_REPOSITORY: petitechose-midi-studio/ms-dev-env
-  MS_DEV_ENV_SHA: 38f7816b9d26e2b45c4edf22a1aa8761281b60ba
+  MS_DEV_ENV_SHA: 2d185972e5e8a76ad25ead9ee314c045fbf6ec9e
 
 jobs:
   unit_tests:
