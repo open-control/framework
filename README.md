@@ -516,11 +516,12 @@ See [Configuration](https://github.com/open-control/framework/wiki/Configuration
 ## Testing
 
 ```bash
-cd framework
-pio test -e native
+uv run ms test open-control-framework
 ```
 
-200+ unit tests covering core components.
+Unit tests run through the `ms-dev-env` CMake/CTest workflow with workspace-pinned tools
+and test dependencies.
+PlatformIO remains the embedded build path.
 
 ---
 

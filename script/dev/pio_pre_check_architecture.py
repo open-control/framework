@@ -15,7 +15,7 @@ def run_architecture_check() -> None:
 
     if result.returncode != 0:
         print("\n[oc] architecture: FAILED")
-        print("[oc] Fix the issues above, then re-run: pio test -e native")
+        print("[oc] Fix the issues above, then re-run: uv run ms test open-control-framework")
         print(f"[oc] Rules / include matrix: {rules_doc}")
         env.Exit(1)
 
