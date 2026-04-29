@@ -1,6 +1,7 @@
 #include "AppBuilder.hpp"
 
 #include <cassert>
+#include <utility>
 
 #include <config/PlatformCompat.hpp>
 #include "OpenControlApp.hpp"
@@ -39,6 +40,11 @@ AppBuilder& AppBuilder::inputConfig(const core::input::InputConfig& config) {
     return *this;
 }
 
+AppBuilder& AppBuilder::inputTrace(core::input::InputBindingTraceCallback callback) {
+    input_trace_callback_ = std::move(callback);
+    return *this;
+}
+
 AppBuilder& AppBuilder::timeProvider(oc::type::TimeProvider provider) {
     time_provider_ = provider;
     // Configure oc::time to use the same provider
@@ -66,6 +72,7 @@ FLASHMEM OpenControlApp AppBuilder::build() {
     if (app.buttons_ || app.encoders_) {
         app.input_binding_ =
             std::make_unique<core::input::InputBinding>(app.event_bus_, app.time_provider_, app.input_config_);
+        app.input_binding_->setTraceCallback(std::move(input_trace_callback_));
     }
 
     // Create APIs conditionally based on available hardware

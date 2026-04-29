@@ -12,6 +12,7 @@
 #include <oc/core/input/LatchManager.hpp>
 #include <oc/core/input/OwnershipTracker.hpp>
 #include <oc/core/input/Binding.hpp>
+#include <oc/core/input/InputBindingTrace.hpp>
 #include <oc/type/Ids.hpp>
 #include <oc/type/Callbacks.hpp>
 #include <oc/type/Event.hpp>
@@ -74,6 +75,7 @@ public:
     void processTick();
     void clearBindings();
     void setBindingsEnabled(bool enabled);
+    void setTraceCallback(InputBindingTraceCallback callback);
 
     /**
      * @brief Set the authority resolver for scope-based input filtering
@@ -183,6 +185,8 @@ private:
     bool isBindingActive(const BindingType& binding) const;
     bool hasAuthority(oc::type::ScopeID scope) const;
     bool checkRequiredButton(const EncoderBinding& binding) const;
+    void trace(const InputBindingTraceEvent& event) const;
+    oc::type::ScopeID currentAuthority() const;
 
     // Gesture triggers
     void checkLongPress(oc::type::ButtonID id, uint32_t now);
@@ -207,6 +211,7 @@ private:
 
     InputConfig config_;
     bool bindings_enabled_ = true;
+    InputBindingTraceCallback trace_callback_;
     uint32_t current_time_ = 0;
     oc::type::BindingID next_binding_id_ = 1;  ///< Next ID to assign (0 = invalid)
     const AuthorityResolver* authority_resolver_ = nullptr;  ///< Optional authority check

@@ -3,6 +3,7 @@
 #include <memory>
 
 #include <oc/core/input/InputConfig.hpp>
+#include <oc/core/input/InputBindingTrace.hpp>
 #include <oc/interface/IButton.hpp>
 #include <oc/interface/IDisplay.hpp>
 #include <oc/interface/IEncoder.hpp>
@@ -66,6 +67,7 @@ public:
     AppBuilder& encoders(std::unique_ptr<interface::IEncoder> controller);
     AppBuilder& buttons(std::unique_ptr<interface::IButton> controller);
     AppBuilder& inputConfig(const core::input::InputConfig& config);
+    AppBuilder& inputTrace(core::input::InputBindingTraceCallback callback);
     AppBuilder& timeProvider(oc::type::TimeProvider provider);
 
     /**
@@ -82,6 +84,7 @@ private:
     std::unique_ptr<interface::IEncoder> encoders_;
     std::unique_ptr<interface::IButton> buttons_;
     core::input::InputConfig input_config_;
+    core::input::InputBindingTraceCallback input_trace_callback_;
     oc::type::TimeProvider time_provider_ = nullptr;
 };
 
