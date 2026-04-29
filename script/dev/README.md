@@ -24,14 +24,14 @@ From anywhere in the project:
 # Architecture guardrails (namespaces + module dependencies)
 python3 script/dev/check_architecture.py
 
-# Note: pio test runs this check automatically (and fails fast)
-pio test -e native
+# Unit tests run this check automatically (and fail fast)
+uv run ms test open-control-framework
 ```
 
 ## Requirements
 
 - **clang-format**: Must be in PATH (installed with LLVM or clangd extension)
-- **PlatformIO CLI**: For `restart-clangd.sh`
+- **ms-dev-env**: For the supported CMake/CTest unit-test workflow
 
 ## Shared Library
 
