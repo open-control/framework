@@ -83,6 +83,45 @@ public:
                                            size_t size) = 0;
 
     virtual oc::type::Result<void> flush(const char* path) = 0;
+
+    /**
+     * Start one exclusive sequential write session.
+     *
+     * The target path must be validated like write(). Implementations may
+     * replace the target in place or stage it internally, but only one session
+     * can be active at a time. expectedSize is authoritative: appendWrite()
+     * must reject writes beyond it, and finishWrite() must fail if the exact
+     * byte count has not been appended.
+     */
+    virtual oc::type::Result<void> beginWrite(const char* path,
+                                              uint32_t expectedSize) = 0;
+
+    /**
+     * Append the next contiguous chunk to the active write session.
+     *
+     * A successful result must report exactly the number of bytes committed by
+     * the backend. Callers must treat a short successful write as a storage
+     * failure and abort the session.
+     */
+    virtual oc::type::Result<size_t> appendWrite(const uint8_t* data,
+                                                 size_t size) = 0;
+
+    /**
+     * Commit the active write session.
+     *
+     * On success, all expected bytes are durable according to the backend's
+     * normal flush/sync semantics. On failure, the session is no longer
+     * usable; callers may still call abortWrite() for best-effort cleanup.
+     */
+    virtual oc::type::Result<void> finishWrite() = 0;
+
+    /**
+     * Abort the active write session.
+     *
+     * This is best-effort cleanup and must be safe to call when no session is
+     * active.
+     */
+    virtual void abortWrite() = 0;
 };
 
 }  // namespace oc::interface
