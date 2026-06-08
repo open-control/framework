@@ -22,7 +22,10 @@
 namespace oc::codec {
 
 /// Maximum frame size (must match bridge)
-static constexpr size_t COBS_MAX_FRAME_SIZE = 4096;
+#ifndef OC_COBS_MAX_FRAME_SIZE
+#define OC_COBS_MAX_FRAME_SIZE 4096
+#endif
+static constexpr size_t COBS_MAX_FRAME_SIZE = OC_COBS_MAX_FRAME_SIZE;
 
 /// Frame delimiter byte
 static constexpr uint8_t COBS_DELIMITER = 0x00;
@@ -118,7 +121,8 @@ inline size_t cobsDecode(const uint8_t* input, size_t inputLen, uint8_t* output)
  * Accumulates bytes and invokes callback for each complete frame.
  * Zero-allocation after construction (uses fixed internal buffers).
  *
- * @note Memory usage: 2 * MaxFrameSize bytes (default: 8KB total)
+ * @note Memory usage: 2 * MaxFrameSize bytes. Raise OC_COBS_MAX_FRAME_SIZE
+ * only in firmware targets that need larger transport frames.
  *
  * @tparam MaxFrameSize Maximum frame size to buffer
  */

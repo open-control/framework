@@ -399,6 +399,116 @@ public:
         return oc::type::Result<void>::ok();
     }
 
+    oc::type::Result<void> beginWrite(const char* path, uint32_t expectedSize) override {
+        if (writeActive_) {
+            return oc::type::Result<void>::err(
+                {oc::type::ErrorCode::INVALID_STATE, "write stream already active"}
+            );
+        }
+
+        std::filesystem::path resolved;
+        auto pathResult = resolvePath_(path, resolved);
+        if (!pathResult) {
+            return pathResult;
+        }
+        if (resolved == rootPath_) {
+            return oc::type::Result<void>::err(
+                {oc::type::ErrorCode::INVALID_ARGUMENT, "cannot write filesystem root"}
+            );
+        }
+
+        std::error_code ec;
+        const auto parent = resolved.parent_path();
+        if (!parent.empty() && !std::filesystem::exists(parent, ec)) {
+            return oc::type::Result<void>::err(
+                {oc::type::ErrorCode::RESOURCE_NOT_FOUND, "parent directory not found"}
+            );
+        }
+        if (std::filesystem::exists(resolved, ec) && std::filesystem::is_directory(resolved, ec)) {
+            return oc::type::Result<void>::err(
+                {oc::type::ErrorCode::INVALID_ARGUMENT, "path is a directory"}
+            );
+        }
+
+        writeStream_.open(
+            resolved,
+            std::ios::binary | std::ios::in | std::ios::out | std::ios::trunc
+        );
+        if (!writeStream_) {
+            return oc::type::Result<void>::err(
+                {oc::type::ErrorCode::STORAGE_WRITE_FAILED, "open write stream failed"}
+            );
+        }
+
+        writeExpectedSize_ = expectedSize;
+        writeBytes_ = 0;
+        writeActive_ = true;
+        return oc::type::Result<void>::ok();
+    }
+
+    oc::type::Result<size_t> appendWrite(const uint8_t* data, size_t size) override {
+        if (!data && size > 0) {
+            return oc::type::Result<size_t>::err(
+                {oc::type::ErrorCode::INVALID_ARGUMENT, "null write buffer"}
+            );
+        }
+        if (!writeActive_ || !writeStream_) {
+            return oc::type::Result<size_t>::err(
+                {oc::type::ErrorCode::INVALID_STATE, "write stream is not active"}
+            );
+        }
+        if (writeBytes_ + size > writeExpectedSize_) {
+            return oc::type::Result<size_t>::err(
+                {oc::type::ErrorCode::INVALID_ARGUMENT, "write exceeds expected size"}
+            );
+        }
+        if (size == 0) {
+            return oc::type::Result<size_t>::ok(0);
+        }
+
+        writeStream_.write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(size));
+        if (!writeStream_) {
+            return oc::type::Result<size_t>::err(
+                {oc::type::ErrorCode::STORAGE_WRITE_FAILED, "write stream failed"}
+            );
+        }
+
+        writeBytes_ += size;
+        return oc::type::Result<size_t>::ok(size);
+    }
+
+    oc::type::Result<void> finishWrite() override {
+        if (!writeActive_ || !writeStream_) {
+            return oc::type::Result<void>::err(
+                {oc::type::ErrorCode::INVALID_STATE, "write stream is not active"}
+            );
+        }
+        if (writeBytes_ != writeExpectedSize_) {
+            abortWrite();
+            return oc::type::Result<void>::err(
+                {oc::type::ErrorCode::INVALID_STATE, "write stream size mismatch"}
+            );
+        }
+
+        writeStream_.flush();
+        const bool ok = static_cast<bool>(writeStream_);
+        writeStream_.close();
+        resetWriteStream_();
+        if (!ok) {
+            return oc::type::Result<void>::err(
+                {oc::type::ErrorCode::STORAGE_WRITE_FAILED, "finish write stream failed"}
+            );
+        }
+        return oc::type::Result<void>::ok();
+    }
+
+    void abortWrite() override {
+        if (writeStream_.is_open()) {
+            writeStream_.close();
+        }
+        resetWriteStream_();
+    }
+
 private:
     oc::type::Result<void> ensureInitialized_() const {
         if (!initialized_) {
@@ -528,7 +638,17 @@ private:
         }
     }
 
+    void resetWriteStream_() {
+        writeExpectedSize_ = 0;
+        writeBytes_ = 0;
+        writeActive_ = false;
+    }
+
     std::filesystem::path rootPath_;
+    std::fstream writeStream_;
+    uint32_t writeExpectedSize_ = 0;
+    uint32_t writeBytes_ = 0;
+    bool writeActive_ = false;
     bool initialized_ = false;
 };
 

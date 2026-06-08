@@ -239,6 +239,77 @@ void test_write_rejects_missing_parent_and_sparse_gap() {
     std::filesystem::remove_all(root);
 }
 
+void test_write_session_commits_exact_expected_size() {
+    const auto root = makeRoot("write-session-commit");
+    oc::impl::HostFileSystem fs(root.string().c_str());
+    TEST_ASSERT_TRUE(fs.init().isOk());
+    TEST_ASSERT_TRUE(fs.createDirectory("/midi-studio/tmp").isOk());
+
+    const std::array<uint8_t, 5> first{{'h', 'e', 'l', 'l', 'o'}};
+    const std::array<uint8_t, 6> second{{' ', 'w', 'o', 'r', 'l', 'd'}};
+
+    TEST_ASSERT_TRUE(fs.beginWrite("/midi-studio/tmp/session.bin", 11).isOk());
+    auto appendA = fs.appendWrite(first.data(), first.size());
+    TEST_ASSERT_TRUE(appendA.isOk());
+    TEST_ASSERT_EQUAL(first.size(), appendA.value());
+    auto appendB = fs.appendWrite(second.data(), second.size());
+    TEST_ASSERT_TRUE(appendB.isOk());
+    TEST_ASSERT_EQUAL(second.size(), appendB.value());
+    TEST_ASSERT_TRUE(fs.finishWrite().isOk());
+
+    std::array<uint8_t, 11> buffer{};
+    auto read = fs.read("/midi-studio/tmp/session.bin", 0, buffer.data(), buffer.size());
+    TEST_ASSERT_TRUE(read.isOk());
+    TEST_ASSERT_EQUAL(buffer.size(), read.value());
+    TEST_ASSERT_EQUAL_MEMORY("hello world", buffer.data(), buffer.size());
+
+    std::filesystem::remove_all(root);
+}
+
+void test_write_session_rejects_overflow_and_finish_mismatch() {
+    const auto root = makeRoot("write-session-errors");
+    oc::impl::HostFileSystem fs(root.string().c_str());
+    TEST_ASSERT_TRUE(fs.init().isOk());
+    TEST_ASSERT_TRUE(fs.createDirectory("/midi-studio/tmp").isOk());
+
+    const std::array<uint8_t, 4> payload{{0x10, 0x11, 0x12, 0x13}};
+    TEST_ASSERT_TRUE(fs.beginWrite("/midi-studio/tmp/session.bin", 3).isOk());
+
+    auto overflow = fs.appendWrite(payload.data(), payload.size());
+    TEST_ASSERT_TRUE(overflow.isErr());
+    TEST_ASSERT_EQUAL(oc::type::ErrorCode::INVALID_ARGUMENT, overflow.error().code);
+
+    auto append = fs.appendWrite(payload.data(), 2);
+    TEST_ASSERT_TRUE(append.isOk());
+    TEST_ASSERT_EQUAL(2u, append.value());
+
+    auto finish = fs.finishWrite();
+    TEST_ASSERT_TRUE(finish.isErr());
+    TEST_ASSERT_EQUAL(oc::type::ErrorCode::INVALID_STATE, finish.error().code);
+
+    std::filesystem::remove_all(root);
+}
+
+void test_write_session_abort_is_idempotent() {
+    const auto root = makeRoot("write-session-abort");
+    oc::impl::HostFileSystem fs(root.string().c_str());
+    TEST_ASSERT_TRUE(fs.init().isOk());
+    TEST_ASSERT_TRUE(fs.createDirectory("/midi-studio/tmp").isOk());
+
+    const std::array<uint8_t, 4> payload{{0x10, 0x11, 0x12, 0x13}};
+    TEST_ASSERT_TRUE(fs.beginWrite("/midi-studio/tmp/session.bin", payload.size()).isOk());
+    auto append = fs.appendWrite(payload.data(), payload.size());
+    TEST_ASSERT_TRUE(append.isOk());
+    fs.abortWrite();
+    fs.abortWrite();
+
+    auto restart = fs.beginWrite("/midi-studio/tmp/session.bin", payload.size());
+    TEST_ASSERT_TRUE(restart.isOk());
+    fs.abortWrite();
+
+    std::filesystem::remove_all(root);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_init_creates_root_and_reports_available);
@@ -248,5 +319,8 @@ int main() {
     RUN_TEST(test_remove_requires_recursive_mode_for_non_empty_directory);
     RUN_TEST(test_paths_are_bounded_and_cannot_escape_root);
     RUN_TEST(test_write_rejects_missing_parent_and_sparse_gap);
+    RUN_TEST(test_write_session_commits_exact_expected_size);
+    RUN_TEST(test_write_session_rejects_overflow_and_finish_mismatch);
+    RUN_TEST(test_write_session_abort_is_idempotent);
     return UNITY_END();
 }
