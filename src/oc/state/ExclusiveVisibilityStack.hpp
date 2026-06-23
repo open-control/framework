@@ -47,6 +47,9 @@ class ExclusiveVisibilityStack {
     static constexpr size_t COUNT = static_cast<size_t>(EnumT::COUNT);
 
 public:
+    // Keep template methods out of FLASHMEM: GCC emits inline template
+    // instantiations in COMDAT sections, which conflicts with Teensy's shared
+    // `.flashmem` section on direct PlatformIO builds.
     /// Cleanup callback type - called before hiding an item
     using CleanupCallback = std::function<void(EnumT)>;
 
@@ -114,7 +117,7 @@ public:
      *
      * @param callback Function called with item type before hide
      */
-    FLASHMEM void setCleanupCallback(CleanupCallback callback) {
+    void setCleanupCallback(CleanupCallback callback) {
         cleanupCallback_ = std::move(callback);
         // Invalidate any outstanding handles
         cleanup_token_++;
@@ -126,7 +129,7 @@ public:
      *
      * The returned handle clears the callback when destroyed.
      */
-    [[nodiscard]] FLASHMEM CleanupHandle setCleanupCallbackScoped(CleanupCallback callback) {
+    [[nodiscard]] CleanupHandle setCleanupCallbackScoped(CleanupCallback callback) {
         cleanupCallback_ = std::move(callback);
         cleanup_token_++;
         if (cleanup_token_ == 0) cleanup_token_ = 1;  // avoid 0 as sentinel
@@ -138,7 +141,7 @@ public:
      * @param type The item to show
      * @param stack If true, current item stays visible underneath
      */
-    FLASHMEM void show(EnumT type, bool stack = false) {
+    void show(EnumT type, bool stack = false) {
         if (type == EnumT::NONE || static_cast<size_t>(type) >= COUNT) {
             hideAll();
             return;
@@ -163,7 +166,7 @@ public:
      *
      * Calls cleanup callback (if set) before hiding.
      */
-    FLASHMEM void hide() {
+    void hide() {
         if (current_ == EnumT::NONE) return;
 
         // Call cleanup callback before hiding
@@ -188,7 +191,7 @@ public:
      *
      * Calls cleanup callback for each visible item before hiding.
      */
-    FLASHMEM void hideAll() {
+    void hideAll() {
         // Call cleanup for all potentially visible items
         if (cleanupCallback_) {
             for (size_t i = 1; i < COUNT; ++i) {
@@ -225,13 +228,13 @@ private:
         }
     };
 
-    FLASHMEM void clearCleanupCallback(uint32_t token) {
+    void clearCleanupCallback(uint32_t token) {
         if (token != 0 && token == cleanup_token_) {
             cleanupCallback_ = nullptr;
         }
     }
 
-    FLASHMEM void setVisible(EnumT type, bool visible) {
+    void setVisible(EnumT type, bool visible) {
         auto idx = static_cast<size_t>(type);
         if (idx < COUNT && items_[idx].valid()) {
             items_[idx].set(items_[idx].object, visible);
@@ -240,7 +243,7 @@ private:
 
 public:
     template <typename VisibleSignal>
-    FLASHMEM void registerItem(EnumT type, VisibleSignal& visible) {
+    void registerItem(EnumT type, VisibleSignal& visible) {
         auto idx = static_cast<size_t>(type);
         if (idx < COUNT) {
             items_[idx] = ItemBinding{
