@@ -66,4 +66,16 @@ inline int32_t signedDeltaUs(uint32_t nowUs, uint32_t deadlineUs) {
     return static_cast<int32_t>(nowUs - deadlineUs);
 }
 
+/**
+ * Wrap-safe millisecond deadline delta for intervals shorter than 2^31 ms.
+ * Positive means late, zero means on time, and negative means early.
+ */
+inline int32_t signedDeltaMs(uint32_t nowMs, uint32_t deadlineMs) {
+    return static_cast<int32_t>(nowMs - deadlineMs);
+}
+
+inline bool deadlineReachedMs(uint32_t nowMs, uint32_t deadlineMs) {
+    return signedDeltaMs(nowMs, deadlineMs) >= 0;
+}
+
 }  // namespace oc::time

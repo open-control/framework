@@ -13,10 +13,7 @@ namespace oc::context {
 ContextManager::ContextManager(const APIs& apis) : apis_(apis) {}
 
 ContextManager::~ContextManager() {
-    if (active_) {
-        active_->cleanup();
-        active_.reset();
-    }
+    teardownActive_(false);
 }
 
 FLASHMEM oc::type::Result<void> ContextManager::begin() {
@@ -41,25 +38,7 @@ FLASHMEM bool ContextManager::switchToImpl(uint8_t id) {
         return true;
     }
 
-    if (active_) {
-        emitDeactivated(active_id_, *active_);
-        active_->onDisconnected();
-        active_->cleanup();
-
-        if (apis_.button) {
-            apis_.button->clearBindings();
-            // Safety: authority resolver may point to objects owned by the old context
-            apis_.button->setAuthorityResolver(nullptr);
-        }
-        if (apis_.encoder) {
-            apis_.encoder->clearBindings();
-        }
-        if (apis_.midi) {
-            apis_.midi->allNotesOff();
-        }
-
-        active_.reset();
-    }
+    teardownActive_(true);
 
     active_ = factories_[id]();
     if (!active_) {
@@ -77,8 +56,7 @@ FLASHMEM bool ContextManager::switchToImpl(uint8_t id) {
     auto initResult = active_->init();
     if (!initResult) {
         emitError(id);
-        active_.reset();
-        active_id_ = INVALID_CONTEXT_ID;
+        teardownActive_(false);
         if (id != default_id_ && default_id_ != INVALID_CONTEXT_ID) {
             return switchToImpl(default_id_);
         }
@@ -91,6 +69,34 @@ FLASHMEM bool ContextManager::switchToImpl(uint8_t id) {
     emitActivated(id, *active_);
 
     return true;
+}
+
+FLASHMEM void ContextManager::teardownActive_(bool notifyLifecycle) {
+    if (!active_) {
+        active_id_ = INVALID_CONTEXT_ID;
+        return;
+    }
+
+    if (notifyLifecycle) {
+        emitDeactivated(active_id_, *active_);
+        active_->onDisconnected();
+    }
+    active_->cleanup();
+
+    if (apis_.button) {
+        apis_.button->clearBindings();
+        // Authority providers are commonly owned by the active context.
+        apis_.button->setAuthorityResolver(nullptr);
+    }
+    if (apis_.encoder) {
+        apis_.encoder->clearBindings();
+    }
+    if (apis_.midi) {
+        apis_.midi->allNotesOff();
+    }
+
+    active_.reset();
+    active_id_ = INVALID_CONTEXT_ID;
 }
 
 void ContextManager::processPendingSwitch() {

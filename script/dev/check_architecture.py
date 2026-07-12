@@ -130,21 +130,22 @@ def check_module_dependencies(src_oc: Path) -> list[Finding]:
         "time": {"type"},
         "log": {"time"},
         "debug": {"log"},
+        "diagnostics": {"oc", "time"},
 
         # Level 1
         "interface": {"type"},
 
         # Level 2
         "impl": {"interface", "type"},
-        "core": {"interface", "type", "oc", "log", "time", "util", "codec", "debug", "realtime"},
-        "state": {"interface", "type", "oc", "log", "time", "util", "codec", "debug", "realtime"},
+        "core": {"interface", "type", "oc", "log", "time", "util", "codec", "debug", "diagnostics", "realtime"},
+        "state": {"interface", "type", "oc", "log", "time", "util", "codec", "debug", "diagnostics", "realtime"},
 
         # Level 3
-        "api": {"core", "interface", "type", "oc", "log", "time", "util", "codec", "debug", "realtime"},
-        "context": {"api", "core", "interface", "type", "oc", "log", "time", "util", "codec", "debug", "state", "realtime"},
+        "api": {"core", "interface", "type", "oc", "log", "time", "util", "codec", "debug", "diagnostics", "realtime"},
+        "context": {"api", "core", "interface", "type", "oc", "log", "time", "util", "codec", "debug", "diagnostics", "state", "realtime"},
 
         # Level 4
-        "app": {"context", "api", "core", "state", "impl", "interface", "type", "oc", "log", "time", "util", "codec", "debug", "realtime"},
+        "app": {"context", "api", "core", "state", "impl", "interface", "type", "oc", "log", "time", "util", "codec", "debug", "diagnostics", "realtime"},
     }
 
     known_modules = set(allowed)

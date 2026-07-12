@@ -94,7 +94,12 @@ public:
 
     oc::type::Result<void> init() override {
         initialized_ = true;
-        return oc::type::Result<void>::ok();
+        if (should_init_succeed_) {
+            return oc::type::Result<void>::ok();
+        }
+        return oc::type::Result<void>::err(
+            {oc::type::ErrorCode::CONTEXT_INIT_FAILED, "Mock B init failed"}
+        );
     }
 
     void update() override {}
@@ -104,14 +109,17 @@ public:
     static void reset() {
         initialized_ = false;
         cleaned_up_ = false;
+        should_init_succeed_ = true;
     }
 
+    static void setInitShouldFail() { should_init_succeed_ = false; }
     static bool wasInitialized() { return initialized_; }
     static bool wasCleanedUp() { return cleaned_up_; }
 
 private:
     static inline bool initialized_ = false;
     static inline bool cleaned_up_ = false;
+    static inline bool should_init_succeed_ = true;
 };
 
 }  // namespace oc::test

@@ -132,6 +132,22 @@ void test_begin_fails_without_registered_contexts() {
     TEST_ASSERT_NULL(mgr.active());
 }
 
+void test_failed_default_init_is_cleaned_up() {
+    APIs apis(bus);
+    ContextManager mgr(apis);
+
+    mgr.registerContext<MockContext>(TestContextID::CTX_A, "ContextA");
+    MockContext::setInitShouldFail();
+
+    auto result = mgr.begin();
+
+    TEST_ASSERT_TRUE(result.isErr());
+    TEST_ASSERT_NULL(mgr.active());
+    TEST_ASSERT_EQUAL(INVALID_CONTEXT_ID, mgr.activeId());
+    TEST_ASSERT_TRUE(MockContext::wasCleanedUp());
+    TEST_ASSERT_EQUAL(1, MockContext::cleanupCount());
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Context Switching (deferred via update)
 // ═══════════════════════════════════════════════════════════════════
@@ -352,15 +368,14 @@ void test_init_failure_falls_back_to_default() {
     mgr.setDefault(TestContextID::CTX_A);
     mgr.begin();
 
-    // Make MockContext initialization fail
-    MockContext::setInitShouldFail();
+    MockContextB::setInitShouldFail();
+    mgr.switchTo(TestContextID::CTX_B);
+    mgr.update();
 
-    // Try to switch to B, but B's init should succeed
-    // and A's init should fail so we can't test fallback to A
-    // Let's test the other way around
-
-    MockContext::reset();  // Reset to succeed again
+    TEST_ASSERT_TRUE(MockContextB::wasInitialized());
+    TEST_ASSERT_TRUE(MockContextB::wasCleanedUp());
     TEST_ASSERT_EQUAL(static_cast<uint8_t>(TestContextID::CTX_A), mgr.activeId());
+    TEST_ASSERT_EQUAL(2, MockContext::initializeCount());
 }
 
 int main(int argc, char **argv) {
@@ -380,6 +395,7 @@ int main(int argc, char **argv) {
     // Begin
     RUN_TEST(test_begin_activates_default_context);
     RUN_TEST(test_begin_fails_without_registered_contexts);
+    RUN_TEST(test_failed_default_init_is_cleaned_up);
 
     // Switching
     RUN_TEST(test_switch_to_context);

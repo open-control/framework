@@ -48,6 +48,14 @@ void test_signed_delta_handles_wrap_boundary() {
     TEST_ASSERT_EQUAL_INT32(-32, oc::time::signedDeltaUs(deadline, now));
 }
 
+void test_millisecond_deadline_handles_wrap_boundary() {
+    const uint32_t deadline = 0x0000'0010U;
+
+    TEST_ASSERT_FALSE(oc::time::deadlineReachedMs(0xFFFF'FFF0U, deadline));
+    TEST_ASSERT_TRUE(oc::time::deadlineReachedMs(deadline, deadline));
+    TEST_ASSERT_TRUE(oc::time::deadlineReachedMs(0x0000'0020U, deadline));
+}
+
 int main(int argc, char** argv) {
     (void)argc;
     (void)argv;
@@ -58,5 +66,6 @@ int main(int argc, char** argv) {
     RUN_TEST(test_signed_delta_reports_future_deadline);
     RUN_TEST(test_signed_delta_reports_exact_deadline);
     RUN_TEST(test_signed_delta_handles_wrap_boundary);
+    RUN_TEST(test_millisecond_deadline_handles_wrap_boundary);
     return UNITY_END();
 }

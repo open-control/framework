@@ -19,6 +19,8 @@
 #include <config/PlatformCompat.hpp>
 #include <oc/log/Log.hpp>
 
+#include "Signal.hpp"
+
 namespace oc::state {
 
 /**
@@ -26,6 +28,10 @@ namespace oc::state {
  *
  * Generic visibility stack supporting one level of stacking.
  * When stacking, both items are visible; the top one has priority.
+ * Registered signals may be prepared by their owning state before a stack
+ * transition. show() only replaces items already tracked by this stack;
+ * hideAll() is the explicit reconciliation boundary that clears every
+ * registered visible signal.
  *
  * @tparam EnumT Enum type with NONE and COUNT values
  *
@@ -52,6 +58,7 @@ public:
     // `.flashmem` section on direct PlatformIO builds.
     /// Cleanup callback type - called before hiding an item
     using CleanupCallback = std::function<void(EnumT)>;
+    using VisibilityTransitionCallback = void (*)(void* context, EnumT type, bool visible);
 
     /**
      * @brief RAII handle for a registered cleanup callback
@@ -101,6 +108,48 @@ public:
         uint32_t token_ = 0;
     };
 
+    class VisibilityTransitionHandle {
+    public:
+        VisibilityTransitionHandle() = default;
+
+        VisibilityTransitionHandle(const VisibilityTransitionHandle&) = delete;
+        VisibilityTransitionHandle& operator=(const VisibilityTransitionHandle&) = delete;
+
+        VisibilityTransitionHandle(VisibilityTransitionHandle&& other) noexcept
+            : owner_(other.owner_), token_(other.token_) {
+            other.owner_ = nullptr;
+            other.token_ = 0;
+        }
+
+        VisibilityTransitionHandle& operator=(VisibilityTransitionHandle&& other) noexcept {
+            if (this == &other) return *this;
+            reset();
+            owner_ = other.owner_;
+            token_ = other.token_;
+            other.owner_ = nullptr;
+            other.token_ = 0;
+            return *this;
+        }
+
+        ~VisibilityTransitionHandle() { reset(); }
+
+        void reset() {
+            if (owner_ && token_ != 0) {
+                owner_->clearVisibilityTransitionCallback(token_);
+            }
+            owner_ = nullptr;
+            token_ = 0;
+        }
+
+    private:
+        friend class ExclusiveVisibilityStack;
+        VisibilityTransitionHandle(ExclusiveVisibilityStack* owner, uint32_t token)
+            : owner_(owner), token_(token) {}
+
+        ExclusiveVisibilityStack* owner_ = nullptr;
+        uint32_t token_ = 0;
+    };
+
     ExclusiveVisibilityStack() = default;
 
     // Non-copyable, non-movable (holds pointers to signals)
@@ -136,6 +185,17 @@ public:
         return CleanupHandle(this, cleanup_token_);
     }
 
+    [[nodiscard]] VisibilityTransitionHandle setVisibilityTransitionCallbackScoped(
+        void* context,
+        VisibilityTransitionCallback callback
+    ) {
+        visibility_transition_context_ = context;
+        visibility_transition_callback_ = callback;
+        visibility_transition_token_++;
+        if (visibility_transition_token_ == 0) visibility_transition_token_ = 1;
+        return VisibilityTransitionHandle(this, visibility_transition_token_);
+    }
+
     /**
      * @brief Show an item
      * @param type The item to show
@@ -147,17 +207,39 @@ public:
             return;
         }
 
+        if (current_ == type) {
+            bool changed = false;
+            if (!stack && previous_ != EnumT::NONE) {
+                hideItem(previous_);
+                previous_ = EnumT::NONE;
+                changed = true;
+            }
+            if (!itemVisible(type)) {
+                setVisible(type, true, true);
+                changed = true;
+            }
+            if (changed) bumpRevision();
+            return;
+        }
+
         if (stack && current_ != EnumT::NONE && current_ != type) {
-            // Stacking: current stays visible, becomes previous
+            // This stack intentionally retains one underlying item. Collapse
+            // an older level before promoting the current item.
+            if (previous_ != EnumT::NONE && previous_ != current_) {
+                hideItem(previous_);
+            }
             previous_ = current_;
         } else if (current_ != EnumT::NONE) {
-            // Replacing: hide current
-            setVisible(current_, false);
+            hideItem(current_);
+            if (previous_ != EnumT::NONE && previous_ != current_) {
+                hideItem(previous_);
+            }
             previous_ = EnumT::NONE;
         }
 
-        setVisible(type, true);
+        setVisible(type, true, true);
         current_ = type;
+        bumpRevision();
         OC_LOG_DEBUG("[ExclusiveVisibilityStack] show: {} (stack: {})", static_cast<int>(type), stack);
     }
 
@@ -169,17 +251,13 @@ public:
     void hide() {
         if (current_ == EnumT::NONE) return;
 
-        // Call cleanup callback before hiding
-        if (cleanupCallback_) {
-            cleanupCallback_(current_);
-        }
-
-        setVisible(current_, false);
+        hideItem(current_);
         OC_LOG_DEBUG("[ExclusiveVisibilityStack] hide: {}", static_cast<int>(current_));
 
         // Restore previous (already visible if was stacked)
         current_ = previous_;
         previous_ = EnumT::NONE;
+        bumpRevision();
 
         if (current_ != EnumT::NONE) {
             OC_LOG_DEBUG("[ExclusiveVisibilityStack] current now: {}", static_cast<int>(current_));
@@ -192,22 +270,13 @@ public:
      * Calls cleanup callback for each visible item before hiding.
      */
     void hideAll() {
-        // Call cleanup for all potentially visible items
-        if (cleanupCallback_) {
-            for (size_t i = 1; i < COUNT; ++i) {
-                if (items_[i].valid() && items_[i].get(items_[i].object)) {
-                    cleanupCallback_(static_cast<EnumT>(i));
-                }
-            }
-        }
-
+        bool changed = current_ != EnumT::NONE || previous_ != EnumT::NONE;
         for (size_t i = 1; i < COUNT; ++i) {
-            if (items_[i].valid()) {
-                items_[i].set(items_[i].object, false);
-            }
+            changed = hideItem(static_cast<EnumT>(i)) || changed;
         }
         current_ = EnumT::NONE;
         previous_ = EnumT::NONE;
+        if (changed) bumpRevision();
         OC_LOG_DEBUG("[ExclusiveVisibilityStack] hideAll");
     }
 
@@ -216,6 +285,9 @@ public:
 
     /// Check if any item is visible
     bool hasVisible() const { return current_ != EnumT::NONE; }
+
+    Signal<uint32_t>& revisionSignal() { return revision_; }
+    const Signal<uint32_t>& revisionSignal() const { return revision_; }
 
 private:
     struct ItemBinding {
@@ -234,11 +306,47 @@ private:
         }
     }
 
-    void setVisible(EnumT type, bool visible) {
+    void clearVisibilityTransitionCallback(uint32_t token) {
+        if (token == 0 || token != visibility_transition_token_) return;
+        visibility_transition_context_ = nullptr;
+        visibility_transition_callback_ = nullptr;
+    }
+
+    void bumpRevision() {
+        uint32_t next = revision_.get() + 1U;
+        if (next == 0) next = 1;
+        revision_.set(next);
+    }
+
+    [[nodiscard]] bool itemVisible(EnumT type) const {
+        const auto idx = static_cast<size_t>(type);
+        return idx < COUNT && items_[idx].valid() && items_[idx].get(items_[idx].object);
+    }
+
+    void setVisible(EnumT type, bool visible, bool forceTransition = false) {
         auto idx = static_cast<size_t>(type);
-        if (idx < COUNT && items_[idx].valid()) {
-            items_[idx].set(items_[idx].object, visible);
+        if (idx >= COUNT || !items_[idx].valid()) return;
+
+        const bool unchanged = items_[idx].get(items_[idx].object) == visible;
+        if (unchanged && !forceTransition) return;
+
+        if (visibility_transition_callback_) {
+            visibility_transition_callback_(visibility_transition_context_, type, visible);
         }
+        if (!unchanged) items_[idx].set(items_[idx].object, visible);
+    }
+
+    bool hideItem(EnumT type) {
+        const auto idx = static_cast<size_t>(type);
+        if (idx >= COUNT || !items_[idx].valid()) return false;
+
+        const bool visible = items_[idx].get(items_[idx].object);
+        const bool tracked = type == current_ || type == previous_;
+        if (!visible && !tracked) return false;
+
+        if (cleanupCallback_) cleanupCallback_(type);
+        setVisible(type, false, true);
+        return true;
     }
 
 public:
@@ -264,6 +372,10 @@ private:
     EnumT previous_ = EnumT::NONE;  // For single-level stacking
     CleanupCallback cleanupCallback_;  // Called before hiding
     uint32_t cleanup_token_ = 0;
+    void* visibility_transition_context_ = nullptr;
+    VisibilityTransitionCallback visibility_transition_callback_ = nullptr;
+    uint32_t visibility_transition_token_ = 0;
+    Signal<uint32_t> revision_{0};
 };
 
 }  // namespace oc::state

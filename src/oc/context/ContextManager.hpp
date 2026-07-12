@@ -341,6 +341,7 @@ protected:
 
 private:
     bool switchToImpl(uint8_t id);
+    void teardownActive_(bool notifyLifecycle);
     void processPendingSwitch();
     void emitActivated(uint8_t id, const interface::IContext& ctx);
     void emitDeactivated(uint8_t id, const interface::IContext& ctx);

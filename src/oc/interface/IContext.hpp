@@ -63,6 +63,10 @@ public:
 
     /**
      * @brief Clean up resources before destruction
+     *
+     * Must be safe after a partially successful init(). The context manager
+     * invokes cleanup() when initialization fails so resources acquired before
+     * the failure cannot outlive the context.
      */
     virtual void cleanup() = 0;
 

@@ -8,8 +8,8 @@
 #include <functional>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
+#include <oc/diagnostics/Performance.hpp>
 #include <oc/log/Log.hpp>
 
 #include "NotificationQueue.hpp"
@@ -121,7 +121,9 @@ public:
     Signal(Signal&&) = delete;
     Signal& operator=(Signal&&) = delete;
 
-    ~Signal() = default;
+    ~Signal() {
+        NotificationQueue::instance().cancelOwner(static_cast<void*>(this));
+    }
 
     /**
      * @brief Attach an optional debug label used in overflow diagnostics
@@ -129,12 +131,24 @@ public:
      * This is intended for high-fan-out UI signals where subscriber overflow
      * is otherwise hard to localize from a crash log alone.
      */
-    void setDebugLabel(const char* label) { debug_label_ = label; }
+    void setDebugLabel(const char* label) {
+#if OC_ENABLE_STATS
+        debug_label_ = label;
+#else
+        (void)label;
+#endif
+    }
 
     /**
      * @brief Return the debug label, or nullptr if unset
      */
-    [[nodiscard]] const char* debugLabel() const { return debug_label_; }
+    [[nodiscard]] const char* debugLabel() const {
+#if OC_ENABLE_STATS
+        return debug_label_;
+#else
+        return nullptr;
+#endif
+    }
 
     /// Get current value (const reference)
     [[nodiscard]] const T& get() const { return value_; }
@@ -189,6 +203,10 @@ public:
                     static_cast<void*>(this),
                     [](void* context, size_t slot) {
                         auto* self = static_cast<Signal*>(context);
+                        OC_PERF_SCOPE(
+                            perfCallback,
+                            self->debugLabel() ? self->debugLabel() : "signal.callback"
+                        );
                         if (self->callbacks_[slot]) {
                             self->callbacks_[slot](self->value_);
                         }
@@ -244,13 +262,15 @@ private:
 
     T value_;
     std::array<Callback, MaxSubscribers> callbacks_{};
+#if OC_ENABLE_STATS
     const char* debug_label_ = nullptr;
+#endif
 
     void reportSubscriberOverflow_() const {
         const auto* context = detail::currentSubscriptionDebugContext();
         OC_LOG_ERROR(
             "[Signal] MaxSubscribers exceeded label={} subscribers={} max={} requester={} address={}",
-            debug_label_ ? debug_label_ : "<unnamed>",
+            debugLabel() ? debugLabel() : "<unnamed>",
             subscriberCount(),
             MaxSubscribers,
             (context && context->requesterLabel) ? context->requesterLabel : "<unknown>",
@@ -384,41 +404,6 @@ Subscription Signal<T, MaxSubscribers>::subscribe(Callback callback) {
         },
         slot
     };
-}
-
-// =============================================================================
-// Utility Functions
-// =============================================================================
-
-/**
- * @brief Convert array of Signals to vector of values
- *
- * Useful when UI components need a snapshot of multiple reactive values.
- * Use sparingly in embedded contexts (allocates memory).
- *
- * @tparam T Value type
- * @tparam N Array size
- * @tparam MaxSubs Max subscribers per signal
- * @param signals Array of Signal<T>
- * @param count Number of elements to convert (default: full array)
- * @return std::vector<T> containing current values
- *
- * @code
- * std::array<Signal<bool>, 16> muteStates;
- * // ...
- * std::vector<bool> snapshot = toVector(muteStates, activeCount);
- * @endcode
- */
-template <typename T, size_t N, size_t MaxSubs = 4>
-[[nodiscard]] std::vector<T> toVector(const std::array<Signal<T, MaxSubs>, N>& signals,
-                                       size_t count = N) {
-    std::vector<T> result;
-    size_t n = (count < N) ? count : N;
-    result.reserve(n);
-    for (size_t i = 0; i < n; ++i) {
-        result.push_back(signals[i].get());
-    }
-    return result;
 }
 
 }  // namespace oc::state

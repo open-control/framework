@@ -13,7 +13,6 @@ using oc::MAX_SUBSCRIBERS_PER_EVENT;
 using oc::MAX_EVENT_TOPICS;
 using oc::MAX_EVENT_SUBSCRIPTIONS;
 using oc::EVENTBUS_COMPACT_THRESHOLD;
-using oc::ENABLE_STATS;
 
 /**
  * @brief Default implementation of IEventBus using pub/sub pattern
@@ -51,22 +50,6 @@ public:
     /// Get maximum total subscriptions supported across all topics
     static constexpr size_t maxSubscriptions() { return MAX_EVENT_SUBSCRIPTIONS; }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // Statistics (only available when OC_ENABLE_STATS=1)
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    struct Stats {
-        size_t peakSubscribers = 0;   ///< Maximum total subscribers ever seen
-        size_t totalSubscribed = 0;   ///< Total on() calls
-        size_t totalUnsubscribed = 0; ///< Total off() calls
-        size_t totalEmitted = 0;      ///< Total emit() calls
-        size_t totalCompactions = 0;  ///< Times compact() was called
-        size_t overflowCount = 0;     ///< Subscriptions rejected due to limit
-    };
-
-    [[nodiscard]] const Stats& stats() const { return stats_; }
-    void resetStats() { stats_ = {}; }
-
 private:
     struct SubscriptionSlot {
         interface::SubscriptionID id = 0;
@@ -96,7 +79,6 @@ private:
     size_t topic_count_ = 0;
     size_t dead_count_ = 0;  ///< Number of dead subscriber slots pending compaction
     size_t emit_depth_ = 0;
-    Stats stats_{};
 };
 
 }  // namespace oc::core::event
