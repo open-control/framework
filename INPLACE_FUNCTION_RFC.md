@@ -261,7 +261,6 @@ Files:
 
 - `src/oc/state/ExclusiveVisibilityStack.hpp`
 - `src/oc/state/AutoPersist.hpp`
-- `src/oc/state/AutoPersistIncremental.hpp`
 
 These are secondary targets once the core callback primitive is stable.
 

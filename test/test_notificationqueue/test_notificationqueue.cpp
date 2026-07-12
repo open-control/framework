@@ -12,6 +12,11 @@ struct CounterContext {
     bool reenqueueTriggered = false;
 };
 
+struct CancelContext {
+    int count = 0;
+    void* owner = nullptr;
+};
+
 void incrementCounter(void* context, size_t) {
     auto* counter = static_cast<int*>(context);
     (*counter)++;
@@ -29,6 +34,12 @@ void incrementAndReenqueue(void* context, size_t) {
         counter->reenqueueTriggered = true;
         NotificationQueue::instance().enqueue(counter->reenqueueKey, context, incrementContextCounter);
     }
+}
+
+void incrementAndCancelOwner(void* context, size_t) {
+    auto* cancel = static_cast<CancelContext*>(context);
+    ++cancel->count;
+    NotificationQueue::instance().cancelOwner(cancel->owner);
 }
 
 }  // namespace
@@ -90,10 +101,44 @@ void test_overflow_is_bounded_and_counted() {
     TEST_ASSERT_FALSE(NotificationQueue::instance().hasPending());
 }
 
+void test_cancel_removes_only_matching_key() {
+    int counters[2] = {};
+    void* owner = &counters;
+    NotificationQueue::instance().enqueue({owner, 1}, &counters[0], incrementCounter);
+    NotificationQueue::instance().enqueue({owner, 2}, &counters[1], incrementCounter);
+
+    NotificationQueue::instance().cancel({owner, 1});
+    TEST_ASSERT_EQUAL(1, NotificationQueue::instance().pendingCount());
+    NotificationQueue::instance().flush();
+
+    TEST_ASSERT_EQUAL(0, counters[0]);
+    TEST_ASSERT_EQUAL(1, counters[1]);
+}
+
+void test_cancel_owner_suppresses_later_callbacks_in_active_wave() {
+    CancelContext context{};
+    context.owner = &context;
+    int later = 0;
+    NotificationQueue::instance().enqueue(
+        {context.owner, 1},
+        &context,
+        incrementAndCancelOwner
+    );
+    NotificationQueue::instance().enqueue({context.owner, 2}, &later, incrementCounter);
+
+    NotificationQueue::instance().flush();
+
+    TEST_ASSERT_EQUAL(1, context.count);
+    TEST_ASSERT_EQUAL(0, later);
+    TEST_ASSERT_FALSE(NotificationQueue::instance().hasPending());
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_enqueue_coalesces_same_key_without_dynamic_storage);
     RUN_TEST(test_flush_processes_notifications_enqueued_during_flush);
     RUN_TEST(test_overflow_is_bounded_and_counted);
+    RUN_TEST(test_cancel_removes_only_matching_key);
+    RUN_TEST(test_cancel_owner_suppresses_later_callbacks_in_active_wave);
     return UNITY_END();
 }

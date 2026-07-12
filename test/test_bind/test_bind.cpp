@@ -37,6 +37,22 @@ void test_bind_single_signal() {
     TEST_ASSERT_EQUAL(42, received);
 }
 
+void test_bind_supports_fixed_subscription_storage() {
+    Signal<int> first{0};
+    Signal<int> second{0};
+    FixedSubscriptionList<2> subscriptions;
+    int total = 0;
+
+    bind(subscriptions)
+        .on(first, [&total](int value) { total += value; })
+        .on(second, [&total](int value) { total += value; });
+
+    first.set(2);
+    second.set(3);
+    TEST_ASSERT_EQUAL_INT(5, total);
+    TEST_ASSERT_EQUAL_UINT32(2, subscriptions.size());
+}
+
 void test_bind_multiple_signals_chained() {
     Signal<int> sig1{0};
     Signal<float> sig2{0.0f};
@@ -267,8 +283,8 @@ void test_bind_returns_binder_reference() {
     Signal<int> sig{0};
     std::vector<Subscription> subs;
 
-    // Should be able to chain from bind() return value
-    Binder& ref = bind(subs).on(sig, [](const int&) {});
+    auto binder = bind(subs);
+    auto& ref = binder.on(sig, [](const int&) {});
 
     // And continue chaining
     ref.on(sig, [](const int&) {});
@@ -285,6 +301,7 @@ int main() {
 
     // Basic Bind
     RUN_TEST(test_bind_single_signal);
+    RUN_TEST(test_bind_supports_fixed_subscription_storage);
     RUN_TEST(test_bind_multiple_signals_chained);
     RUN_TEST(test_bind_with_signal_string);
     RUN_TEST(test_bind_mixed_signal_types);

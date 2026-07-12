@@ -128,35 +128,11 @@ inline constexpr size_t MAX_SIGNAL_SUBSCRIBERS = OC_MAX_SIGNAL_SUBSCRIBERS;
 // DEBUG / STATS
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Enable runtime statistics tracking (increases RAM usage slightly)
+/// Enable opt-in runtime statistics and centralized performance sampling.
+/// Disabled builds contain no performance probes or diagnostic sink.
 #ifndef OC_ENABLE_STATS
 #define OC_ENABLE_STATS 0
 #endif
 inline constexpr bool ENABLE_STATS = OC_ENABLE_STATS;
-
-// ═══════════════════════════════════════════════════════════════════════════
-// MEMORY ESTIMATION HELPERS
-// ═══════════════════════════════════════════════════════════════════════════
-
-/**
- * @brief Estimate InputBinding state memory usage
- * @return Approximate bytes for button/encoder state arrays
- */
-constexpr size_t estimateInputBindingMemory() {
-    // 6 arrays for button state tracking
-    return MAX_BUTTONS * (sizeof(bool) * 3 + sizeof(uint32_t) * 2 + sizeof(uint8_t));
-}
-
-/**
- * @brief Estimate total framework memory footprint
- * @return Approximate bytes (excluding user contexts and HAL)
- */
-constexpr size_t estimateFrameworkMemory() {
-    return estimateInputBindingMemory() +
-           MAX_CONTEXTS * sizeof(void*) * 2 +  // factories + names
-           MAX_EVENT_TOPICS * 8 +
-           MAX_EVENT_SUBSCRIPTIONS * 24 +
-           MAX_PENDING_NOTIFICATIONS * 32;      // Rough notification size
-}
 
 }  // namespace oc

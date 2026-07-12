@@ -27,3 +27,13 @@
     #include <cstddef>
     #include <cstdint>
 #endif
+
+#ifndef OC_ALWAYS_INLINE
+    #if defined(_MSC_VER)
+        #define OC_ALWAYS_INLINE __forceinline
+    #elif defined(__GNUC__) || defined(__clang__)
+        #define OC_ALWAYS_INLINE inline __attribute__((always_inline))
+    #else
+        #define OC_ALWAYS_INLINE inline
+    #endif
+#endif

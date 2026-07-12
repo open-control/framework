@@ -15,12 +15,14 @@
  * 3. Duplicate keys are ignored (coalescing)
  * 4. OpenControlApp::update() calls flush() at end of tick
  * 5. Callbacks execute with current (final) values
+ * 6. Notifications created by a callback run in a following wave before the
+ *    outer flush returns
  *
  * ## Benefits
  *
  * - **Transparent**: No changes required in handlers or views
  * - **Automatic**: Deduplication happens by design
- * - **Efficient**: Each callback runs at most once per tick
+ * - **Efficient**: Duplicate pending callbacks are coalesced within each wave
  *
  * @code
  * // Handler sets 5 signals
@@ -46,7 +48,6 @@
 namespace oc::state {
 
 using oc::MAX_PENDING_NOTIFICATIONS;
-using oc::ENABLE_STATS;
 
 /**
  * @brief Singleton queue for deferred signal notifications
@@ -80,11 +81,18 @@ public:
      */
     void enqueue(Key key, void* context, NotifyFn fn);
 
+    /** Remove a deferred callback before its owner or context is destroyed. */
+    void cancel(Key key);
+
+    /** Remove every deferred callback whose key is owned by `owner`. */
+    void cancelOwner(void* owner);
+
     /**
      * @brief Execute all pending notifications and clear the queue
      *
-     * Notifications triggered during flush are queued for the next flush.
-     * This prevents infinite loops while allowing reactive chains.
+     * Notifications triggered during flush are processed in a following wave
+     * of the same outer flush. A nested flush call returns immediately; the
+     * outer call remains responsible for draining the reactive chain.
      */
     void flush();
 
@@ -174,27 +182,6 @@ public:
      */
     void resetOverflowCount() { overflowCount_ = 0; }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // Statistics (only available when OC_ENABLE_STATS=1)
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    struct Stats {
-        size_t peakPending = 0;      ///< Maximum pending count ever seen
-        size_t totalEnqueued = 0;    ///< Total notifications enqueued
-        size_t totalCoalesced = 0;   ///< Total duplicates coalesced
-        size_t totalFlushed = 0;     ///< Total notifications executed
-    };
-
-    /**
-     * @brief Get statistics (only meaningful when ENABLE_STATS=true)
-     */
-    [[nodiscard]] const Stats& stats() const { return stats_; }
-
-    /**
-     * @brief Reset statistics
-     */
-    void resetStats() { stats_ = {}; }
-
 private:
     NotificationQueue() = default;
 
@@ -207,14 +194,15 @@ private:
     bool containsKey_(const std::array<Entry, MAX_PENDING_NOTIFICATIONS>& entries,
                       size_t count,
                       Key key) const;
+    void cancelMatching_(void* owner, size_t slot, bool matchSlot);
 
     std::array<Entry, MAX_PENDING_NOTIFICATIONS> pending_{};
     std::array<Entry, MAX_PENDING_NOTIFICATIONS> processing_{};
     size_t pendingCount_ = 0;
+    size_t processingCount_ = 0;
     bool deferredMode_ = true;
     bool isFlushing_ = false;  ///< Prevent re-entrancy issues
     size_t overflowCount_ = 0; ///< Number of dropped notifications
-    Stats stats_{};            ///< Runtime statistics (when enabled)
 };
 
 }  // namespace oc::state

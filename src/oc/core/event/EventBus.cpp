@@ -15,9 +15,6 @@ FLASHMEM interface::SubscriptionID EventBus::on(oc::type::EventCategoryType cate
     const uint32_t key = makeKey(category, type);
     TopicSlot* topic = findOrCreateTopic_(key);
     if (topic == nullptr) {
-        if constexpr (ENABLE_STATS) {
-            stats_.overflowCount++;
-        }
         OC_LOG_WARN(
             "EventBus: topic capacity reached category={} type={} topics={} max_topics={}",
             static_cast<unsigned>(category),
@@ -29,9 +26,6 @@ FLASHMEM interface::SubscriptionID EventBus::on(oc::type::EventCategoryType cate
 
     const size_t activeCount = activeSubscriberCountForKey_(key);
     if (activeCount >= MAX_SUBSCRIBERS_PER_EVENT) {
-        if constexpr (ENABLE_STATS) {
-            stats_.overflowCount++;
-        }
         OC_LOG_WARN(
             "EventBus: subscriber capacity reached category={} type={} active={} max={}",
             static_cast<unsigned>(category),
@@ -50,9 +44,6 @@ FLASHMEM interface::SubscriptionID EventBus::on(oc::type::EventCategoryType cate
     }
 
     if (target == nullptr) {
-        if constexpr (ENABLE_STATS) {
-            stats_.overflowCount++;
-        }
         OC_LOG_WARN(
             "EventBus: global subscription capacity reached topic_key={} total_max={}",
             key,
@@ -70,22 +61,10 @@ FLASHMEM interface::SubscriptionID EventBus::on(oc::type::EventCategoryType cate
     target->callback = std::move(callback);
     target->alive = true;
 
-    if constexpr (ENABLE_STATS) {
-        stats_.totalSubscribed++;
-        const size_t total = getSubscriberCount();
-        if (total > stats_.peakSubscribers) {
-            stats_.peakSubscribers = total;
-        }
-    }
-
     return id;
 }
 
 void EventBus::emit(const oc::type::Event& event) {
-    if constexpr (ENABLE_STATS) {
-        stats_.totalEmitted++;
-    }
-
     const uint32_t key = makeKey(event.getCategory(), event.getType());
     if (findTopic_(key) == nullptr) {
         return;
@@ -121,10 +100,6 @@ FLASHMEM void EventBus::off(interface::SubscriptionID id) {
         slot.alive = false;
         slot.callback = nullptr;
         ++dead_count_;
-
-        if constexpr (ENABLE_STATS) {
-            stats_.totalUnsubscribed++;
-        }
 
         if (emit_depth_ == 0) {
             autoCompactIfNeeded();
@@ -170,9 +145,6 @@ FLASHMEM void EventBus::compact() {
     reclaimEmptyTopics_();
     dead_count_ = 0;
 
-    if constexpr (ENABLE_STATS) {
-        stats_.totalCompactions++;
-    }
 }
 
 FLASHMEM void EventBus::autoCompactIfNeeded() {

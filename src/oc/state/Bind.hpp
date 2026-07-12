@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oc/state/FixedSubscriptionList.hpp>
 #include <oc/state/Signal.hpp>
 
 #include <utility>
@@ -11,18 +12,15 @@ namespace oc::state {
  * @brief Fluent builder for batch subscription management
  *
  * Binder provides a clean, chainable API for subscribing to multiple signals
- * and storing the resulting Subscriptions in a single vector. This eliminates
- * repetitive `subs_.push_back(signal.subscribe(...))` boilerplate.
+ * and storing the resulting Subscriptions in either fixed or dynamic storage.
  *
  * ## Usage
  *
  * @code
  * class DeviceView {
- *     std::vector<Subscription> subs_;
+ *     FixedSubscriptionList<3> subs_;
  *
  *     void setupBindings(DeviceState& state) {
- *         subs_.reserve(20);  // Optional: pre-allocate
- *
  *         bind(subs_)
  *             .on(state.name,    [this](auto n) { nameLabel_.setText(n); })
  *             .on(state.enabled, [this](auto e) { led_.setOn(e); })
@@ -33,8 +31,8 @@ namespace oc::state {
  *
  * ## Lifecycle
  *
- * Subscriptions are stored in the provided vector. When the vector is cleared
- * or destroyed, all subscriptions are automatically unsubscribed via RAII.
+ * When the storage is cleared or destroyed, all subscriptions are
+ * automatically unsubscribed via RAII.
  *
  * @code
  * // Unbind all at once
@@ -59,13 +57,14 @@ namespace oc::state {
  *
  * @see Signal, SignalString for the observable primitives
  */
+template <typename Storage>
 class Binder {
 public:
     /**
      * @brief Construct a Binder attached to a subscription vector
      * @param subs Vector where subscriptions will be stored
      */
-    explicit Binder(std::vector<Subscription>& subs) : subs_(subs) {}
+    explicit Binder(Storage& subs) : subs_(subs) {}
 
     /**
      * @brief Subscribe to a signal and store the subscription
@@ -107,7 +106,7 @@ public:
     }
 
 private:
-    std::vector<Subscription>& subs_;
+    Storage& subs_;
 };
 
 /**
@@ -126,8 +125,9 @@ private:
  *     .on(signal3, callback3);
  * @endcode
  */
-inline Binder bind(std::vector<Subscription>& subs) {
-    return Binder(subs);
+template <typename Storage>
+Binder<Storage> bind(Storage& subs) {
+    return Binder<Storage>(subs);
 }
 
 }  // namespace oc::state

@@ -9,16 +9,6 @@ namespace oc::core::input {
 
 using namespace event;
 
-namespace {
-
-#ifdef OC_INPUT_BINDING_TRACE_NAV
-constexpr bool INPUT_BINDING_TRACE_NAV = true;
-#else
-constexpr bool INPUT_BINDING_TRACE_NAV = false;
-#endif
-
-}  // namespace
-
 // ═══════════════════════════════════════════════════════════════════════════
 // Construction / Destruction
 // ═══════════════════════════════════════════════════════════════════════════
@@ -32,7 +22,6 @@ FLASHMEM InputBinding::InputBinding(interface::IEventBus& eventBus,
       event_bus_(eventBus),
       time_provider_(timeProvider),
       config_(config) {
-
     if (!time_provider_) {
         OC_LOG_WARN("{}", "[InputBinding] No oc::type::TimeProvider - long press and double tap detection disabled");
     }
@@ -192,14 +181,6 @@ void InputBinding::onEncoderChanged(const oc::type::Event& event) {
         .authorityScope = currentAuthority(),
         .encoderValue = evt.normalizedValue,
     });
-    if (INPUT_BINDING_TRACE_NAV && evt.encoderId == 400) {
-        const oc::type::ScopeID authority =
-            authority_resolver_ ? authority_resolver_->getAuthority() : 0;
-        OC_LOG_DEBUG("[InputBinding] encoder event id={} value={} authority={}",
-                     static_cast<unsigned>(evt.encoderId),
-                     evt.normalizedValue,
-                     static_cast<unsigned>(authority));
-    }
     dispatchEncoderEvent(evt.encoderId, evt.normalizedValue);
 }
 
@@ -406,17 +387,6 @@ void InputBinding::dispatchEncoderEvent(oc::type::EncoderID id, float value) {
     if (!bindings_enabled_) return;
     bool dispatched = false;
 
-    const bool traceNav = INPUT_BINDING_TRACE_NAV && (id == 400);
-    if (traceNav) {
-        const oc::type::ScopeID authority =
-            authority_resolver_ ? authority_resolver_->getAuthority() : 0;
-        OC_LOG_DEBUG("[InputBinding] dispatch encoder id={} value={} authority={} scopedBindings={}",
-                     static_cast<unsigned>(id),
-                     value,
-                     static_cast<unsigned>(authority),
-                     static_cast<unsigned>(encoder_registry_.size()));
-    }
-
     // Try scoped bindings first
     for (auto& binding : encoder_registry_.bindings()) {
         if (!binding.enabled || binding.encoderId != id) continue;
@@ -438,14 +408,6 @@ void InputBinding::dispatchEncoderEvent(oc::type::EncoderID id, float value) {
             .requiredButton = requiredButton,
             .encoderValue = value,
         });
-        if (traceNav) {
-            OC_LOG_DEBUG("[InputBinding] scoped candidate binding={} scope={} active={} authority={} requiredButton={}",
-                         static_cast<unsigned>(binding.id),
-                         static_cast<unsigned>(binding.scopeId),
-                         active ? 1U : 0U,
-                         authority ? 1U : 0U,
-                         requiredButton ? 1U : 0U);
-        }
         if (!active || !authority) continue;
         if (!requiredButton) continue;
 
@@ -465,11 +427,6 @@ void InputBinding::dispatchEncoderEvent(oc::type::EncoderID id, float value) {
                 .dispatched = true,
                 .encoderValue = value,
             });
-            if (traceNav) {
-                OC_LOG_DEBUG("[InputBinding] dispatch scoped binding={} scope={}",
-                             static_cast<unsigned>(binding.id),
-                             static_cast<unsigned>(binding.scopeId));
-            }
             binding.action(value);
             return;
         }
@@ -495,12 +452,6 @@ void InputBinding::dispatchEncoderEvent(oc::type::EncoderID id, float value) {
             .requiredButton = requiredButton,
             .encoderValue = value,
         });
-        if (traceNav) {
-            OC_LOG_DEBUG("[InputBinding] global candidate binding={} active={} requiredButton={}",
-                         static_cast<unsigned>(binding.id),
-                         active ? 1U : 0U,
-                         requiredButton ? 1U : 0U);
-        }
         if (!active) continue;
         if (!requiredButton) continue;
 
@@ -520,19 +471,11 @@ void InputBinding::dispatchEncoderEvent(oc::type::EncoderID id, float value) {
                 .dispatched = true,
                 .encoderValue = value,
             });
-            if (traceNav) {
-                OC_LOG_DEBUG("[InputBinding] dispatch global binding={}",
-                             static_cast<unsigned>(binding.id));
-            }
             binding.action(value);
             dispatched = true;
         }
     }
 
-    if (traceNav) {
-        OC_LOG_DEBUG("[InputBinding] no encoder binding dispatched for id={}",
-                     static_cast<unsigned>(id));
-    }
     if (!dispatched) {
         trace({
             .stage = InputBindingTraceStage::NoDispatch,

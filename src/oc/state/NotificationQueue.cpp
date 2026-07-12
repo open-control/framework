@@ -5,6 +5,7 @@
 
 #include "NotificationQueue.hpp"
 
+#include <oc/diagnostics/Performance.hpp>
 #include <oc/log/Log.hpp>
 
 namespace oc::state {
@@ -29,10 +30,6 @@ bool NotificationQueue::containsKey_(
 void NotificationQueue::enqueue(Key key, void* context, NotifyFn fn) {
     // Immediate mode executes synchronously.
     if (!deferredMode_) {
-        if constexpr (ENABLE_STATS) {
-            stats_.totalEnqueued++;
-            stats_.totalFlushed++;
-        }
         fn(context, key.second);
         return;
     }
@@ -41,9 +38,6 @@ void NotificationQueue::enqueue(Key key, void* context, NotifyFn fn) {
     if (containsKey_(pending_, pendingCount_, key)) {
         // Already queued - ignore duplicate
         // The existing entry will use the final value at flush time
-        if constexpr (ENABLE_STATS) {
-            stats_.totalCoalesced++;
-        }
         return;
     }
 
@@ -59,42 +53,71 @@ void NotificationQueue::enqueue(Key key, void* context, NotifyFn fn) {
     pending_[pendingCount_] = Entry{key, context, fn};
     ++pendingCount_;
 
-    if constexpr (ENABLE_STATS) {
-        stats_.totalEnqueued++;
-        if (pendingCount_ > stats_.peakPending) {
-            stats_.peakPending = pendingCount_;
+}
+
+void NotificationQueue::cancel(Key key) {
+    cancelMatching_(key.first, key.second, true);
+}
+
+void NotificationQueue::cancelOwner(void* owner) {
+    if (owner == nullptr) return;
+    cancelMatching_(owner, 0, false);
+}
+
+void NotificationQueue::cancelMatching_(void* owner, size_t slot, bool matchSlot) {
+    size_t write = 0;
+    for (size_t read = 0; read < pendingCount_; ++read) {
+        const auto& entry = pending_[read];
+        const bool matches = entry.key.first == owner &&
+                             (!matchSlot || entry.key.second == slot);
+        if (!matches) {
+            if (write != read) pending_[write] = entry;
+            ++write;
+        }
+    }
+    for (size_t i = write; i < pendingCount_; ++i) {
+        pending_[i] = {};
+    }
+    pendingCount_ = write;
+
+    for (size_t i = 0; i < processingCount_; ++i) {
+        auto& entry = processing_[i];
+        if (entry.key.first == owner && (!matchSlot || entry.key.second == slot)) {
+            entry = {};
         }
     }
 }
 
 void NotificationQueue::flush() {
     if (isFlushing_) {
-        // Re-entrancy: notifications triggered during flush
-        // will be processed in the next flush() call
+        // The active outer flush drains notifications enqueued by this callback
+        // in its next wave.
         return;
     }
 
     isFlushing_ = true;
+    OC_PERF_SCOPE(perfFlush, "notifications.flush");
 
     // Process until queue is empty
     // (new notifications during processing go to next iteration)
     while (pendingCount_ != 0) {
-        const size_t processingCount = pendingCount_;
-        for (size_t i = 0; i < processingCount; ++i) {
+        processingCount_ = pendingCount_;
+        for (size_t i = 0; i < processingCount_; ++i) {
             processing_[i] = pending_[i];
         }
         pendingCount_ = 0;
 
         // Execute all pending notifications
-        for (size_t i = 0; i < processingCount; ++i) {
-            if constexpr (ENABLE_STATS) {
-                stats_.totalFlushed++;
-            }
+        for (size_t i = 0; i < processingCount_; ++i) {
             auto& entry = processing_[i];
             if (entry.fn != nullptr) {
                 entry.fn(entry.context, entry.key.second);
             }
         }
+        for (size_t i = 0; i < processingCount_; ++i) {
+            processing_[i] = {};
+        }
+        processingCount_ = 0;
     }
 
     isFlushing_ = false;

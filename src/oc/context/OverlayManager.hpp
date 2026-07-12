@@ -45,6 +45,7 @@ class OverlayManager {
 
 public:
     using ScopeProvider = typename oc::core::input::AuthorityResolver::ScopeProvider;
+    using PresentationCallback = void (*)(void* context, EnumT type, bool presented);
 
     explicit OverlayManager(oc::state::ExclusiveVisibilityStack<EnumT>& manager)
         : manager_(manager) {
@@ -74,8 +75,25 @@ public:
 
     void registerCleanup(EnumT type, oc::type::ScopeID scopeId, oc::type::ButtonID latchButton = 0) {
         const auto idx = static_cast<size_t>(type);
-        if (idx < COUNT) {
+        if (type != EnumT::NONE && idx < COUNT) {
             cleanup_[idx] = {scopeId, latchButton};
+        }
+    }
+
+    /**
+     * Register the product-owned presentation boundary for overlay roots.
+     *
+     * The framework reports lifecycle transitions only; the callback decides
+     * whether presentation means LVGL reparenting, another UI backend, or no
+     * action. Raw function/context pointers keep this path allocation-free.
+     */
+    void setPresentationCallback(void* context, PresentationCallback callback) {
+        presentation_handle_.reset();
+        if (callback) {
+            presentation_handle_ = manager_.setVisibilityTransitionCallbackScoped(
+                context,
+                callback
+            );
         }
     }
 
@@ -83,7 +101,9 @@ public:
     // Delegation to ExclusiveVisibilityStack
     // =========================================================================
 
-    void show(EnumT type, bool stack = false) { manager_.show(type, stack); }
+    void show(EnumT type, bool stack = false) {
+        manager_.show(type, stack);
+    }
     void hide() { manager_.hide(); }
     void hideAll() { manager_.hideAll(); }
 
@@ -97,8 +117,9 @@ public:
 
     oc::type::ScopeID currentScope() const {
         const auto type = manager_.current();
-        if (type == EnumT::NONE) return 0;
-        return cleanup_[static_cast<size_t>(type)].scopeId;
+        const auto idx = static_cast<size_t>(type);
+        if (type == EnumT::NONE || idx >= COUNT) return 0;
+        return cleanup_[idx].scopeId;
     }
 
     oc::core::input::AuthorityResolver& authority() { return authority_; }
@@ -127,9 +148,8 @@ public:
 
 private:
     void doCleanup(EnumT type) {
-        if (type == EnumT::NONE || type == EnumT::COUNT) return;
-
         const auto idx = static_cast<size_t>(type);
+        if (type == EnumT::NONE || idx >= COUNT) return;
         const auto& info = cleanup_[idx];
 
         if (info.latchButton != 0 && buttons_) {
@@ -145,6 +165,8 @@ private:
 
     typename oc::state::ExclusiveVisibilityStack<EnumT>::CleanupHandle cleanup_handle_{};
     oc::api::ButtonAPI::AuthorityResolverHandle authority_handle_{};
+    typename oc::state::ExclusiveVisibilityStack<EnumT>::VisibilityTransitionHandle
+        presentation_handle_{};
 };
 
 }  // namespace oc::context

@@ -49,6 +49,7 @@
 #include <vector>
 
 #include <config/PlatformCompat.hpp>
+#include <oc/diagnostics/Performance.hpp>
 #include "NotificationQueue.hpp"
 #include "Signal.hpp"
 #include "SignalString.hpp"
@@ -80,8 +81,11 @@ public:
     // Non-copyable, movable
     WatchGroup(const WatchGroup&) = delete;
     WatchGroup& operator=(const WatchGroup&) = delete;
-    WatchGroup(WatchGroup&&) = default;
-    WatchGroup& operator=(WatchGroup&&) = default;
+    WatchGroup(WatchGroup&&) = delete;
+    WatchGroup& operator=(WatchGroup&&) = delete;
+    ~WatchGroup() {
+        NotificationQueue::instance().cancel(key_);
+    }
 
     /**
      * @brief Add any subscribable signal-like object to this watch group
@@ -115,7 +119,12 @@ private:
             key_,
             static_cast<void*>(this),
             [](void* context, size_t) {
-                static_cast<WatchGroup*>(context)->callback_();
+                auto* self = static_cast<WatchGroup*>(context);
+                OC_PERF_SCOPE(
+                    perfCallback,
+                    self->debug_label_ ? self->debug_label_ : "watch-group.callback"
+                );
+                self->callback_();
             });
     }
 
