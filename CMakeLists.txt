@@ -71,6 +71,43 @@ if(OC_FRAMEWORK_BUILD_TESTS AND BUILD_TESTING)
         set_tests_properties("${test_name}" PROPERTIES LABELS open-control-framework)
     endforeach()
 
+    # Keep the opt-in NotificationQueue diagnostics covered by the default test
+    # workflow without enabling stats in the production-equivalent library.
+    add_library(
+        oc_framework_notificationqueue_diagnostics_support
+        STATIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/oc/diagnostics/Performance.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/oc/log/Log.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/oc/state/NotificationQueue.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/oc/time/Time.cpp")
+    target_include_directories(
+        oc_framework_notificationqueue_diagnostics_support
+        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    target_compile_definitions(
+        oc_framework_notificationqueue_diagnostics_support
+        PUBLIC OC_ENABLE_STATS=1 OC_LOG)
+
+    set(notificationqueue_diagnostics_target
+        oc_framework_test_notificationqueue_diagnostics)
+    add_executable(
+        "${notificationqueue_diagnostics_target}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/test/test_notificationqueue/test_notificationqueue.cpp")
+    target_link_libraries(
+        "${notificationqueue_diagnostics_target}"
+        PRIVATE oc_framework_notificationqueue_diagnostics_support unity)
+    target_include_directories(
+        "${notificationqueue_diagnostics_target}"
+        PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/test"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    list(APPEND OC_FRAMEWORK_TEST_TARGETS "${notificationqueue_diagnostics_target}")
+    add_test(
+        NAME test_notificationqueue_diagnostics
+        COMMAND "${notificationqueue_diagnostics_target}")
+    set_tests_properties(
+        test_notificationqueue_diagnostics
+        PROPERTIES LABELS open-control-framework)
+
     if(PROJECT_IS_TOP_LEVEL)
         add_custom_target(test-native
             COMMAND "${CMAKE_CTEST_COMMAND}" --test-dir "${CMAKE_BINARY_DIR}" --parallel --output-on-failure

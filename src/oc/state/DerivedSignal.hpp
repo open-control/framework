@@ -154,6 +154,14 @@ public:
         return output_.subscribe(std::move(callback));
     }
 
+#if OC_ENABLE_STATS
+    /** Attach a semantic label to the derived output for queue diagnostics. */
+    void setDebugLabel(const char* label) { output_.setDebugLabel(label); }
+
+    /** Return the derived output's diagnostic label, or nullptr if unset. */
+    [[nodiscard]] const char* debugLabel() const { return output_.debugLabel(); }
+#endif
+
     /// Current number of active subscribers
     [[nodiscard]] size_t subscriberCount() const { return output_.subscriberCount(); }
 

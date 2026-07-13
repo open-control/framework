@@ -79,7 +79,43 @@ public:
      * @param context Opaque callback context
      * @param fn Function to call at flush time
      */
-    void enqueue(Key key, void* context, NotifyFn fn);
+    void enqueue(Key key, void* context, NotifyFn fn
+#if OC_ENABLE_STATS
+                 , const char* debugLabel = nullptr
+#endif
+    );
+
+#if OC_ENABLE_STATS
+    /**
+     * @brief Temporarily identify the notification callback currently running
+     *
+     * Diagnostic builds use this scope to correlate an overflow with the
+     * semantic callback that caused it. The label is transient and is not
+     * stored in queue entries.
+     */
+    class CurrentLabelScope {
+    public:
+        CurrentLabelScope(NotificationQueue& queue, const char* label)
+            : queue_(queue), previous_(queue.currentDebugLabel_) {
+            queue_.currentDebugLabel_ = label;
+        }
+
+        ~CurrentLabelScope() {
+            queue_.currentDebugLabel_ = previous_;
+        }
+
+        CurrentLabelScope(const CurrentLabelScope&) = delete;
+        CurrentLabelScope& operator=(const CurrentLabelScope&) = delete;
+
+    private:
+        NotificationQueue& queue_;
+        const char* previous_ = nullptr;
+    };
+
+    [[nodiscard]] CurrentLabelScope scopedCurrentLabel(const char* label) {
+        return CurrentLabelScope(*this, label);
+    }
+#endif
 
     /** Remove a deferred callback before its owner or context is destroyed. */
     void cancel(Key key);
@@ -203,6 +239,12 @@ private:
     bool deferredMode_ = true;
     bool isFlushing_ = false;  ///< Prevent re-entrancy issues
     size_t overflowCount_ = 0; ///< Number of dropped notifications
+#if OC_ENABLE_STATS
+    size_t flushHighWater_ = 0;
+    size_t currentWave_ = 0;
+    const Key* currentProcessingKey_ = nullptr;
+    const char* currentDebugLabel_ = nullptr;
+#endif
 };
 
 }  // namespace oc::state
