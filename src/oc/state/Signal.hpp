@@ -203,6 +203,11 @@ public:
                     static_cast<void*>(this),
                     [](void* context, size_t slot) {
                         auto* self = static_cast<Signal*>(context);
+#if OC_ENABLE_STATS
+                        auto currentLabel = NotificationQueue::instance().scopedCurrentLabel(
+                            self->debugLabel()
+                        );
+#endif
                         OC_PERF_SCOPE(
                             perfCallback,
                             self->debugLabel() ? self->debugLabel() : "signal.callback"
@@ -210,7 +215,11 @@ public:
                         if (self->callbacks_[slot]) {
                             self->callbacks_[slot](self->value_);
                         }
-                    });
+                    }
+#if OC_ENABLE_STATS
+                    , debugLabel()
+#endif
+                );
             }
         }
     }

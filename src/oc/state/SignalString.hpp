@@ -128,6 +128,14 @@ public:
      */
     void notify() { signal_.notify(); }
 
+#if OC_ENABLE_STATS
+    /** Attach a semantic label to the internal signal for queue diagnostics. */
+    void setDebugLabel(const char* label) { signal_.setDebugLabel(label); }
+
+    /** Return the internal signal's diagnostic label, or nullptr if unset. */
+    [[nodiscard]] const char* debugLabel() const { return signal_.debugLabel(); }
+#endif
+
     // =========================================================================
     // Getters
     // =========================================================================
