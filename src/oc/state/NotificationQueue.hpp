@@ -85,38 +85,6 @@ public:
 #endif
     );
 
-#if OC_ENABLE_STATS
-    /**
-     * @brief Temporarily identify the notification callback currently running
-     *
-     * Diagnostic builds use this scope to correlate an overflow with the
-     * semantic callback that caused it. The label is transient and is not
-     * stored in queue entries.
-     */
-    class CurrentLabelScope {
-    public:
-        CurrentLabelScope(NotificationQueue& queue, const char* label)
-            : queue_(queue), previous_(queue.currentDebugLabel_) {
-            queue_.currentDebugLabel_ = label;
-        }
-
-        ~CurrentLabelScope() {
-            queue_.currentDebugLabel_ = previous_;
-        }
-
-        CurrentLabelScope(const CurrentLabelScope&) = delete;
-        CurrentLabelScope& operator=(const CurrentLabelScope&) = delete;
-
-    private:
-        NotificationQueue& queue_;
-        const char* previous_ = nullptr;
-    };
-
-    [[nodiscard]] CurrentLabelScope scopedCurrentLabel(const char* label) {
-        return CurrentLabelScope(*this, label);
-    }
-#endif
-
     /** Remove a deferred callback before its owner or context is destroyed. */
     void cancel(Key key);
 
@@ -225,12 +193,19 @@ private:
         Key key{nullptr, 0};
         void* context = nullptr;
         NotifyFn fn = nullptr;
+#if OC_ENABLE_STATS
+        const char* debugLabel = nullptr;
+#endif
     };
 
     bool containsKey_(const std::array<Entry, MAX_PENDING_NOTIFICATIONS>& entries,
                       size_t count,
                       Key key) const;
     void cancelMatching_(void* owner, size_t slot, bool matchSlot);
+#if OC_ENABLE_STATS
+    void invokeEntry_(Entry& entry);
+    void reportOverflow_(Key rejectedKey, const char* rejectedLabel) const;
+#endif
 
     std::array<Entry, MAX_PENDING_NOTIFICATIONS> pending_{};
     std::array<Entry, MAX_PENDING_NOTIFICATIONS> processing_{};

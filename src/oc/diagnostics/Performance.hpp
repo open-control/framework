@@ -34,25 +34,14 @@ void recordPerformance(const PerformanceSample& sample);
 class PerformanceScope {
 public:
     /** label must remain valid for the lifetime of the diagnostics sink. */
-    explicit PerformanceScope(const char* label)
-        : label_(label), startedAtUs_(oc::time::micros32()) {}
+    explicit PerformanceScope(const char* label);
 
     PerformanceScope(const PerformanceScope&) = delete;
     PerformanceScope& operator=(const PerformanceScope&) = delete;
 
-    ~PerformanceScope() {
-        recordPerformance({
-            .label = label_,
-            .elapsedUs = oc::time::micros32() - startedAtUs_,
-            .unitA = unitA_,
-            .unitB = unitB_,
-        });
-    }
+    ~PerformanceScope();
 
-    void setUnits(uint32_t unitA, uint32_t unitB = 0) {
-        unitA_ = unitA;
-        unitB_ = unitB;
-    }
+    void setUnits(uint32_t unitA, uint32_t unitB = 0);
 
 private:
     const char* label_ = nullptr;

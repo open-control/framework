@@ -201,6 +201,93 @@ def check_module_dependencies(src_oc: Path) -> list[Finding]:
     return findings
 
 
+def check_diagnostics_placement(root: Path) -> list[Finding]:
+    """Keep opt-in timing hooks centralized instead of duplicating them in hot callers."""
+    findings: list[Finding] = []
+    header = root / "src" / "oc" / "diagnostics" / "Performance.hpp"
+    implementation = root / "src" / "oc" / "diagnostics" / "Performance.cpp"
+    header_text = header.read_text(errors="ignore")
+    implementation_text = implementation.read_text(errors="ignore")
+
+    forbidden_inline_bodies = (
+        "explicit PerformanceScope(const char* label)\n        :",
+        "~PerformanceScope() {",
+        "void setUnits(uint32_t unitA, uint32_t unitB = 0) {",
+    )
+    for marker in forbidden_inline_bodies:
+        if marker in header_text:
+            findings.append(
+                Finding(
+                    kind="diagnostics-placement",
+                    file=header,
+                    line=1,
+                    message="PerformanceScope hooks must stay out-of-line to avoid per-caller ITCM growth",
+                )
+            )
+
+    for marker in (
+        "PerformanceScope::PerformanceScope(const char* label)",
+        "PerformanceScope::~PerformanceScope()",
+        "void PerformanceScope::setUnits(uint32_t unitA, uint32_t unitB)",
+    ):
+        if marker not in implementation_text:
+            findings.append(
+                Finding(
+                    kind="diagnostics-placement",
+                    file=implementation,
+                    line=1,
+                    message=f"missing centralized timing hook: {marker}",
+                )
+            )
+
+    state_root = root / "src" / "oc" / "state"
+    for callback_header in (
+        state_root / "Signal.hpp",
+        state_root / "SignalWatcher.hpp",
+        state_root / "StaticSignalWatcher.hpp",
+    ):
+        callback_text = callback_header.read_text(errors="ignore")
+        for marker in ("scopedCurrentLabel", "OC_PERF_SCOPE"):
+            if marker in callback_text:
+                findings.append(
+                    Finding(
+                        kind="diagnostics-placement",
+                        file=callback_header,
+                        line=1,
+                        message=(
+                            "callback diagnostics must stay centralized in "
+                            "NotificationQueue to avoid template ITCM duplication"
+                        ),
+                    )
+                )
+
+    queue_header = state_root / "NotificationQueue.hpp"
+    queue_implementation = state_root / "NotificationQueue.cpp"
+    queue_header_text = queue_header.read_text(errors="ignore")
+    queue_implementation_text = queue_implementation.read_text(errors="ignore")
+    for marker in ("const char* debugLabel = nullptr;", "void invokeEntry_(Entry& entry);"):
+        if marker not in queue_header_text:
+            findings.append(
+                Finding(
+                    kind="diagnostics-placement",
+                    file=queue_header,
+                    line=1,
+                    message=f"missing centralized callback diagnostics contract: {marker}",
+                )
+            )
+    if "FLASHMEM void NotificationQueue::reportOverflow_" not in queue_implementation_text:
+        findings.append(
+            Finding(
+                kind="diagnostics-placement",
+                file=queue_implementation,
+                line=1,
+                message="cold diagnostics overflow formatting must execute from Flash",
+            )
+        )
+
+    return findings
+
+
 def main() -> int:
     root = repo_root()
     src_oc = root / "src" / "oc"
@@ -213,6 +300,7 @@ def main() -> int:
     findings.extend(check_using_namespace_in_headers(src_oc))
     findings.extend(check_namespace_matches_path(src_oc))
     findings.extend(check_module_dependencies(src_oc))
+    findings.extend(check_diagnostics_placement(root))
 
     if findings:
         for f in findings:

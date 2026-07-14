@@ -231,6 +231,19 @@ void test_discrete_steps_quantizes_output() {
     }
 }
 
+void test_single_discrete_step_is_fixed_and_never_emits_non_finite_value() {
+    EncoderLogic logic(makeConfig());
+    logic.setPosition(0.0f);
+    logic.setDiscreteSteps(1);
+
+    processTicks(logic, 32);
+
+    const auto value = logic.flush();
+    TEST_ASSERT_FALSE(value.has_value());
+    TEST_ASSERT_TRUE(std::isfinite(logic.getLastValue()));
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, logic.getLastValue());
+}
+
 void test_continuous_disables_quantization() {
     EncoderLogic logic(makeConfig());
     logic.setDiscreteSteps(10);
@@ -438,6 +451,7 @@ int main(int argc, char **argv) {
 
     // Discrete steps
     RUN_TEST(test_discrete_steps_quantizes_output);
+    RUN_TEST(test_single_discrete_step_is_fixed_and_never_emits_non_finite_value);
     RUN_TEST(test_continuous_disables_quantization);
     RUN_TEST(test_custom_discrete_ticks_per_step_slows_progress);
     RUN_TEST(test_discrete_ticks_per_step_recalculates_existing_quantization);
