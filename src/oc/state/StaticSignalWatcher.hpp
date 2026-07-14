@@ -45,21 +45,12 @@ public:
             static_cast<void*>(this),
             [](void* context, size_t) {
                 auto* self = static_cast<StaticWatchGroupBase*>(context);
-#if OC_ENABLE_STATS
-                auto currentLabel = NotificationQueue::instance().scopedCurrentLabel(
-                    self->debug_label_
-                );
-#endif
-                OC_PERF_SCOPE(
-                    perfCallback,
-                    self->debug_label_ ? self->debug_label_ : "static-watch-group.callback"
-                );
                 if (self->callback_ != nullptr) {
                     self->callback_(self->owner_);
                 }
             }
 #if OC_ENABLE_STATS
-            , debug_label_
+            , debug_label_ ? debug_label_ : "static-watch-group.callback"
 #endif
         );
     }

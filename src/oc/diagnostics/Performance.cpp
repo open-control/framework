@@ -31,6 +31,23 @@ void recordPerformance(const PerformanceSample& sample) {
     }
 }
 
+PerformanceScope::PerformanceScope(const char* label)
+    : label_(label), startedAtUs_(oc::time::micros32()) {}
+
+PerformanceScope::~PerformanceScope() {
+    recordPerformance({
+        .label = label_,
+        .elapsedUs = oc::time::micros32() - startedAtUs_,
+        .unitA = unitA_,
+        .unitB = unitB_,
+    });
+}
+
+void PerformanceScope::setUnits(uint32_t unitA, uint32_t unitB) {
+    unitA_ = unitA;
+    unitB_ = unitB;
+}
+
 }  // namespace oc::diagnostics
 
 #endif

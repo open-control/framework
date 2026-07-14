@@ -5,6 +5,7 @@
 
 #include "NotificationQueue.hpp"
 
+#include <config/PlatformCompat.hpp>
 #include <oc/diagnostics/Performance.hpp>
 #include <oc/log/Log.hpp>
 
@@ -16,7 +17,7 @@ namespace {
 constexpr size_t POINTER_HEX_DIGITS = sizeof(uintptr_t) * 2U;
 constexpr size_t POINTER_HEX_BUFFER_SIZE = 2U + POINTER_HEX_DIGITS + 1U;
 
-void formatPointerHex(const void* value, char (&buffer)[POINTER_HEX_BUFFER_SIZE]) {
+FLASHMEM void formatPointerHex(const void* value, char (&buffer)[POINTER_HEX_BUFFER_SIZE]) {
     constexpr char HEX_DIGITS[] = "0123456789abcdef";
     const uintptr_t address = reinterpret_cast<uintptr_t>(value);
 
@@ -59,7 +60,12 @@ void NotificationQueue::enqueue(Key key, void* context, NotifyFn fn
 ) {
     // Immediate mode executes synchronously.
     if (!deferredMode_) {
+#if OC_ENABLE_STATS
+        Entry entry{key, context, fn, debugLabel};
+        invokeEntry_(entry);
+#else
         fn(context, key.second);
+#endif
         return;
     }
 
@@ -74,32 +80,7 @@ void NotificationQueue::enqueue(Key key, void* context, NotifyFn fn
     if (pendingCount_ >= MAX_PENDING_NOTIFICATIONS) {
         overflowCount_++;
 #if OC_ENABLE_STATS
-        const bool hasCurrent = isFlushing_ && currentProcessingKey_ != nullptr;
-        const Key currentKey = hasCurrent
-            ? *currentProcessingKey_
-            : Key{nullptr, 0};
-        char currentOwnerHex[POINTER_HEX_BUFFER_SIZE];
-        char rejectedOwnerHex[POINTER_HEX_BUFFER_SIZE];
-        formatPointerHex(currentKey.first, currentOwnerHex);
-        formatPointerHex(key.first, rejectedOwnerHex);
-        OC_LOG_WARN(
-            "[NotificationQueue] overflow dropped={} pending={} capacity={} highWater={} "
-            "wave={} currentLabel={} currentOwner={} currentSlot={} rejectedLabel={} "
-            "rejectedOwner={} rejectedSlot={}",
-            overflowCount_,
-            pendingCount_,
-            MAX_PENDING_NOTIFICATIONS,
-            flushHighWater_,
-            currentWave_,
-            hasCurrent
-                ? (currentDebugLabel_ ? currentDebugLabel_ : "<unnamed>")
-                : "<none>",
-            currentOwnerHex,
-            currentKey.second,
-            debugLabel ? debugLabel : "<unnamed>",
-            rejectedOwnerHex,
-            key.second
-        );
+        reportOverflow_(key, debugLabel);
 #else
         OC_LOG_WARN("NotificationQueue overflow! Dropped notification (total dropped: {})",
                     overflowCount_);
@@ -108,7 +89,14 @@ void NotificationQueue::enqueue(Key key, void* context, NotifyFn fn
     }
 
     // Add to fixed-capacity queue
-    pending_[pendingCount_] = Entry{key, context, fn};
+    pending_[pendingCount_] = Entry{
+        key,
+        context,
+        fn,
+#if OC_ENABLE_STATS
+        debugLabel,
+#endif
+    };
     ++pendingCount_;
 
 #if OC_ENABLE_STATS
@@ -151,6 +139,57 @@ void NotificationQueue::cancelMatching_(void* owner, size_t slot, bool matchSlot
     }
 }
 
+#if OC_ENABLE_STATS
+void NotificationQueue::invokeEntry_(Entry& entry) {
+    const Key* previousKey = currentProcessingKey_;
+    const char* previousLabel = currentDebugLabel_;
+    const Key currentKey = entry.key;
+    currentProcessingKey_ = &currentKey;
+    currentDebugLabel_ = entry.debugLabel;
+    {
+        OC_PERF_SCOPE(
+            perfCallback,
+            currentDebugLabel_ ? currentDebugLabel_ : "signal.callback"
+        );
+        entry.fn(entry.context, entry.key.second);
+    }
+    currentProcessingKey_ = previousKey;
+    currentDebugLabel_ = previousLabel;
+}
+
+FLASHMEM void NotificationQueue::reportOverflow_(
+    Key rejectedKey,
+    const char* rejectedLabel
+) const {
+    const bool hasCurrent = isFlushing_ && currentProcessingKey_ != nullptr;
+    const Key currentKey = hasCurrent
+        ? *currentProcessingKey_
+        : Key{nullptr, 0};
+    char currentOwnerHex[POINTER_HEX_BUFFER_SIZE];
+    char rejectedOwnerHex[POINTER_HEX_BUFFER_SIZE];
+    formatPointerHex(currentKey.first, currentOwnerHex);
+    formatPointerHex(rejectedKey.first, rejectedOwnerHex);
+    OC_LOG_WARN(
+        "[NotificationQueue] overflow dropped={} pending={} capacity={} highWater={} "
+        "wave={} currentLabel={} currentOwner={} currentSlot={} rejectedLabel={} "
+        "rejectedOwner={} rejectedSlot={}",
+        overflowCount_,
+        pendingCount_,
+        MAX_PENDING_NOTIFICATIONS,
+        flushHighWater_,
+        currentWave_,
+        hasCurrent
+            ? (currentDebugLabel_ ? currentDebugLabel_ : "<unnamed>")
+            : "<none>",
+        currentOwnerHex,
+        currentKey.second,
+        rejectedLabel ? rejectedLabel : "<unnamed>",
+        rejectedOwnerHex,
+        rejectedKey.second
+    );
+}
+#endif
+
 void NotificationQueue::flush() {
     if (isFlushing_) {
         // The active outer flush drains notifications enqueued by this callback
@@ -183,13 +222,9 @@ void NotificationQueue::flush() {
             auto& entry = processing_[i];
             if (entry.fn != nullptr) {
 #if OC_ENABLE_STATS
-                const Key currentKey = entry.key;
-                currentProcessingKey_ = &currentKey;
-#endif
+                invokeEntry_(entry);
+#else
                 entry.fn(entry.context, entry.key.second);
-#if OC_ENABLE_STATS
-                currentProcessingKey_ = nullptr;
-                currentDebugLabel_ = nullptr;
 #endif
             }
         }

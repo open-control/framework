@@ -9,7 +9,6 @@
 #include <type_traits>
 #include <utility>
 
-#include <oc/diagnostics/Performance.hpp>
 #include <oc/log/Log.hpp>
 
 #include "NotificationQueue.hpp"
@@ -203,15 +202,6 @@ public:
                     static_cast<void*>(this),
                     [](void* context, size_t slot) {
                         auto* self = static_cast<Signal*>(context);
-#if OC_ENABLE_STATS
-                        auto currentLabel = NotificationQueue::instance().scopedCurrentLabel(
-                            self->debugLabel()
-                        );
-#endif
-                        OC_PERF_SCOPE(
-                            perfCallback,
-                            self->debugLabel() ? self->debugLabel() : "signal.callback"
-                        );
                         if (self->callbacks_[slot]) {
                             self->callbacks_[slot](self->value_);
                         }

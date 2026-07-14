@@ -119,6 +119,17 @@ bool EncoderLogic::applyQuantization(float value, float& outValue) {
         return true;
     }
 
+    // A one-value control is intentionally fixed. Treat it as a valid
+    // non-emitting configuration instead of dividing by (steps - 1) below.
+    // This is used by read-only/non-applicable rows that still share a
+    // normalized encoder with editable controls.
+    if (discrete_steps_ == 1) {
+        outValue = bounds_min_;
+        last_value_ = outValue;
+        last_quantized_value_ = outValue;
+        return false;
+    }
+
     // Normalize to [0, 1] before quantization
     float boundsRange = bounds_max_ - bounds_min_;
     float normalized = (boundsRange > 0.0f) ? (value - bounds_min_) / boundsRange : 0.0f;
