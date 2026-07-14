@@ -9,8 +9,6 @@
 #include <type_traits>
 #include <utility>
 
-#include <oc/log/Log.hpp>
-
 #include "NotificationQueue.hpp"
 
 namespace oc::state {
@@ -46,10 +44,12 @@ struct SubscriptionDebugContext {
     const char* requesterLabel = nullptr;
 };
 
-inline const SubscriptionDebugContext*& currentSubscriptionDebugContext() {
-    static const SubscriptionDebugContext* context = nullptr;
-    return context;
-}
+const SubscriptionDebugContext*& currentSubscriptionDebugContext();
+
+void reportSignalSubscriberOverflow(const char* signalLabel,
+                                    size_t subscriberCount,
+                                    size_t maxSubscribers,
+                                    const void* signalAddress);
 
 class ScopedSubscriptionDebugContext {
 public:
@@ -265,18 +265,6 @@ private:
     const char* debug_label_ = nullptr;
 #endif
 
-    void reportSubscriberOverflow_() const {
-        const auto* context = detail::currentSubscriptionDebugContext();
-        OC_LOG_ERROR(
-            "[Signal] MaxSubscribers exceeded label={} subscribers={} max={} requester={} address={}",
-            debugLabel() ? debugLabel() : "<unnamed>",
-            subscriberCount(),
-            MaxSubscribers,
-            (context && context->requesterLabel) ? context->requesterLabel : "<unknown>",
-            static_cast<const void*>(this)
-        );
-    }
-
     /// Add subscriber, returns slot index or -1 if full
     int addSubscriber(Callback callback) {
         for (size_t i = 0; i < MaxSubscribers; ++i) {
@@ -390,7 +378,12 @@ Subscription Signal<T, MaxSubscribers>::subscribe(Callback callback) {
     int slot = addSubscriber(std::move(callback));
     if (slot < 0) {
         // Max subscribers reached - fail loudly in debug builds
-        reportSubscriberOverflow_();
+        detail::reportSignalSubscriberOverflow(
+            debugLabel(),
+            subscriberCount(),
+            MaxSubscribers,
+            static_cast<const void*>(this)
+        );
         assert(false && "Signal: MaxSubscribers exceeded. Check logs for label/subscriber count.");
         return Subscription{};
     }

@@ -79,6 +79,7 @@ if(OC_FRAMEWORK_BUILD_TESTS AND BUILD_TESTING)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/oc/diagnostics/Performance.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/oc/log/Log.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/oc/state/NotificationQueue.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/oc/state/Signal.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/oc/time/Time.cpp")
     target_include_directories(
         oc_framework_notificationqueue_diagnostics_support
