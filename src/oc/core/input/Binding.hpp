@@ -45,6 +45,7 @@ struct ButtonBinding {
     oc::type::ActionCallback action;
     bool enabled = true;
     bool latch = false;  ///< Enable latch/momentary behavior
+    bool globalPassThrough = false;  ///< Reserved global control allowed through active scopes
     oc::type::IsActiveFn isActive = nullptr;  ///< Activation predicate (nullptr = always active)
     oc::type::ScopeID scopeId = 0;            ///< 0 = global
     int8_t priority = 0;                      ///< Higher priority = triggered first (default: 0)

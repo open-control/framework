@@ -13,6 +13,11 @@ enum class InputBindingTraceStage : uint8_t {
     Candidate,
     Dispatch,
     NoDispatch,
+    RouteCapture,
+    RouteHandoff,
+    Fallback,
+    Ambiguous,
+    Consumed,
 };
 
 enum class InputBindingTraceDomain : uint8_t {
@@ -35,6 +40,7 @@ struct InputBindingTraceEvent {
     bool authority = false;
     bool requiredButton = true;
     bool dispatched = false;
+    uint8_t candidateCount = 0;
     float encoderValue = 0.0f;
 };
 

@@ -120,16 +120,23 @@ public:
     bool isPressed(EnumT id) const { return isPressed(static_cast<oc::type::ButtonID>(id)); }
 
     /**
-     * @brief Override current press ownership for a button
-     *
-     * Advanced API for flows that switch overlay scope on press and require
-     * release routing to follow the new scope.
+     * @brief Explicitly transfer an in-flight gesture to another scope
      */
-    void setPressOwner(oc::type::ButtonID id, oc::type::ScopeID scope);
+    void handoffPress(oc::type::ButtonID id, oc::type::ScopeID scope);
     template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
-    void setPressOwner(EnumT id, oc::type::ScopeID scope) {
-        setPressOwner(static_cast<oc::type::ButtonID>(id), scope);
+    void handoffPress(EnumT id, oc::type::ScopeID scope) {
+        handoffPress(static_cast<oc::type::ButtonID>(id), scope);
     }
+
+    /// Consume the rest of the current physical gesture.
+    void consumePress(oc::type::ButtonID id);
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
+    void consumePress(EnumT id) {
+        consumePress(static_cast<oc::type::ButtonID>(id));
+    }
+
+    /// Quarantine every button held across an overlay authority transition.
+    void quarantinePressedButtons();
 
     /**
      * @brief Get a predicate for use with when()

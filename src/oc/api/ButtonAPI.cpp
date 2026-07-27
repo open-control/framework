@@ -68,8 +68,16 @@ bool ButtonAPI::isPressed(oc::type::ButtonID id) const {
     return hw_.isPressed(id);
 }
 
-void ButtonAPI::setPressOwner(oc::type::ButtonID id, oc::type::ScopeID scope) {
-    binding_.setPressOwner(id, scope);
+void ButtonAPI::handoffPress(oc::type::ButtonID id, oc::type::ScopeID scope) {
+    binding_.handoffPress(id, scope);
+}
+
+void ButtonAPI::consumePress(oc::type::ButtonID id) {
+    binding_.consumePress(id);
+}
+
+void ButtonAPI::quarantinePressedButtons() {
+    binding_.quarantinePressedButtons();
 }
 
 oc::type::IsActiveFn ButtonAPI::pressed(oc::type::ButtonID id) const {

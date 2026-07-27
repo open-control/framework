@@ -123,6 +123,19 @@ public:
      */
     ButtonBuilder& latch();
 
+    /**
+     * @brief Reserve this global binding across every active scope
+     *
+     * This is intended for invariant hardware controls such as transport.
+     * It is invalid on a scoped binding.
+     */
+    ButtonBuilder& globalPassThrough();
+
+    /**
+     * @brief Set deterministic precedence within a scope
+     */
+    ButtonBuilder& priority(int8_t value);
+
     // ═══════════════════════════════════════════════════
     // Terminal (MUST be called)
     // ═══════════════════════════════════════════════════
@@ -142,6 +155,8 @@ private:
     oc::type::ScopeID scope_ = 0;
     oc::type::IsActiveFn isActive_ = nullptr;
     bool latch_ = false;
+    bool globalPassThrough_ = false;
+    int8_t priority_ = 0;
     bool gestureSet_ = false;
     bool finalized_ = false;
 };

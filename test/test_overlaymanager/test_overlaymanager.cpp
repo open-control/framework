@@ -5,8 +5,14 @@
 #include <cstdint>
 
 #include <oc/context/OverlayManager.hpp>
+#include <oc/core/event/Events.hpp>
+#include <oc/core/input/InputBinding.hpp>
+#include <oc/interface/IButton.hpp>
 #include <oc/state/ExclusiveVisibilityStack.hpp>
 #include <oc/state/Signal.hpp>
+
+#include "../mocks/FakeTime.hpp"
+#include "../mocks/MockEventBus.hpp"
 
 namespace {
 
@@ -34,9 +40,23 @@ void recordPresentation(void* context, Overlay type, bool presented) {
     trace->events[trace->count++] = {.type = type, .presented = presented};
 }
 
+class DummyButton final : public oc::interface::IButton {
+public:
+    oc::type::Result<void> init() override { return oc::type::Result<void>::ok(); }
+    void update(uint32_t) override {}
+    bool isPressed(oc::type::ButtonID) const override { return false; }
+    void setCallback(oc::type::ButtonCallback) override {}
+};
+
 }  // namespace
 
-void setUp() {}
+static oc::test::MockEventBus eventBus;
+static oc::test::FakeTime fakeTime;
+
+void setUp() {
+    eventBus.reset();
+    fakeTime.reset();
+}
 void tearDown() {}
 
 void test_presentation_follows_replacement_and_stacked_hide() {
@@ -74,8 +94,182 @@ void test_presentation_follows_replacement_and_stacked_hide() {
     TEST_ASSERT_EQUAL_INT(static_cast<int>(Overlay::NONE), static_cast<int>(manager.current()));
 }
 
+void test_authority_transition_quarantines_opening_button_release() {
+    oc::core::input::InputConfig config;
+    config.gestureRoutingPolicy = oc::core::input::GestureRoutingPolicy::PressScoped;
+    config.releaseRoutingPolicy = oc::core::input::ReleaseRoutingPolicy::OwnerOnly;
+    config.ambiguityPolicy = oc::core::input::BindingAmbiguityPolicy::FailClosed;
+    config.globalRoutingPolicy =
+        oc::core::input::GlobalRoutingPolicy::ExplicitPassThroughOnly;
+
+    oc::core::input::InputBinding input(eventBus, fakeTime.provider(), config);
+    DummyButton hardware;
+    oc::api::ButtonAPI buttons(input, hardware);
+    oc::state::ExclusiveVisibilityStack<Overlay> stack;
+    oc::state::Signal<bool> a{false};
+    stack.registerItem(Overlay::A, a);
+    oc::context::OverlayManager<Overlay> manager(stack, buttons);
+    manager.registerCleanup(Overlay::A, 200);
+    manager.setActiveViewProvider([]() { return oc::type::ScopeID(100); });
+
+    int releaseCount = 0;
+    oc::core::input::ButtonBinding press{};
+    press.type = oc::core::input::ButtonBindingType::PRESS;
+    press.buttonId = 1;
+    press.scopeId = 100;
+    press.action = [&]() { manager.show(Overlay::A); };
+    input.registerButtonBinding(press);
+
+    oc::core::input::ButtonBinding release{};
+    release.type = oc::core::input::ButtonBindingType::RELEASE;
+    release.buttonId = 1;
+    release.scopeId = 100;
+    release.action = [&]() { releaseCount++; };
+    input.registerButtonBinding(release);
+
+    eventBus.emit(oc::core::event::ButtonPressEvent{1, true});
+    eventBus.emit(oc::core::event::ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(0, releaseCount);
+    TEST_ASSERT_EQUAL_UINT32(1, input.diagnostics().quarantinedGestures);
+    TEST_ASSERT_EQUAL_INT(static_cast<int>(Overlay::A),
+                          static_cast<int>(manager.current()));
+}
+
+void test_authority_transition_quarantines_closing_button_release() {
+    oc::core::input::InputConfig config;
+    config.gestureRoutingPolicy = oc::core::input::GestureRoutingPolicy::PressScoped;
+    config.releaseRoutingPolicy = oc::core::input::ReleaseRoutingPolicy::OwnerOnly;
+    config.ambiguityPolicy = oc::core::input::BindingAmbiguityPolicy::FailClosed;
+    config.globalRoutingPolicy =
+        oc::core::input::GlobalRoutingPolicy::ExplicitPassThroughOnly;
+
+    oc::core::input::InputBinding input(eventBus, fakeTime.provider(), config);
+    DummyButton hardware;
+    oc::api::ButtonAPI buttons(input, hardware);
+    oc::state::ExclusiveVisibilityStack<Overlay> stack;
+    oc::state::Signal<bool> a{false};
+    stack.registerItem(Overlay::A, a);
+    oc::context::OverlayManager<Overlay> manager(stack, buttons);
+    manager.registerCleanup(Overlay::A, 200);
+    manager.setActiveViewProvider([]() { return oc::type::ScopeID(100); });
+    manager.show(Overlay::A);
+
+    int releaseCount = 0;
+    oc::core::input::ButtonBinding press{};
+    press.type = oc::core::input::ButtonBindingType::PRESS;
+    press.buttonId = 1;
+    press.scopeId = 200;
+    press.action = [&]() { manager.hide(); };
+    input.registerButtonBinding(press);
+
+    oc::core::input::ButtonBinding release{};
+    release.type = oc::core::input::ButtonBindingType::RELEASE;
+    release.buttonId = 1;
+    release.scopeId = 200;
+    release.action = [&]() { releaseCount++; };
+    input.registerButtonBinding(release);
+
+    eventBus.emit(oc::core::event::ButtonPressEvent{1, true});
+    eventBus.emit(oc::core::event::ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(0, releaseCount);
+    TEST_ASSERT_EQUAL_UINT32(1, input.diagnostics().quarantinedGestures);
+    TEST_ASSERT_EQUAL_INT(static_cast<int>(Overlay::NONE),
+                          static_cast<int>(manager.current()));
+}
+
+void test_direct_stack_transition_is_also_quarantined() {
+    oc::core::input::InputConfig config;
+    config.gestureRoutingPolicy = oc::core::input::GestureRoutingPolicy::PressScoped;
+    config.releaseRoutingPolicy = oc::core::input::ReleaseRoutingPolicy::OwnerOnly;
+    config.ambiguityPolicy = oc::core::input::BindingAmbiguityPolicy::FailClosed;
+    config.globalRoutingPolicy =
+        oc::core::input::GlobalRoutingPolicy::ExplicitPassThroughOnly;
+
+    oc::core::input::InputBinding input(eventBus, fakeTime.provider(), config);
+    DummyButton hardware;
+    oc::api::ButtonAPI buttons(input, hardware);
+    oc::state::ExclusiveVisibilityStack<Overlay> stack;
+    oc::state::Signal<bool> a{false};
+    stack.registerItem(Overlay::A, a);
+    oc::context::OverlayManager<Overlay> manager(stack, buttons);
+    manager.registerCleanup(Overlay::A, 200);
+    manager.setActiveViewProvider([]() { return oc::type::ScopeID(100); });
+
+    int releaseCount = 0;
+    oc::core::input::ButtonBinding press{};
+    press.type = oc::core::input::ButtonBindingType::PRESS;
+    press.buttonId = 1;
+    press.scopeId = 100;
+    press.action = [&]() { stack.show(Overlay::A); };
+    input.registerButtonBinding(press);
+
+    oc::core::input::ButtonBinding release{};
+    release.type = oc::core::input::ButtonBindingType::RELEASE;
+    release.buttonId = 1;
+    release.scopeId = 100;
+    release.action = [&]() { releaseCount++; };
+    input.registerButtonBinding(release);
+
+    eventBus.emit(oc::core::event::ButtonPressEvent{1, true});
+    eventBus.emit(oc::core::event::ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(0, releaseCount);
+    TEST_ASSERT_EQUAL_UINT32(1, input.diagnostics().quarantinedGestures);
+    TEST_ASSERT_EQUAL_INT(static_cast<int>(Overlay::A),
+                          static_cast<int>(manager.current()));
+}
+
+void test_idempotent_overlay_show_keeps_current_gesture_route() {
+    oc::core::input::InputConfig config;
+    config.gestureRoutingPolicy = oc::core::input::GestureRoutingPolicy::PressScoped;
+    config.releaseRoutingPolicy = oc::core::input::ReleaseRoutingPolicy::OwnerOnly;
+    config.ambiguityPolicy = oc::core::input::BindingAmbiguityPolicy::FailClosed;
+    config.globalRoutingPolicy =
+        oc::core::input::GlobalRoutingPolicy::ExplicitPassThroughOnly;
+
+    oc::core::input::InputBinding input(eventBus, fakeTime.provider(), config);
+    DummyButton hardware;
+    oc::api::ButtonAPI buttons(input, hardware);
+    oc::state::ExclusiveVisibilityStack<Overlay> stack;
+    oc::state::Signal<bool> a{false};
+    stack.registerItem(Overlay::A, a);
+    oc::context::OverlayManager<Overlay> manager(stack, buttons);
+    manager.registerCleanup(Overlay::A, 200);
+    manager.setActiveViewProvider([]() { return oc::type::ScopeID(100); });
+    manager.show(Overlay::A);
+
+    int releaseCount = 0;
+    oc::core::input::ButtonBinding press{};
+    press.type = oc::core::input::ButtonBindingType::PRESS;
+    press.buttonId = 1;
+    press.scopeId = 200;
+    press.action = [&]() { manager.show(Overlay::A); };
+    input.registerButtonBinding(press);
+
+    oc::core::input::ButtonBinding release{};
+    release.type = oc::core::input::ButtonBindingType::RELEASE;
+    release.buttonId = 1;
+    release.scopeId = 200;
+    release.action = [&]() { releaseCount++; };
+    input.registerButtonBinding(release);
+
+    eventBus.emit(oc::core::event::ButtonPressEvent{1, true});
+    eventBus.emit(oc::core::event::ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(1, releaseCount);
+    TEST_ASSERT_EQUAL_UINT32(0, input.diagnostics().quarantinedGestures);
+    TEST_ASSERT_EQUAL_INT(static_cast<int>(Overlay::A),
+                          static_cast<int>(manager.current()));
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_presentation_follows_replacement_and_stacked_hide);
+    RUN_TEST(test_authority_transition_quarantines_opening_button_release);
+    RUN_TEST(test_authority_transition_quarantines_closing_button_release);
+    RUN_TEST(test_direct_stack_transition_is_also_quarantined);
+    RUN_TEST(test_idempotent_overlay_show_keeps_current_gesture_route);
     return UNITY_END();
 }

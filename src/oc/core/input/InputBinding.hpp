@@ -7,10 +7,10 @@
 #include <oc/interface/IEventBus.hpp>
 #include <oc/core/input/AuthorityResolver.hpp>
 #include <oc/core/input/BindingRegistry.hpp>
+#include <oc/core/input/GestureRouteTracker.hpp>
 #include <oc/core/input/GestureDetector.hpp>
 #include <oc/core/input/InputConfig.hpp>
 #include <oc/core/input/LatchManager.hpp>
-#include <oc/core/input/OwnershipTracker.hpp>
 #include <oc/core/input/Binding.hpp>
 #include <oc/core/input/InputBindingTrace.hpp>
 #include <oc/type/Ids.hpp>
@@ -23,6 +23,15 @@
 #endif
 
 namespace oc::core::input {
+
+struct InputBindingDiagnostics {
+    uint32_t routeCaptures = 0;
+    uint32_t routeHandoffs = 0;
+    uint32_t quarantinedGestures = 0;
+    uint32_t consumedGestures = 0;
+    uint32_t ambiguities = 0;
+    uint32_t legacyFallbacks = 0;
+};
 
 /**
  * @brief Centralized input binding and gesture recognition system
@@ -107,12 +116,21 @@ public:
     bool isButtonPressed(oc::type::ButtonID id) const;
 
     /**
-     * @brief Override current press ownership for a button
+     * @brief Explicitly transfer an in-flight gesture to another scope
      *
-     * Advanced API for flows that change authority/scope on press and need
-     * the paired release to be routed to a different scope.
+     * This is the only operation allowed to retarget a gesture after press.
+     * It also clears overlay-transition quarantine for that button.
      */
-    void setPressOwner(oc::type::ButtonID id, oc::type::ScopeID scope);
+    void handoffPress(oc::type::ButtonID id, oc::type::ScopeID scope);
+
+    /// Consume the rest of an in-flight gesture.
+    void consumePress(oc::type::ButtonID id);
+
+    /// Consume releases for every button held across an authority transition.
+    void quarantinePressedButtons();
+
+    const InputBindingDiagnostics& diagnostics() const { return diagnostics_; }
+    void resetDiagnostics() { diagnostics_ = {}; }
 
     /// Clear only button bindings
     void clearButtonBindings();
@@ -165,12 +183,57 @@ public:
     size_t encoderBindingCapacity() const { return encoder_registry_.capacity(); }
 
 private:
+    struct BindingSelection {
+        oc::type::BindingID id = 0;
+        uint8_t candidateCount = 0;
+        int8_t priority = 0;
+        bool ambiguous = false;
+    };
+
+    struct ButtonRouteSelection {
+        BindingSelection press{};
+        BindingSelection release{};
+        BindingSelection longPress{};
+        BindingSelection doubleTap{};
+        BindingSelection combo{};
+
+        bool ambiguous() const {
+            return press.ambiguous || release.ambiguous ||
+                   longPress.ambiguous || doubleTap.ambiguous ||
+                   combo.ambiguous;
+        }
+    };
+
     BindingRegistry<ButtonBinding> button_registry_;
     BindingRegistry<EncoderBinding> encoder_registry_;
 
     void onEncoderChanged(const oc::type::Event& event);
     void onButtonPress(const oc::type::Event& event);
     void onButtonRelease(const oc::type::Event& event);
+
+    // Strict physical-gesture routing
+    void beginPressScopedGesture(oc::type::ButtonID id);
+    void releasePressScopedGesture(oc::type::ButtonID id, uint32_t pressDuration);
+    void captureRouteForScope(oc::type::ButtonID id,
+                              oc::type::ScopeID scope,
+                              bool globalPassThrough,
+                              bool explicitHandoff);
+    ButtonRouteSelection selectButtonRoute(oc::type::ButtonID id,
+                                           oc::type::ScopeID scope,
+                                           bool globalPassThroughOnly,
+                                           bool enforceAuthority,
+                                           bool includePress);
+    void finalizeButtonSelection(BindingSelection& selection,
+                                 ButtonBindingType type,
+                                 oc::type::ButtonID id,
+                                 oc::type::ScopeID scope);
+    ButtonBinding* findButtonBinding(oc::type::BindingID id);
+    bool dispatchExactButtonBinding(oc::type::ButtonID id,
+                                    ButtonBindingType type,
+                                    oc::type::BindingID bindingId,
+                                    bool recheckActive);
+    bool hasActiveGlobalPassThrough(oc::type::ButtonID id);
+    void traceConsumed(oc::type::ButtonID id, ButtonBindingType type);
 
     // oc::type::Event dispatch
     void dispatchButtonEvent(oc::type::ButtonID id, ButtonBindingType type);
@@ -201,7 +264,7 @@ private:
     // Subsystems
     GestureDetector gesture_;
     LatchManager latch_;
-    OwnershipTracker ownership_;
+    GestureRouteTracker gesture_routes_;
 
     interface::IEventBus& event_bus_;
     oc::type::TimeProvider time_provider_;
@@ -212,6 +275,7 @@ private:
     InputConfig config_;
     bool bindings_enabled_ = true;
     InputBindingTraceCallback trace_callback_;
+    InputBindingDiagnostics diagnostics_{};
     uint32_t current_time_ = 0;
     oc::type::BindingID next_binding_id_ = 1;  ///< Next ID to assign (0 = invalid)
     const AuthorityResolver* authority_resolver_ = nullptr;  ///< Optional authority check

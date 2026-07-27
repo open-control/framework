@@ -50,12 +50,14 @@ public:
     explicit OverlayManager(oc::state::ExclusiveVisibilityStack<EnumT>& manager)
         : manager_(manager) {
         cleanup_handle_ = manager_.setCleanupCallbackScoped([this](EnumT type) { doCleanup(type); });
+        installVisibilityTransitionHook();
         authority_.setOverlayProvider([this]() { return currentScope(); });
     }
 
     OverlayManager(oc::state::ExclusiveVisibilityStack<EnumT>& manager, oc::api::ButtonAPI& buttons)
         : manager_(manager), buttons_(&buttons) {
         cleanup_handle_ = manager_.setCleanupCallbackScoped([this](EnumT type) { doCleanup(type); });
+        installVisibilityTransitionHook();
         authority_.setOverlayProvider([this]() { return currentScope(); });
 
         // Safely bind authority routing to this manager
@@ -88,13 +90,8 @@ public:
      * action. Raw function/context pointers keep this path allocation-free.
      */
     void setPresentationCallback(void* context, PresentationCallback callback) {
-        presentation_handle_.reset();
-        if (callback) {
-            presentation_handle_ = manager_.setVisibilityTransitionCallbackScoped(
-                context,
-                callback
-            );
-        }
+        presentation_context_ = callback ? context : nullptr;
+        presentation_callback_ = callback;
     }
 
     // =========================================================================
@@ -104,8 +101,12 @@ public:
     void show(EnumT type, bool stack = false) {
         manager_.show(type, stack);
     }
-    void hide() { manager_.hide(); }
-    void hideAll() { manager_.hideAll(); }
+    void hide() {
+        manager_.hide();
+    }
+    void hideAll() {
+        manager_.hideAll();
+    }
 
     EnumT current() const { return manager_.current(); }
     bool hasVisible() const { return manager_.hasVisible(); }
@@ -147,6 +148,39 @@ public:
     }
 
 private:
+    void installVisibilityTransitionHook() {
+        visibility_transition_handle_ =
+            manager_.setVisibilityTransitionCallbackScoped(
+                this,
+                &OverlayManager::onVisibilityTransition
+            );
+    }
+
+    static void onVisibilityTransition(
+        void* context,
+        EnumT type,
+        bool presented
+    ) {
+        auto* self = static_cast<OverlayManager*>(context);
+        if (!self) return;
+
+        // Observe the state transition itself instead of only calls made
+        // through OverlayManager::show/hide. Product code may still hold a
+        // reference to the underlying visibility stack for read-only state or
+        // legacy orchestration; every real authority change must nevertheless
+        // quarantine held gestures.
+        if (self->buttons_) {
+            self->buttons_->quarantinePressedButtons();
+        }
+        if (self->presentation_callback_) {
+            self->presentation_callback_(
+                self->presentation_context_,
+                type,
+                presented
+            );
+        }
+    }
+
     void doCleanup(EnumT type) {
         const auto idx = static_cast<size_t>(type);
         if (type == EnumT::NONE || idx >= COUNT) return;
@@ -165,8 +199,10 @@ private:
 
     typename oc::state::ExclusiveVisibilityStack<EnumT>::CleanupHandle cleanup_handle_{};
     oc::api::ButtonAPI::AuthorityResolverHandle authority_handle_{};
+    void* presentation_context_ = nullptr;
+    PresentationCallback presentation_callback_ = nullptr;
     typename oc::state::ExclusiveVisibilityStack<EnumT>::VisibilityTransitionHandle
-        presentation_handle_{};
+        visibility_transition_handle_{};
 };
 
 }  // namespace oc::context
