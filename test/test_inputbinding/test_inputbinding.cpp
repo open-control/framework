@@ -1231,7 +1231,7 @@ void test_press_owner_handoff_routes_release_to_new_scope() {
     press.scopeId = 100;
     press.action = [&]() {
         ownerPress++;
-        binding.setPressOwner(1, 200);
+        binding.handoffPress(1, 200);
     };
     binding.registerButtonBinding(press);
 
@@ -1252,6 +1252,363 @@ void test_press_owner_handoff_routes_release_to_new_scope() {
     bus.emit(ButtonReleaseEvent{1});
 
     TEST_ASSERT_EQUAL(1, handedRelease);
+}
+
+static InputConfig pressScopedConfig() {
+    InputConfig config;
+    config.releaseRoutingPolicy = ReleaseRoutingPolicy::OwnerOnly;
+    config.gestureRoutingPolicy = GestureRoutingPolicy::PressScoped;
+    config.ambiguityPolicy = BindingAmbiguityPolicy::FailClosed;
+    config.globalRoutingPolicy = GlobalRoutingPolicy::ExplicitPassThroughOnly;
+    return config;
+}
+
+void test_press_scoped_release_only_binding_keeps_origin_scope() {
+    auto config = pressScopedConfig();
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+    oc::type::ScopeID authority = 100;
+    resolver.setOverlayProvider([&]() { return authority; });
+    binding.setAuthorityResolver(&resolver);
+
+    int originRelease = 0;
+    int newScopeRelease = 0;
+
+    ButtonBinding origin{};
+    origin.type = ButtonBindingType::RELEASE;
+    origin.buttonId = 1;
+    origin.scopeId = 100;
+    origin.action = [&]() { originRelease++; };
+    binding.registerButtonBinding(origin);
+
+    ButtonBinding next{};
+    next.type = ButtonBindingType::RELEASE;
+    next.buttonId = 1;
+    next.scopeId = 200;
+    next.action = [&]() { newScopeRelease++; };
+    binding.registerButtonBinding(next);
+
+    bus.emit(ButtonPressEvent{1, true});
+    authority = 200;
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(1, originRelease);
+    TEST_ASSERT_EQUAL(0, newScopeRelease);
+}
+
+void test_press_scoped_predicate_change_consumes_instead_of_retargeting() {
+    auto config = pressScopedConfig();
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+    resolver.setOverlayProvider([]() { return oc::type::ScopeID(100); });
+    binding.setAuthorityResolver(&resolver);
+
+    int mode = 0;
+    int firstRelease = 0;
+    int secondRelease = 0;
+
+    ButtonBinding first{};
+    first.type = ButtonBindingType::RELEASE;
+    first.buttonId = 1;
+    first.scopeId = 100;
+    first.isActive = [&]() { return mode == 0; };
+    first.action = [&]() { firstRelease++; };
+    binding.registerButtonBinding(first);
+
+    ButtonBinding second{};
+    second.type = ButtonBindingType::RELEASE;
+    second.buttonId = 1;
+    second.scopeId = 100;
+    second.isActive = [&]() { return mode == 1; };
+    second.action = [&]() { secondRelease++; };
+    binding.registerButtonBinding(second);
+
+    bus.emit(ButtonPressEvent{1, true});
+    mode = 1;
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(0, firstRelease);
+    TEST_ASSERT_EQUAL(0, secondRelease);
+}
+
+void test_press_scoped_long_press_keeps_origin_scope() {
+    auto config = pressScopedConfig();
+    config.longPressMs = 100;
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+    oc::type::ScopeID authority = 100;
+    resolver.setOverlayProvider([&]() { return authority; });
+    binding.setAuthorityResolver(&resolver);
+
+    int originLongPress = 0;
+    int newScopeLongPress = 0;
+
+    ButtonBinding origin{};
+    origin.type = ButtonBindingType::LONG_PRESS;
+    origin.buttonId = 1;
+    origin.scopeId = 100;
+    origin.longPressMs = 100;
+    origin.action = [&]() { originLongPress++; };
+    binding.registerButtonBinding(origin);
+
+    ButtonBinding next = origin;
+    next.scopeId = 200;
+    next.action = [&]() { newScopeLongPress++; };
+    binding.registerButtonBinding(next);
+
+    fakeTime.set(0);
+    binding.processTick();
+    bus.emit(ButtonPressEvent{1, true});
+    authority = 200;
+    fakeTime.set(120);
+    binding.processTick();
+
+    TEST_ASSERT_EQUAL(1, originLongPress);
+    TEST_ASSERT_EQUAL(0, newScopeLongPress);
+}
+
+void test_press_scoped_double_tap_keeps_second_press_scope() {
+    auto config = pressScopedConfig();
+    config.doubleTapWindowMs = 300;
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+    oc::type::ScopeID authority = 100;
+    resolver.setOverlayProvider([&]() { return authority; });
+    binding.setAuthorityResolver(&resolver);
+
+    int originDoubleTap = 0;
+    int newScopeDoubleTap = 0;
+
+    ButtonBinding origin{};
+    origin.type = ButtonBindingType::DOUBLE_TAP;
+    origin.buttonId = 1;
+    origin.scopeId = 100;
+    origin.doubleTapWindowMs = 300;
+    origin.action = [&]() { originDoubleTap++; };
+    binding.registerButtonBinding(origin);
+
+    ButtonBinding next = origin;
+    next.scopeId = 200;
+    next.action = [&]() { newScopeDoubleTap++; };
+    binding.registerButtonBinding(next);
+
+    fakeTime.set(0);
+    binding.processTick();
+    bus.emit(ButtonPressEvent{1, true});
+    fakeTime.set(40);
+    binding.processTick();
+    bus.emit(ButtonReleaseEvent{1});
+
+    fakeTime.set(100);
+    binding.processTick();
+    bus.emit(ButtonPressEvent{1, true});
+    authority = 200;
+    fakeTime.set(140);
+    binding.processTick();
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(1, originDoubleTap);
+    TEST_ASSERT_EQUAL(0, newScopeDoubleTap);
+}
+
+void test_press_scoped_combo_keeps_origin_scope() {
+    auto config = pressScopedConfig();
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+    oc::type::ScopeID authority = 100;
+    resolver.setOverlayProvider([&]() { return authority; });
+    binding.setAuthorityResolver(&resolver);
+
+    int originCombo = 0;
+    int newScopeCombo = 0;
+
+    ButtonBinding origin{};
+    origin.type = ButtonBindingType::COMBO;
+    origin.buttonId = 1;
+    origin.secondaryButton = 2;
+    origin.scopeId = 100;
+    origin.action = [&]() { originCombo++; };
+    binding.registerButtonBinding(origin);
+
+    ButtonBinding next = origin;
+    next.scopeId = 200;
+    next.action = [&]() { newScopeCombo++; };
+    binding.registerButtonBinding(next);
+
+    bus.emit(ButtonPressEvent{1, true});
+    bus.emit(ButtonPressEvent{2, true});
+    authority = 200;
+    bus.emit(ButtonReleaseEvent{1});
+    bus.emit(ButtonReleaseEvent{2});
+
+    TEST_ASSERT_EQUAL(1, originCombo);
+    TEST_ASSERT_EQUAL(0, newScopeCombo);
+}
+
+void test_press_scoped_overlay_transition_quarantines_held_release() {
+    auto config = pressScopedConfig();
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+    resolver.setOverlayProvider([]() { return oc::type::ScopeID(100); });
+    binding.setAuthorityResolver(&resolver);
+
+    int releaseCount = 0;
+    ButtonBinding release{};
+    release.type = ButtonBindingType::RELEASE;
+    release.buttonId = 1;
+    release.scopeId = 100;
+    release.action = [&]() { releaseCount++; };
+    binding.registerButtonBinding(release);
+
+    bus.emit(ButtonPressEvent{1, true});
+    binding.quarantinePressedButtons();
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(0, releaseCount);
+    TEST_ASSERT_EQUAL_UINT32(1, binding.diagnostics().quarantinedGestures);
+}
+
+void test_press_scoped_explicit_handoff_overrides_quarantine() {
+    auto config = pressScopedConfig();
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+    resolver.setOverlayProvider([]() { return oc::type::ScopeID(100); });
+    binding.setAuthorityResolver(&resolver);
+
+    int handedRelease = 0;
+    ButtonBinding press{};
+    press.type = ButtonBindingType::PRESS;
+    press.buttonId = 1;
+    press.scopeId = 100;
+    press.action = [&]() {
+        binding.quarantinePressedButtons();
+        binding.handoffPress(1, 200);
+    };
+    binding.registerButtonBinding(press);
+
+    ButtonBinding release{};
+    release.type = ButtonBindingType::RELEASE;
+    release.buttonId = 1;
+    release.scopeId = 200;
+    release.action = [&]() { handedRelease++; };
+    binding.registerButtonBinding(release);
+
+    bus.emit(ButtonPressEvent{1, true});
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(1, handedRelease);
+    TEST_ASSERT_EQUAL_UINT32(1, binding.diagnostics().routeHandoffs);
+}
+
+void test_press_scoped_unbound_authority_blocks_implicit_global_fallback() {
+    auto config = pressScopedConfig();
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+    resolver.setOverlayProvider([]() { return oc::type::ScopeID(100); });
+    binding.setAuthorityResolver(&resolver);
+
+    int globalRelease = 0;
+    ButtonBinding global{};
+    global.type = ButtonBindingType::RELEASE;
+    global.buttonId = 1;
+    global.scopeId = 0;
+    global.action = [&]() { globalRelease++; };
+    binding.registerButtonBinding(global);
+
+    bus.emit(ButtonPressEvent{1, true});
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(0, globalRelease);
+}
+
+void test_press_scoped_explicit_global_pass_through_reserves_button() {
+    auto config = pressScopedConfig();
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+    resolver.setOverlayProvider([]() { return oc::type::ScopeID(100); });
+    binding.setAuthorityResolver(&resolver);
+
+    int scopedRelease = 0;
+    int globalRelease = 0;
+
+    ButtonBinding scoped{};
+    scoped.type = ButtonBindingType::RELEASE;
+    scoped.buttonId = 1;
+    scoped.scopeId = 100;
+    scoped.action = [&]() { scopedRelease++; };
+    binding.registerButtonBinding(scoped);
+
+    ButtonBinding global{};
+    global.type = ButtonBindingType::RELEASE;
+    global.buttonId = 1;
+    global.scopeId = 0;
+    global.globalPassThrough = true;
+    global.action = [&]() { globalRelease++; };
+    binding.registerButtonBinding(global);
+
+    bus.emit(ButtonPressEvent{1, true});
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(0, scopedRelease);
+    TEST_ASSERT_EQUAL(1, globalRelease);
+}
+
+void test_press_scoped_same_priority_ambiguity_fails_closed() {
+    auto config = pressScopedConfig();
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+    resolver.setOverlayProvider([]() { return oc::type::ScopeID(100); });
+    binding.setAuthorityResolver(&resolver);
+
+    int first = 0;
+    int second = 0;
+    ButtonBinding one{};
+    one.type = ButtonBindingType::RELEASE;
+    one.buttonId = 1;
+    one.scopeId = 100;
+    one.action = [&]() { first++; };
+    binding.registerButtonBinding(one);
+
+    ButtonBinding two = one;
+    two.action = [&]() { second++; };
+    binding.registerButtonBinding(two);
+
+    bus.emit(ButtonPressEvent{1, true});
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(0, first);
+    TEST_ASSERT_EQUAL(0, second);
+    TEST_ASSERT_EQUAL_UINT32(1, binding.diagnostics().ambiguities);
+}
+
+void test_press_scoped_explicit_priority_resolves_binding() {
+    auto config = pressScopedConfig();
+    InputBinding binding(bus, fakeTime.provider(), config);
+    AuthorityResolver resolver;
+    resolver.setOverlayProvider([]() { return oc::type::ScopeID(100); });
+    binding.setAuthorityResolver(&resolver);
+
+    int lowCount = 0;
+    int highCount = 0;
+    ButtonBinding low{};
+    low.type = ButtonBindingType::RELEASE;
+    low.buttonId = 1;
+    low.scopeId = 100;
+    low.priority = 0;
+    low.action = [&]() { lowCount++; };
+    binding.registerButtonBinding(low);
+
+    ButtonBinding high = low;
+    high.priority = 1;
+    high.action = [&]() { highCount++; };
+    binding.registerButtonBinding(high);
+
+    bus.emit(ButtonPressEvent{1, true});
+    bus.emit(ButtonReleaseEvent{1});
+
+    TEST_ASSERT_EQUAL(0, lowCount);
+    TEST_ASSERT_EQUAL(1, highCount);
+    TEST_ASSERT_EQUAL_UINT32(0, binding.diagnostics().ambiguities);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1761,6 +2118,17 @@ int main(int argc, char **argv) {
     RUN_TEST(test_owner_only_does_not_regress_latch_release_cycle);
     RUN_TEST(test_owner_then_fallback_latch_toggle_allows_cross_scope_release);
     RUN_TEST(test_press_owner_handoff_routes_release_to_new_scope);
+    RUN_TEST(test_press_scoped_release_only_binding_keeps_origin_scope);
+    RUN_TEST(test_press_scoped_predicate_change_consumes_instead_of_retargeting);
+    RUN_TEST(test_press_scoped_long_press_keeps_origin_scope);
+    RUN_TEST(test_press_scoped_double_tap_keeps_second_press_scope);
+    RUN_TEST(test_press_scoped_combo_keeps_origin_scope);
+    RUN_TEST(test_press_scoped_overlay_transition_quarantines_held_release);
+    RUN_TEST(test_press_scoped_explicit_handoff_overrides_quarantine);
+    RUN_TEST(test_press_scoped_unbound_authority_blocks_implicit_global_fallback);
+    RUN_TEST(test_press_scoped_explicit_global_pass_through_reserves_button);
+    RUN_TEST(test_press_scoped_same_priority_ambiguity_fails_closed);
+    RUN_TEST(test_press_scoped_explicit_priority_resolves_binding);
 
     // Clear encoder bindings
     RUN_TEST(test_clear_encoder_bindings_only);

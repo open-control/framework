@@ -78,6 +78,7 @@ BindingHandle ComboBuilder::then(oc::type::ActionCallback cb) {
         .action = std::move(cb),
         .enabled = true,
         .latch = false,
+        .globalPassThrough = false,
         .isActive = std::move(isActive_),
         .scopeId = scope_
     };

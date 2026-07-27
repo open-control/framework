@@ -24,6 +24,8 @@ FLASHMEM ButtonBuilder::ButtonBuilder(ButtonBuilder&& other) noexcept
       scope_(other.scope_),
       isActive_(std::move(other.isActive_)),
       latch_(other.latch_),
+      globalPassThrough_(other.globalPassThrough_),
+      priority_(other.priority_),
       gestureSet_(other.gestureSet_),
       finalized_(other.finalized_) {
     other.registry_ = nullptr;
@@ -39,6 +41,8 @@ FLASHMEM ButtonBuilder& ButtonBuilder::operator=(ButtonBuilder&& other) noexcept
         scope_ = other.scope_;
         isActive_ = std::move(other.isActive_);
         latch_ = other.latch_;
+        globalPassThrough_ = other.globalPassThrough_;
+        priority_ = other.priority_;
         gestureSet_ = other.gestureSet_;
         finalized_ = other.finalized_;
         other.registry_ = nullptr;
@@ -109,6 +113,16 @@ FLASHMEM ButtonBuilder& ButtonBuilder::latch() {
     return *this;
 }
 
+FLASHMEM ButtonBuilder& ButtonBuilder::globalPassThrough() {
+    globalPassThrough_ = true;
+    return *this;
+}
+
+FLASHMEM ButtonBuilder& ButtonBuilder::priority(int8_t value) {
+    priority_ = value;
+    return *this;
+}
+
 FLASHMEM BindingHandle ButtonBuilder::then(oc::type::ActionCallback cb) {
     finalized_ = true;
 
@@ -124,6 +138,13 @@ FLASHMEM BindingHandle ButtonBuilder::then(oc::type::ActionCallback cb) {
 
     if (!cb) {
         OC_LOG_WARN("{}", "[ButtonBuilder] Null callback - returning invalid handle");
+        return BindingHandle::invalid();
+    }
+
+    if (globalPassThrough_ && scope_ != 0) {
+        OC_LOG_ERROR("[ButtonBuilder] globalPassThrough requires global scope button={} scope={}",
+                     static_cast<unsigned>(buttonId_),
+                     static_cast<unsigned>(scope_));
         return BindingHandle::invalid();
     }
 
@@ -148,8 +169,10 @@ FLASHMEM BindingHandle ButtonBuilder::then(oc::type::ActionCallback cb) {
         .action = std::move(cb),
         .enabled = true,
         .latch = latch_,
+        .globalPassThrough = globalPassThrough_,
         .isActive = std::move(isActive_),
-        .scopeId = scope_
+        .scopeId = scope_,
+        .priority = priority_
     };
 
     oc::type::BindingID id = registry_->registerButtonBinding(std::move(binding));
