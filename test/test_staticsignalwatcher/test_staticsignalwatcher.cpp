@@ -108,9 +108,9 @@ void test_destroyed_static_watch_group_cancels_deferred_callback() {
         TEST_ASSERT_EQUAL(2, NotificationQueue::instance().pendingCount());
     }
 
-    // The signal notification remains safe: unsubscribing the group made its
-    // callback slot inert. The group-owned notification itself was cancelled.
-    TEST_ASSERT_EQUAL(1, NotificationQueue::instance().pendingCount());
+    // Destroying the group cancels both its group-owned notification and the
+    // deferred Signal delivery before releasing the subscriber slot.
+    TEST_ASSERT_EQUAL(0, NotificationQueue::instance().pendingCount());
     NotificationQueue::instance().flush();
     TEST_ASSERT_EQUAL(0, owner.gridCount);
 }

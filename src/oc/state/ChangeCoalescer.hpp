@@ -73,6 +73,20 @@ public:
         }
     }
 
+    /**
+     * Consume this coalescer's deferred signal callbacks and pending mark
+     * without invoking its action.
+     *
+     * A caller that has already performed the action atomically can use this
+     * to prevent the same watched changes from publishing again. Other
+     * NotificationQueue subscribers are untouched.
+     */
+    void consumePendingChangesWithoutAction() {
+        subscriptions_.cancelPendingNotifications();
+        pending_ = false;
+        firstChangeMs_ = 0;
+    }
+
     [[nodiscard]] bool hasPendingChanges() const { return pending_; }
     [[nodiscard]] uint32_t coalesceMs() const { return coalesceMs_; }
     [[nodiscard]] size_t subscriptionCount() const { return subscriptions_.size(); }

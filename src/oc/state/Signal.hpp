@@ -344,9 +344,30 @@ public:
     /// Explicit bool conversion
     [[nodiscard]] explicit operator bool() const { return isValid(); }
 
+    /**
+     * Cancel this subscriber's deferred callback without unsubscribing it.
+     *
+     * This is safe both for pending entries and for entries not yet executed
+     * in the active NotificationQueue processing wave.
+     */
+    void cancelPendingNotification() const {
+        if (owner_ != nullptr && slot_ >= 0) {
+            NotificationQueue::instance().cancel(
+                NotificationQueue::Key{
+                    owner_,
+                    static_cast<size_t>(slot_),
+                }
+            );
+        }
+    }
+
     /// Manually unsubscribe (also called by destructor)
     void reset() {
         if (unsubscribe_ && owner_ && slot_ >= 0) {
+            // A deferred entry is keyed by the Signal address and slot. Remove
+            // it before releasing the slot so it cannot target a replacement
+            // subscriber that reuses the same slot before the next flush.
+            cancelPendingNotification();
             unsubscribe_(owner_, slot_);
         }
         owner_ = nullptr;
