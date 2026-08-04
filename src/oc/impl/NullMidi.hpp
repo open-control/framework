@@ -18,6 +18,8 @@ namespace oc::impl {
  */
 class NullMidi : public interface::IMidi {
 public:
+    using MidiOutputAcceptance = interface::MidiOutputAcceptance;
+
     oc::type::Result<void> init() override {
         return oc::type::Result<void>::ok();
     }
@@ -25,17 +27,39 @@ public:
     void update() override {}
 
     // Output (all no-op)
-    void sendCC(uint8_t, uint8_t, uint8_t) override {}
-    void sendNoteOn(uint8_t, uint8_t, uint8_t) override {}
-    void sendNoteOff(uint8_t, uint8_t, uint8_t) override {}
-    void sendSysEx(const uint8_t*, size_t) override {}
-    void sendProgramChange(uint8_t, uint8_t) override {}
-    void sendPitchBend(uint8_t, int16_t) override {}
-    void sendChannelPressure(uint8_t, uint8_t) override {}
-    void sendClock() override {}
-    void sendStart() override {}
-    void sendStop() override {}
-    void sendContinue() override {}
+    MidiOutputAcceptance sendCC(uint8_t, uint8_t, uint8_t) override {
+        return MidiOutputAcceptance::ACCEPTED;
+    }
+    MidiOutputAcceptance sendNoteOn(uint8_t, uint8_t, uint8_t) override {
+        return MidiOutputAcceptance::ACCEPTED;
+    }
+    MidiOutputAcceptance sendNoteOff(uint8_t, uint8_t, uint8_t) override {
+        return MidiOutputAcceptance::ACCEPTED;
+    }
+    MidiOutputAcceptance sendSysEx(const uint8_t*, size_t) override {
+        return MidiOutputAcceptance::ACCEPTED;
+    }
+    MidiOutputAcceptance sendProgramChange(uint8_t, uint8_t) override {
+        return MidiOutputAcceptance::ACCEPTED;
+    }
+    MidiOutputAcceptance sendPitchBend(uint8_t, int16_t) override {
+        return MidiOutputAcceptance::ACCEPTED;
+    }
+    MidiOutputAcceptance sendChannelPressure(uint8_t, uint8_t) override {
+        return MidiOutputAcceptance::ACCEPTED;
+    }
+    MidiOutputAcceptance sendClock() override {
+        return MidiOutputAcceptance::ACCEPTED;
+    }
+    MidiOutputAcceptance sendStart() override {
+        return MidiOutputAcceptance::ACCEPTED;
+    }
+    MidiOutputAcceptance sendStop() override {
+        return MidiOutputAcceptance::ACCEPTED;
+    }
+    MidiOutputAcceptance sendContinue() override {
+        return MidiOutputAcceptance::ACCEPTED;
+    }
     void allNotesOff() override {}
 
     // Input callbacks (all no-op)

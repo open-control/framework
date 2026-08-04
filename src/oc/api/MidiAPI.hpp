@@ -26,37 +26,37 @@ public:
     // ═══════════════════════════════════════════════════
 
     /// Send MIDI Control Change
-    void sendCC(uint8_t channel, uint8_t cc, uint8_t value);
+    interface::MidiOutputAcceptance sendCC(uint8_t channel, uint8_t cc, uint8_t value);
 
     /// Send MIDI Note On
-    void sendNoteOn(uint8_t channel, uint8_t note, uint8_t velocity);
+    interface::MidiOutputAcceptance sendNoteOn(uint8_t channel, uint8_t note, uint8_t velocity);
 
     /// Send MIDI Note Off
-    void sendNoteOff(uint8_t channel, uint8_t note, uint8_t velocity);
+    interface::MidiOutputAcceptance sendNoteOff(uint8_t channel, uint8_t note, uint8_t velocity);
 
     /// Send MIDI System Exclusive message
-    void sendSysEx(const uint8_t* data, size_t length);
+    interface::MidiOutputAcceptance sendSysEx(const uint8_t* data, size_t length);
 
     /// Send MIDI Program Change
-    void sendProgramChange(uint8_t channel, uint8_t program);
+    interface::MidiOutputAcceptance sendProgramChange(uint8_t channel, uint8_t program);
 
     /// Send MIDI Pitch Bend
-    void sendPitchBend(uint8_t channel, int16_t value);
+    interface::MidiOutputAcceptance sendPitchBend(uint8_t channel, int16_t value);
 
     /// Send MIDI Channel Pressure (Aftertouch)
-    void sendChannelPressure(uint8_t channel, uint8_t pressure);
+    interface::MidiOutputAcceptance sendChannelPressure(uint8_t channel, uint8_t pressure);
 
     /// Send MIDI Clock realtime message (0xF8)
-    void sendClock();
+    interface::MidiOutputAcceptance sendClock();
 
     /// Send MIDI Start realtime message (0xFA)
-    void sendStart();
+    interface::MidiOutputAcceptance sendStart();
 
     /// Send MIDI Stop realtime message (0xFC)
-    void sendStop();
+    interface::MidiOutputAcceptance sendStop();
 
     /// Send MIDI Continue realtime message (0xFB)
-    void sendContinue();
+    interface::MidiOutputAcceptance sendContinue();
 
     /// Drain buffered transport output when supported by the backend.
     void serviceOutput();

@@ -41,70 +41,70 @@ MidiAPI::MidiAPI(interface::IMidi& transport) : transport_(transport) {}
 // Output
 // ═══════════════════════════════════════════════════
 
-void MidiAPI::sendCC(uint8_t channel, uint8_t cc, uint8_t value) {
+interface::MidiOutputAcceptance MidiAPI::sendCC(uint8_t channel, uint8_t cc, uint8_t value) {
     if (!validateChannel(channel) || !validate7bit(cc, "cc") || !validate7bit(value, "value")) {
-        return;
+        return interface::MidiOutputAcceptance::REJECTED;
     }
-    transport_.sendCC(channel, cc, value);
+    return transport_.sendCC(channel, cc, value);
 }
 
-void MidiAPI::sendNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
+interface::MidiOutputAcceptance MidiAPI::sendNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     if (!validateChannel(channel) || !validate7bit(note, "note") || !validate7bit(velocity, "velocity")) {
-        return;
+        return interface::MidiOutputAcceptance::REJECTED;
     }
-    transport_.sendNoteOn(channel, note, velocity);
+    return transport_.sendNoteOn(channel, note, velocity);
 }
 
-void MidiAPI::sendNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
+interface::MidiOutputAcceptance MidiAPI::sendNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
     if (!validateChannel(channel) || !validate7bit(note, "note") || !validate7bit(velocity, "velocity")) {
-        return;
+        return interface::MidiOutputAcceptance::REJECTED;
     }
-    transport_.sendNoteOff(channel, note, velocity);
+    return transport_.sendNoteOff(channel, note, velocity);
 }
 
-void MidiAPI::sendSysEx(const uint8_t* data, size_t length) {
+interface::MidiOutputAcceptance MidiAPI::sendSysEx(const uint8_t* data, size_t length) {
     if (!data || length == 0) {
         OC_LOG_WARN("{}", "[MidiAPI] Invalid SysEx data");
-        return;
+        return interface::MidiOutputAcceptance::REJECTED;
     }
-    transport_.sendSysEx(data, length);
+    return transport_.sendSysEx(data, length);
 }
 
-void MidiAPI::sendProgramChange(uint8_t channel, uint8_t program) {
+interface::MidiOutputAcceptance MidiAPI::sendProgramChange(uint8_t channel, uint8_t program) {
     if (!validateChannel(channel) || !validate7bit(program, "program")) {
-        return;
+        return interface::MidiOutputAcceptance::REJECTED;
     }
-    transport_.sendProgramChange(channel, program);
+    return transport_.sendProgramChange(channel, program);
 }
 
-void MidiAPI::sendPitchBend(uint8_t channel, int16_t value) {
+interface::MidiOutputAcceptance MidiAPI::sendPitchBend(uint8_t channel, int16_t value) {
     if (!validateChannel(channel) || !validatePitchBend(value)) {
-        return;
+        return interface::MidiOutputAcceptance::REJECTED;
     }
-    transport_.sendPitchBend(channel, value);
+    return transport_.sendPitchBend(channel, value);
 }
 
-void MidiAPI::sendChannelPressure(uint8_t channel, uint8_t pressure) {
+interface::MidiOutputAcceptance MidiAPI::sendChannelPressure(uint8_t channel, uint8_t pressure) {
     if (!validateChannel(channel) || !validate7bit(pressure, "pressure")) {
-        return;
+        return interface::MidiOutputAcceptance::REJECTED;
     }
-    transport_.sendChannelPressure(channel, pressure);
+    return transport_.sendChannelPressure(channel, pressure);
 }
 
-void MidiAPI::sendClock() {
-    transport_.sendClock();
+interface::MidiOutputAcceptance MidiAPI::sendClock() {
+    return transport_.sendClock();
 }
 
-void MidiAPI::sendStart() {
-    transport_.sendStart();
+interface::MidiOutputAcceptance MidiAPI::sendStart() {
+    return transport_.sendStart();
 }
 
-void MidiAPI::sendStop() {
-    transport_.sendStop();
+interface::MidiOutputAcceptance MidiAPI::sendStop() {
+    return transport_.sendStop();
 }
 
-void MidiAPI::sendContinue() {
-    transport_.sendContinue();
+interface::MidiOutputAcceptance MidiAPI::sendContinue() {
+    return transport_.sendContinue();
 }
 
 void MidiAPI::serviceOutput() {
