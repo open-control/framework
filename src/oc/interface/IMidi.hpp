@@ -9,6 +9,20 @@
 namespace oc::interface {
 
 /**
+ * @brief Immediate ownership result for one MIDI output message.
+ *
+ * ACCEPTED means the transport has taken ownership of the message, either by
+ * sending it synchronously or by copying it into its own bounded buffer. It
+ * does not mean the host/controller has completed physical delivery.
+ * REJECTED means ownership remains with the caller and the message may be
+ * retried without duplication.
+ */
+enum class MidiOutputAcceptance : uint8_t {
+    REJECTED = 0,
+    ACCEPTED,
+};
+
+/**
  * @brief Interface for MIDI I/O abstraction
  */
 class IMidi {
@@ -33,19 +47,19 @@ public:
     // Output
     // ═══════════════════════════════════════════════════
 
-    virtual void sendCC(uint8_t channel, uint8_t cc, uint8_t value) = 0;
-    virtual void sendNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) = 0;
-    virtual void sendNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) = 0;
-    virtual void sendSysEx(const uint8_t* data, size_t length) = 0;
-    virtual void sendProgramChange(uint8_t channel, uint8_t program) = 0;
-    virtual void sendPitchBend(uint8_t channel, int16_t value) = 0;
-    virtual void sendChannelPressure(uint8_t channel, uint8_t pressure) = 0;
+    virtual MidiOutputAcceptance sendCC(uint8_t channel, uint8_t cc, uint8_t value) = 0;
+    virtual MidiOutputAcceptance sendNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) = 0;
+    virtual MidiOutputAcceptance sendNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) = 0;
+    virtual MidiOutputAcceptance sendSysEx(const uint8_t* data, size_t length) = 0;
+    virtual MidiOutputAcceptance sendProgramChange(uint8_t channel, uint8_t program) = 0;
+    virtual MidiOutputAcceptance sendPitchBend(uint8_t channel, int16_t value) = 0;
+    virtual MidiOutputAcceptance sendChannelPressure(uint8_t channel, uint8_t pressure) = 0;
 
     // MIDI realtime output
-    virtual void sendClock() = 0;
-    virtual void sendStart() = 0;
-    virtual void sendStop() = 0;
-    virtual void sendContinue() = 0;
+    virtual MidiOutputAcceptance sendClock() = 0;
+    virtual MidiOutputAcceptance sendStart() = 0;
+    virtual MidiOutputAcceptance sendStop() = 0;
+    virtual MidiOutputAcceptance sendContinue() = 0;
 
     /**
      * @brief Stop all active notes
