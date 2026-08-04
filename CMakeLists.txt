@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.29)
 
-project(open_control_framework LANGUAGES C CXX)
+project(open_control_framework VERSION 0.2.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -19,8 +19,7 @@ if(MS_UNITY_SOURCE_DIR AND NOT TARGET unity)
     target_include_directories(unity PUBLIC "${MS_UNITY_SOURCE_DIR}/src")
 endif()
 
-file(GLOB_RECURSE OC_FRAMEWORK_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/OpenControlFrameworkSources.cmake")
 
 add_library(oc_framework_native STATIC ${OC_FRAMEWORK_SOURCES})
 target_include_directories(oc_framework_native PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")

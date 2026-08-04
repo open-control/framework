@@ -12,6 +12,27 @@
   "platforms": "*",
   "build": {
     "includeDir": "src",
-    "srcFilter": ["+<**/*.cpp>", "-<main.cpp>"]
+    "srcFilter": [
+      "+<oc/api/ButtonAPI.cpp>",
+      "+<oc/api/EncoderAPI.cpp>",
+      "+<oc/api/MidiAPI.cpp>",
+      "+<oc/app/AppBuilder.cpp>",
+      "+<oc/app/OpenControlApp.cpp>",
+      "+<oc/context/ContextManager.cpp>",
+      "+<oc/core/event/EventBus.cpp>",
+      "+<oc/core/event/EventTypesMacroSanity.cpp>",
+      "+<oc/core/input/BindingHandle.cpp>",
+      "+<oc/core/input/ButtonBuilder.cpp>",
+      "+<oc/core/input/ComboBuilder.cpp>",
+      "+<oc/core/input/EncoderBuilder.cpp>",
+      "+<oc/core/input/EncoderLogic.cpp>",
+      "+<oc/core/input/GestureDetector.cpp>",
+      "+<oc/core/input/InputBinding.cpp>",
+      "+<oc/diagnostics/Performance.cpp>",
+      "+<oc/log/Log.cpp>",
+      "+<oc/state/NotificationQueue.cpp>",
+      "+<oc/state/Signal.cpp>",
+      "+<oc/time/Time.cpp>"
+    ]
   }
 }
