@@ -502,19 +502,6 @@ void test_modular_publication_wrap_preserves_next_delta() {
     TEST_ASSERT_FALSE(logic.consumePublishedDeltas().has_value());
 }
 
-void test_process_delta_compatibility_adapter_publishes_only() {
-    EncoderLogic logic(makeConfig());
-    logic.setMode(EncoderMode::RAW);
-    logic.setPosition(0.0f);
-
-    logic.processDelta(3);
-
-    TEST_ASSERT_EQUAL(0, logic.getPosition());
-    auto value = logic.flush();
-    TEST_ASSERT_TRUE(value.has_value());
-    TEST_ASSERT_FLOAT_WITHIN(0.01f, 3.0f, value.value());
-}
-
 void test_single_publisher_concurrent_consume_has_no_loss_or_duplicate() {
     EncoderLogic logic(makeConfig());
     logic.setMode(EncoderMode::RAW);
@@ -632,7 +619,6 @@ int main(int argc, char **argv) {
     RUN_TEST(test_mode_reconfigure_applies_pending_delta_once_under_new_policy);
     RUN_TEST(test_delayed_relative_consume_preserves_detents_and_remainder);
     RUN_TEST(test_modular_publication_wrap_preserves_next_delta);
-    RUN_TEST(test_process_delta_compatibility_adapter_publishes_only);
     RUN_TEST(test_single_publisher_concurrent_consume_has_no_loss_or_duplicate);
 
     // processNewPosition

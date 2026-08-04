@@ -79,14 +79,6 @@ public:
     }
 
     /**
-     * @brief Compatibility adapter for drivers using the old API
-     *
-     * New interrupt drivers must call publishDeltaFromISR(). This adapter is
-     * leased only until the HAL consumer migration is complete.
-     */
-    void processDelta(int32_t delta);
-
-    /**
      * @brief Process a new absolute position (polling-based)
      *
      * Computes and publishes the delta internally. Policy remains deferred to

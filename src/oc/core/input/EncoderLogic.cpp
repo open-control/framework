@@ -19,10 +19,6 @@ EncoderLogic::EncoderLogic(const EncoderConfig& config) : config_(config) {
 // Processing
 // ═══════════════════════════════════════════════════
 
-void EncoderLogic::processDelta(int32_t delta) {
-    publishDeltaFromISR(delta);
-}
-
 void EncoderLogic::processNewPosition(int32_t newPosition) {
     if (newPosition == last_raw_position_) return;
 
