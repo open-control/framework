@@ -1,5 +1,9 @@
 #include <unity.h>
+#include <atomic>
 #include <cmath>
+#include <cstdint>
+#include <limits>
+#include <thread>
 #include <oc/core/input/EncoderLogic.hpp>
 
 using namespace oc::core::input;
@@ -12,7 +16,7 @@ static EncoderConfig makeConfig(oc::type::EncoderID id = 0, uint16_t ppr = 24, u
 }
 
 static void processTicks(EncoderLogic& logic, int count, int direction = 1) {
-    for (int i = 0; i < count; ++i) logic.processDelta(direction);
+    for (int i = 0; i < count; ++i) logic.publishDeltaFromISR(direction);
 }
 
 void setUp() {}
@@ -54,7 +58,7 @@ void test_normalized_clockwise_increases_value() {
     float initial = logic.getLastValue();
 
     // Rotate clockwise (positive delta)
-    for (int i = 0; i < 4; i++) logic.processDelta(1);
+    for (int i = 0; i < 4; i++) logic.publishDeltaFromISR(1);
 
     auto value = logic.flush();
     TEST_ASSERT_TRUE(value.has_value());
@@ -66,7 +70,7 @@ void test_normalized_counterclockwise_decreases_value() {
     float initial = logic.getLastValue();
 
     // Rotate counterclockwise (negative delta)
-    for (int i = 0; i < 4; i++) logic.processDelta(-1);
+    for (int i = 0; i < 4; i++) logic.publishDeltaFromISR(-1);
 
     auto value = logic.flush();
     TEST_ASSERT_TRUE(value.has_value());
@@ -77,7 +81,7 @@ void test_normalized_bounds_min() {
     EncoderLogic logic(makeConfig());
 
     // Rotate far counterclockwise
-    for (int i = 0; i < 1000; i++) logic.processDelta(-1);
+    for (int i = 0; i < 1000; i++) logic.publishDeltaFromISR(-1);
 
     auto value = logic.flush();
     TEST_ASSERT_TRUE(value.has_value());
@@ -88,7 +92,7 @@ void test_normalized_bounds_max() {
     EncoderLogic logic(makeConfig());
 
     // Rotate far clockwise
-    for (int i = 0; i < 1000; i++) logic.processDelta(1);
+    for (int i = 0; i < 1000; i++) logic.publishDeltaFromISR(1);
 
     auto value = logic.flush();
     TEST_ASSERT_TRUE(value.has_value());
@@ -105,7 +109,7 @@ void test_custom_bounds_mapping() {
 
     // setBounds doesn't recalculate last_value_ - need to move first
     // Move slightly to trigger recalculation
-    logic.processDelta(1);
+    logic.publishDeltaFromISR(1);
     auto value = logic.flush();
 
     // Value should now be mapped to [100, 200] range
@@ -119,7 +123,7 @@ void test_custom_bounds_min_value() {
     logic.setBounds(0.0f, 127.0f);
 
     // Rotate to minimum
-    for (int i = 0; i < 1000; i++) logic.processDelta(-1);
+    for (int i = 0; i < 1000; i++) logic.publishDeltaFromISR(-1);
 
     auto value = logic.flush();
     TEST_ASSERT_TRUE(value.has_value());
@@ -131,7 +135,7 @@ void test_custom_bounds_max_value() {
     logic.setBounds(0.0f, 127.0f);
 
     // Rotate to maximum
-    for (int i = 0; i < 1000; i++) logic.processDelta(1);
+    for (int i = 0; i < 1000; i++) logic.publishDeltaFromISR(1);
 
     auto value = logic.flush();
     TEST_ASSERT_TRUE(value.has_value());
@@ -148,7 +152,7 @@ void test_relative_mode_emits_delta() {
     logic.setDelta(1.0f);
 
     // One detent clockwise
-    for (int i = 0; i < 4; i++) logic.processDelta(1);
+    for (int i = 0; i < 4; i++) logic.publishDeltaFromISR(1);
 
     auto value = logic.flush();
     TEST_ASSERT_TRUE(value.has_value());
@@ -161,7 +165,7 @@ void test_relative_mode_negative_delta() {
     logic.setDelta(1.0f);
 
     // One detent counterclockwise
-    for (int i = 0; i < 4; i++) logic.processDelta(-1);
+    for (int i = 0; i < 4; i++) logic.publishDeltaFromISR(-1);
 
     auto value = logic.flush();
     TEST_ASSERT_TRUE(value.has_value());
@@ -174,7 +178,7 @@ void test_relative_mode_custom_delta() {
     logic.setDelta(0.1f);  // 0.1 per detent
 
     // One detent
-    for (int i = 0; i < 4; i++) logic.processDelta(1);
+    for (int i = 0; i < 4; i++) logic.publishDeltaFromISR(1);
 
     auto value = logic.flush();
     TEST_ASSERT_TRUE(value.has_value());
@@ -219,7 +223,7 @@ void test_discrete_steps_quantizes_output() {
     logic.setDiscreteSteps(10);  // 10 discrete values (0.0, 0.111, 0.222, ... 1.0)
 
     // Move enough to cross a step boundary
-    for (int i = 0; i < 20; i++) logic.processDelta(1);
+    for (int i = 0; i < 20; i++) logic.publishDeltaFromISR(1);
 
     auto value = logic.flush();
     if (value.has_value()) {
@@ -249,7 +253,7 @@ void test_continuous_disables_quantization() {
     logic.setDiscreteSteps(10);
     logic.setContinuous();  // Disable quantization
 
-    for (int i = 0; i < 5; i++) logic.processDelta(1);
+    for (int i = 0; i < 5; i++) logic.publishDeltaFromISR(1);
 
     auto value = logic.flush();
     TEST_ASSERT_TRUE(value.has_value());
@@ -347,7 +351,7 @@ void test_invert_direction() {
     float initial = logic.getLastValue();
 
     // Positive delta should now decrease value (inverted)
-    for (int i = 0; i < 4; i++) logic.processDelta(1);
+    for (int i = 0; i < 4; i++) logic.publishDeltaFromISR(1);
 
     auto value = logic.flush();
     TEST_ASSERT_TRUE(value.has_value());
@@ -361,7 +365,7 @@ void test_invert_direction() {
 void test_flush_clears_pending() {
     EncoderLogic logic(makeConfig());
 
-    for (int i = 0; i < 4; i++) logic.processDelta(1);
+    for (int i = 0; i < 4; i++) logic.publishDeltaFromISR(1);
     TEST_ASSERT_TRUE(logic.hasPending());
 
     logic.flush();
@@ -379,7 +383,7 @@ void test_multiple_deltas_before_flush() {
     EncoderLogic logic(makeConfig());
 
     // Multiple movements
-    for (int i = 0; i < 8; i++) logic.processDelta(1);
+    for (int i = 0; i < 8; i++) logic.publishDeltaFromISR(1);
 
     // Only one flush gets latest value
     auto value1 = logic.flush();
@@ -387,6 +391,154 @@ void test_multiple_deltas_before_flush() {
 
     auto value2 = logic.flush();
     TEST_ASSERT_FALSE(value2.has_value());
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Integer publication / foreground consumption
+// ═══════════════════════════════════════════════════════════════════
+
+void test_published_delta_is_consumed_exactly_once() {
+    EncoderLogic logic(makeConfig());
+    logic.setMode(EncoderMode::RAW);
+    logic.setPosition(0.0f);
+
+    logic.publishDeltaFromISR(7);
+
+    TEST_ASSERT_TRUE(logic.hasPending());
+    auto value = logic.flush();
+    TEST_ASSERT_TRUE(value.has_value());
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 7.0f, value.value());
+    TEST_ASSERT_FALSE(logic.hasPending());
+    TEST_ASSERT_FALSE(logic.consumePublishedDeltas().has_value());
+}
+
+void test_publication_after_empty_consume_belongs_to_next_snapshot() {
+    EncoderLogic logic(makeConfig());
+    logic.setMode(EncoderMode::RAW);
+    logic.setPosition(0.0f);
+
+    TEST_ASSERT_FALSE(logic.consumePublishedDeltas().has_value());
+    logic.publishDeltaFromISR(-3);
+
+    auto value = logic.consumePublishedDeltas();
+    TEST_ASSERT_TRUE(value.has_value());
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, -3.0f, value.value());
+    TEST_ASSERT_FALSE(logic.consumePublishedDeltas().has_value());
+}
+
+void test_opposite_publications_cancel_without_policy_or_duplicate() {
+    EncoderLogic logic(makeConfig());
+    logic.setMode(EncoderMode::RAW);
+    logic.setPosition(0.0f);
+
+    logic.publishDeltaFromISR(5);
+    logic.publishDeltaFromISR(-5);
+
+    TEST_ASSERT_FALSE(logic.hasPending());
+    TEST_ASSERT_FALSE(logic.consumePublishedDeltas().has_value());
+    TEST_ASSERT_EQUAL(0, logic.getPosition());
+}
+
+void test_set_position_does_not_discard_published_delta() {
+    EncoderLogic logic(makeConfig());
+    logic.setMode(EncoderMode::RAW);
+
+    logic.publishDeltaFromISR(7);
+    logic.setPosition(10.0f);
+
+    auto value = logic.consumePublishedDeltas();
+    TEST_ASSERT_TRUE(value.has_value());
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 17.0f, value.value());
+    TEST_ASSERT_FALSE(logic.consumePublishedDeltas().has_value());
+}
+
+void test_mode_reconfigure_applies_pending_delta_once_under_new_policy() {
+    EncoderLogic logic(makeConfig());
+
+    logic.publishDeltaFromISR(4);
+    logic.setMode(EncoderMode::RELATIVE);
+    logic.setDelta(0.5f);
+
+    auto value = logic.consumePublishedDeltas();
+    TEST_ASSERT_TRUE(value.has_value());
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.5f, value.value());
+    TEST_ASSERT_FALSE(logic.consumePublishedDeltas().has_value());
+}
+
+void test_delayed_relative_consume_preserves_detents_and_remainder() {
+    EncoderLogic logic(makeConfig());
+    logic.setMode(EncoderMode::RELATIVE);
+    logic.setDelta(0.5f);
+
+    logic.publishDeltaFromISR(10);
+    auto first = logic.consumePublishedDeltas();
+    TEST_ASSERT_TRUE(first.has_value());
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 1.0f, first.value());
+
+    logic.publishDeltaFromISR(2);
+    auto second = logic.consumePublishedDeltas();
+    TEST_ASSERT_TRUE(second.has_value());
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.5f, second.value());
+    TEST_ASSERT_FALSE(logic.consumePublishedDeltas().has_value());
+}
+
+void test_modular_publication_wrap_preserves_next_delta() {
+    EncoderLogic logic(makeConfig());
+    logic.setMode(EncoderMode::RAW);
+    logic.setPosition(0.0f);
+
+    logic.publishDeltaFromISR(std::numeric_limits<int32_t>::max());
+    TEST_ASSERT_TRUE(logic.consumePublishedDeltas().has_value());
+
+    logic.setPosition(0.0f);
+    logic.publishDeltaFromISR(std::numeric_limits<int32_t>::max());
+    TEST_ASSERT_TRUE(logic.consumePublishedDeltas().has_value());
+
+    logic.setPosition(0.0f);
+    logic.publishDeltaFromISR(2);  // Published cursor wraps 0xfffffffe -> 0.
+    auto value = logic.consumePublishedDeltas();
+    TEST_ASSERT_TRUE(value.has_value());
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 2.0f, value.value());
+    TEST_ASSERT_FALSE(logic.consumePublishedDeltas().has_value());
+}
+
+void test_process_delta_compatibility_adapter_publishes_only() {
+    EncoderLogic logic(makeConfig());
+    logic.setMode(EncoderMode::RAW);
+    logic.setPosition(0.0f);
+
+    logic.processDelta(3);
+
+    TEST_ASSERT_EQUAL(0, logic.getPosition());
+    auto value = logic.flush();
+    TEST_ASSERT_TRUE(value.has_value());
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 3.0f, value.value());
+}
+
+void test_single_publisher_concurrent_consume_has_no_loss_or_duplicate() {
+    EncoderLogic logic(makeConfig());
+    logic.setMode(EncoderMode::RAW);
+    logic.setPosition(0.0f);
+
+    constexpr int32_t publicationCount = 100000;
+    std::atomic<bool> publisherDone{false};
+    std::thread publisher([&]() {
+        for (int32_t i = 0; i < publicationCount; ++i) {
+            logic.publishDeltaFromISR(1);
+        }
+        publisherDone.store(true, std::memory_order_release);
+    });
+
+    while (!publisherDone.load(std::memory_order_acquire) || logic.hasPending()) {
+        if (!logic.flush().has_value()) {
+            std::this_thread::yield();
+        }
+    }
+    publisher.join();
+
+    while (logic.flush().has_value()) {}
+    TEST_ASSERT_EQUAL(publicationCount, logic.getPosition());
+    TEST_ASSERT_FALSE(logic.hasPending());
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -471,6 +623,17 @@ int main(int argc, char **argv) {
     RUN_TEST(test_flush_clears_pending);
     RUN_TEST(test_flush_returns_nullopt_when_no_pending);
     RUN_TEST(test_multiple_deltas_before_flush);
+
+    // Integer publication / foreground consumption
+    RUN_TEST(test_published_delta_is_consumed_exactly_once);
+    RUN_TEST(test_publication_after_empty_consume_belongs_to_next_snapshot);
+    RUN_TEST(test_opposite_publications_cancel_without_policy_or_duplicate);
+    RUN_TEST(test_set_position_does_not_discard_published_delta);
+    RUN_TEST(test_mode_reconfigure_applies_pending_delta_once_under_new_policy);
+    RUN_TEST(test_delayed_relative_consume_preserves_detents_and_remainder);
+    RUN_TEST(test_modular_publication_wrap_preserves_next_delta);
+    RUN_TEST(test_process_delta_compatibility_adapter_publishes_only);
+    RUN_TEST(test_single_publisher_concurrent_consume_has_no_loss_or_duplicate);
 
     // processNewPosition
     RUN_TEST(test_process_new_position_basic);

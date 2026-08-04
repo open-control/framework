@@ -1,7 +1,11 @@
 #include "EncoderLogic.hpp"
 
 #include <algorithm>  // std::clamp
-#include <cmath>      // std::round, std::abs
+#include <cmath>      // std::round
+#include <cstdint>
+#include <limits>
+
+#include <config/PlatformCompat.hpp>
 
 namespace oc::core::input {
 
@@ -16,104 +20,123 @@ EncoderLogic::EncoderLogic(const EncoderConfig& config) : config_(config) {
 // ═══════════════════════════════════════════════════
 
 void EncoderLogic::processDelta(int32_t delta) {
-    if (delta == 0) return;
-
-    // Apply direction inversion if configured (hardware-dependent)
-    if (config_.invertDirection) {
-        delta = -delta;
-    }
-
-    switch (mode_) {
-        case interface::EncoderMode::RELATIVE:
-            handleRelativeMode(delta);
-            break;
-        case interface::EncoderMode::NORMALIZED:
-            handleNormalizedMode(delta);
-            break;
-        case interface::EncoderMode::RAW:
-            // RAW mode: accumulate position directly
-            position_ += delta;
-            handleRawMode(position_);
-            break;
-    }
+    publishDeltaFromISR(delta);
 }
 
 void EncoderLogic::processNewPosition(int32_t newPosition) {
     if (newPosition == last_raw_position_) return;
 
-    int32_t delta = newPosition - last_raw_position_;
+    const uint32_t encodedDelta = static_cast<uint32_t>(newPosition) -
+                                  static_cast<uint32_t>(last_raw_position_);
     last_raw_position_ = newPosition;
+    publishDeltaFromISR(decodeModularDelta(encodedDelta));
+}
 
-    // Process accumulated delta step by step for ±1 behavior
-    while (delta != 0) {
-        int32_t step = (delta > 0) ? 1 : -1;
-        delta -= step;
-        processDelta(step);
+int32_t EncoderLogic::decodeModularDelta(uint32_t encodedDelta) {
+    if (encodedDelta <= static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
+        return static_cast<int32_t>(encodedDelta);
     }
+
+    return static_cast<int32_t>(
+        static_cast<int64_t>(encodedDelta) - (int64_t{1} << 32));
+}
+
+std::optional<float> EncoderLogic::consumePublishedDeltas() {
+    const uint32_t consumed = consumed_sequence_.load(std::memory_order_relaxed);
+    const uint32_t published = published_sequence_.load(std::memory_order_acquire);
+    if (published == consumed) return std::nullopt;
+
+    consumed_sequence_.store(published, std::memory_order_release);
+    return applyPublishedDelta(decodeModularDelta(published - consumed));
 }
 
 std::optional<float> EncoderLogic::flush() {
-    if (!has_pending_.load(std::memory_order_acquire)) return std::nullopt;
+    return consumePublishedDeltas();
+}
 
-    has_pending_.store(false, std::memory_order_relaxed);
-    float value = pending_value_.load(std::memory_order_relaxed);
-    last_value_ = value;
-    return value;
+FLASHMEM std::optional<float> EncoderLogic::applyPublishedDelta(int32_t delta) {
+    if (delta == 0) return std::nullopt;
+
+    int64_t adjustedDelta = delta;
+    if (config_.invertDirection) {
+        adjustedDelta = -adjustedDelta;
+    }
+
+    switch (mode_) {
+        case interface::EncoderMode::RELATIVE:
+            return handleRelativeMode(adjustedDelta);
+        case interface::EncoderMode::NORMALIZED:
+            return handleNormalizedMode(adjustedDelta);
+        case interface::EncoderMode::RAW:
+            return handleRawMode(adjustedDelta);
+    }
+
+    return std::nullopt;
 }
 
 // ═══════════════════════════════════════════════════
 // Mode Handlers
 // ═══════════════════════════════════════════════════
 
-void EncoderLogic::handleRelativeMode(int32_t delta) {
-    accumulated_delta_ += delta;
+FLASHMEM std::optional<float> EncoderLogic::handleRelativeMode(int64_t delta) {
+    const int64_t ticksPerEvent = std::max<int64_t>(1, config_.ticksPerEvent);
+    const int64_t total = static_cast<int64_t>(accumulated_delta_) + delta;
+    const int64_t detents = total / ticksPerEvent;
+    accumulated_delta_ = static_cast<int32_t>(total % ticksPerEvent);
 
-    if (std::abs(accumulated_delta_) < config_.ticksPerEvent) {
-        return;
-    }
+    if (detents == 0) return std::nullopt;
 
-    float step = (accumulated_delta_ > 0) ? delta_per_detent_ : -delta_per_detent_;
-    accumulated_delta_ = 0;
-
-    setPending(step);
+    const float value = static_cast<float>(detents) * delta_per_detent_;
+    last_value_ = value;
+    return value;
 }
 
-void EncoderLogic::handleNormalizedMode(int32_t direction) {
-    // Core-compatible: move by ±1 regardless of delta magnitude
-    int32_t movement = (direction > 0) ? 1 : -1;
-    position_ = std::clamp(position_ + movement, int32_t{0}, virtual_range_);
+FLASHMEM std::optional<float> EncoderLogic::handleNormalizedMode(int64_t delta) {
+    const int64_t nextPosition = std::clamp(
+        static_cast<int64_t>(position_) + delta,
+        int64_t{0},
+        static_cast<int64_t>(virtual_range_));
+    position_ = static_cast<int32_t>(nextPosition);
 
     float normalizedValue = computeNormalizedValue();
 
-    if (normalizedValue == last_value_) return;
+    if (normalizedValue == last_value_) return std::nullopt;
     last_value_ = normalizedValue;
 
     float valueToEmit = normalizedValue;
     if (applyQuantization(valueToEmit, valueToEmit)) {
-        setPending(valueToEmit);
+        last_value_ = valueToEmit;
+        return valueToEmit;
     }
+
+    return std::nullopt;
 }
 
-void EncoderLogic::handleRawMode(int32_t pos) {
-    float value = static_cast<float>(pos);
+FLASHMEM std::optional<float> EncoderLogic::handleRawMode(int64_t delta) {
+    const int64_t nextPosition = std::clamp(
+        static_cast<int64_t>(position_) + delta,
+        static_cast<int64_t>(std::numeric_limits<int32_t>::min()),
+        static_cast<int64_t>(std::numeric_limits<int32_t>::max()));
+    position_ = static_cast<int32_t>(nextPosition);
+    const float value = static_cast<float>(position_);
 
-    if (value == last_value_) return;
+    if (value == last_value_) return std::nullopt;
     last_value_ = value;
 
-    setPending(value);
+    return value;
 }
 
 // ═══════════════════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════════════════
 
-float EncoderLogic::computeNormalizedValue() const {
+FLASHMEM float EncoderLogic::computeNormalizedValue() const {
     float normalized = static_cast<float>(position_) / static_cast<float>(virtual_range_);
     float boundsRange = bounds_max_ - bounds_min_;
     return bounds_min_ + (normalized * boundsRange);
 }
 
-bool EncoderLogic::applyQuantization(float value, float& outValue) {
+FLASHMEM bool EncoderLogic::applyQuantization(float value, float& outValue) {
     if (discrete_steps_ == 0) {
         outValue = value;
         return true;
@@ -147,11 +170,6 @@ bool EncoderLogic::applyQuantization(float value, float& outValue) {
     last_quantized_value_ = quantized;
     outValue = quantized;
     return true;
-}
-
-void EncoderLogic::setPending(float value) {
-    pending_value_.store(value, std::memory_order_relaxed);
-    has_pending_.store(true, std::memory_order_release);
 }
 
 int32_t EncoderLogic::calculateDefaultVirtualRange() const {
@@ -200,8 +218,6 @@ void EncoderLogic::setMode(interface::EncoderMode mode) {
         position_ = virtual_range_ / 2;
         last_value_ = 0.5f;
     }
-
-    has_pending_.store(false, std::memory_order_release);
 }
 
 void EncoderLogic::setBounds(float min, float max) {
@@ -269,7 +285,6 @@ int32_t EncoderLogic::setPosition(float value) {
         }
     }
 
-    has_pending_.store(false, std::memory_order_release);
     return position_;
 }
 
