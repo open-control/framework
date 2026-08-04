@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 
+#include <config/PlatformCompat.hpp>
 #include <oc/interface/IEncoder.hpp>
 #include <oc/type/Ids.hpp>
 #include <oc/type/Callbacks.hpp>
@@ -37,15 +38,16 @@ struct EncoderConfig {
  * @brief Shared encoder logic for all platforms
  *
  * Handles mode processing, accumulation, bounds mapping, and value emission.
- * Platform-specific drivers feed delta or position data and this class computes
- * when and what to emit.
+ * Platform-specific drivers publish integer delta or position data and this
+ * class computes when and what to emit from foreground.
  *
- * Two processing approaches are supported:
- * - processDelta(): For ISR-based drivers (Teensy). Processes ±1 per call like Core.
- * - processNewPosition(): For polling-based drivers (Arduino).
+ * Two publication approaches are supported:
+ * - publishDeltaFromISR(): Fixed integer publication for interrupt drivers.
+ * - processNewPosition(): Foreground publication for polling drivers.
  *
- * Both use the pending pattern: values are stored internally and emitted via flush().
- * This prevents crashes from calling callbacks in ISR context.
+ * Policy and floating-point work are performed only by
+ * consumePublishedDeltas() (or its flush() convenience wrapper). One instance
+ * supports one publication context and one foreground consumer.
  *
  * @note This class does NOT handle hardware - it only processes position changes.
  */
@@ -58,39 +60,61 @@ public:
     // ═══════════════════════════════════════════════════
 
     /**
-     * @brief Process a delta from ISR callback (Core-compatible)
+     * @brief Publish a raw integer delta from an ISR
      *
-     * For NORMALIZED mode: moves virtual position by ±1 (not raw delta).
-     * For RELATIVE mode: accumulates delta, emits when threshold reached.
+     * This is the complete interrupt-side contract: one lock-free integer
+     * load/add/store. It performs no mode, bounds, floating-point, allocation,
+     * logging or callback work. Calls for one instance must come from a single
+     * non-nesting publication context.
      *
-     * Sets pending value internally. Call flush() from main loop to emit.
-     *
-     * @param delta Raw delta from encoder hardware (sign indicates direction)
+     * @param delta Raw signed delta from encoder hardware
      */
-    void processDelta(int32_t delta);
+    OC_ALWAYS_INLINE void publishDeltaFromISR(int32_t delta) noexcept {
+        if (delta == 0) return;
+
+        const uint32_t published = published_sequence_.load(std::memory_order_relaxed);
+        published_sequence_.store(
+            published + static_cast<uint32_t>(delta),
+            std::memory_order_release);
+    }
 
     /**
      * @brief Process a new absolute position (polling-based)
      *
-     * Computes delta internally and processes. Sets pending if value changed.
+     * Computes and publishes the delta internally. Policy remains deferred to
+     * foreground consumption.
      *
      * @param newPosition Raw tick position from hardware
      */
     void processNewPosition(int32_t newPosition);
 
     /**
-     * @brief Flush pending value for emission
+     * @brief Consume one published snapshot and apply encoder policy
+     *
+     * Must be called from the owning foreground context. Publications observed
+     * by the snapshot are applied exactly once; later publications remain for
+     * the next call.
+     *
+     * @return Value to emit, or std::nullopt if no value changed
+     */
+    std::optional<float> consumePublishedDeltas();
+
+    /**
+     * @brief Foreground convenience wrapper for consumePublishedDeltas()
      *
      * Must be called from main loop (not ISR) to get value for callback.
      *
-     * @return Value to emit, or std::nullopt if no pending value
+     * @return Value to emit, or std::nullopt if no value changed
      */
     std::optional<float> flush();
 
     /**
-     * @brief Check if there's a pending value (ISR-safe)
+     * @brief Check whether the published and consumed cursors differ
      */
-    bool hasPending() const { return has_pending_.load(std::memory_order_acquire); }
+    bool hasPending() const {
+        return published_sequence_.load(std::memory_order_acquire) !=
+               consumed_sequence_.load(std::memory_order_acquire);
+    }
 
     // ═══════════════════════════════════════════════════
     // Getters
@@ -122,19 +146,29 @@ public:
 
 private:
     /**
+     * @brief Decode a signed delta from modular cursor arithmetic
+     */
+    static int32_t decodeModularDelta(uint32_t encodedDelta);
+
+    /**
+     * @brief Apply one consumed delta in the foreground
+     */
+    std::optional<float> applyPublishedDelta(int32_t delta);
+
+    /**
      * @brief Handle RELATIVE mode delta
      */
-    void handleRelativeMode(int32_t delta);
+    std::optional<float> handleRelativeMode(int64_t delta);
 
     /**
      * @brief Handle NORMALIZED mode with ±1 movement (Core-compatible)
      */
-    void handleNormalizedMode(int32_t direction);
+    std::optional<float> handleNormalizedMode(int64_t delta);
 
     /**
      * @brief Handle RAW mode
      */
-    void handleRawMode(int32_t pos);
+    std::optional<float> handleRawMode(int64_t delta);
 
     /**
      * @brief Compute normalized value from virtual position
@@ -146,11 +180,6 @@ private:
      * @return true if value should be emitted
      */
     bool applyQuantization(float value, float& outValue);
-
-    /**
-     * @brief Set pending value for emission
-     */
-    void setPending(float value);
 
     /**
      * @brief Calculate default virtual range in ticks for configured angle
@@ -197,10 +226,15 @@ private:
     uint16_t discrete_ticks_per_step_ = 2;
     float last_quantized_value_ = -1.0f;
 
-    // Pending pattern (prevents ISR callback crash)
-    // Both must be atomic to prevent race condition between ISR and main loop
-    std::atomic<bool> has_pending_{false};   ///< ISR-safe flag
-    std::atomic<float> pending_value_{0.0f}; ///< ISR-safe value (lock-free on ARM Cortex-M)
+    // Single-producer integer publication and foreground consume cursors.
+    // The unsigned representation makes sequence wrap well-defined.
+    std::atomic<uint32_t> published_sequence_{0};
+    std::atomic<uint32_t> consumed_sequence_{0};
 };
+
+static_assert(std::atomic<uint32_t>::is_always_lock_free,
+              "Encoder ISR publication requires lock-free 32-bit atomics");
+static_assert(sizeof(EncoderLogic) == 64,
+              "EncoderLogic scalar publication state must remain 64 bytes");
 
 }  // namespace oc::core::input

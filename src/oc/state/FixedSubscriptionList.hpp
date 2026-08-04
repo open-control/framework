@@ -48,6 +48,13 @@ public:
         size_ = 0;
     }
 
+    /** Cancel queued callbacks while retaining every subscription. */
+    void cancelPendingNotifications() const {
+        for (size_t i = 0; i < size_; ++i) {
+            subscriptions_[i].cancelPendingNotification();
+        }
+    }
+
     [[nodiscard]] size_t size() const { return size_; }
     [[nodiscard]] bool empty() const { return size_ == 0; }
     [[nodiscard]] bool full() const { return size_ == Capacity; }
