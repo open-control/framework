@@ -77,7 +77,9 @@ public:
      * @param callback Function called when derived value changes
      * @return Subscription RAII handle
      */
-    [[nodiscard]] Subscription subscribe(typename Signal<TOut, MaxSubscribers>::Callback callback) {
+    [[nodiscard]] Subscription subscribe(
+        typename Signal<TOut, MaxSubscribers>::Callback callback
+    ) const {
         return output_.subscribe(std::move(callback));
     }
 
@@ -150,7 +152,9 @@ public:
      * @param callback Function called when string changes
      * @return Subscription RAII handle
      */
-    [[nodiscard]] Subscription subscribe(std::function<void(const char*)> callback) {
+    [[nodiscard]] Subscription subscribe(
+        std::function<void(const char*)> callback
+    ) const {
         return output_.subscribe(std::move(callback));
     }
 

@@ -94,6 +94,35 @@ void test_static_signal_watcher_supports_multiple_groups() {
     TEST_ASSERT_EQUAL(3, watcher.subscriptionCount());
 }
 
+void test_static_watch_group_accepts_const_signal_views() {
+    TestOwner owner{};
+    Signal<int, 4> value{0};
+    SignalString name{"Init"};
+    SignalVector<int, 4> values;
+    const Signal<int, 4>& observedValue = value;
+    const SignalString& observedName = name;
+    const SignalVector<int, 4>& observedValues = values;
+    StaticWatchGroup<3> group;
+
+    group.bind<&TestOwner::onGridChanged>(owner, 0, "test.const-observers");
+    TEST_ASSERT_TRUE(
+        group.watchAll(observedValue, observedName, observedValues)
+    );
+    TEST_ASSERT_EQUAL(3, group.subscriptionCount());
+
+    NotificationQueue::instance().setDeferredMode(true);
+    value.set(1);
+    name.set("Updated");
+    values.set({1, 2});
+    NotificationQueue::instance().flush();
+
+    TEST_ASSERT_EQUAL(1, owner.gridCount);
+    group.clear();
+    TEST_ASSERT_EQUAL(0, value.subscriberCount());
+    TEST_ASSERT_EQUAL(0, name.subscriberCount());
+    TEST_ASSERT_EQUAL(0, values.subscriberCount());
+}
+
 void test_destroyed_static_watch_group_cancels_deferred_callback() {
     TestOwner owner{};
     Signal<int, 4> signal{0};
@@ -139,6 +168,7 @@ int main() {
     RUN_TEST(test_static_watch_group_rejects_capacity_overflow);
     RUN_TEST(test_static_watch_group_rejects_watch_before_bind);
     RUN_TEST(test_static_signal_watcher_supports_multiple_groups);
+    RUN_TEST(test_static_watch_group_accepts_const_signal_views);
     RUN_TEST(test_destroyed_static_watch_group_cancels_deferred_callback);
     RUN_TEST(test_destroyed_signal_cancels_its_deferred_callbacks);
     return UNITY_END();

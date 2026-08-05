@@ -242,7 +242,7 @@ public:
      * });
      * @endcode
      */
-    [[nodiscard]] Subscription subscribe(Callback callback);
+    [[nodiscard]] Subscription subscribe(Callback callback) const;
 
     /// Current number of active subscribers
     [[nodiscard]] size_t subscriberCount() const {
@@ -260,13 +260,15 @@ private:
     friend class Subscription;
 
     T value_;
-    std::array<Callback, MaxSubscribers> callbacks_{};
+    // Observer registration is logically const: it does not change the
+    // published value, only this bounded callback registry.
+    mutable std::array<Callback, MaxSubscribers> callbacks_{};
 #if OC_ENABLE_STATS
     const char* debug_label_ = nullptr;
 #endif
 
     /// Add subscriber, returns slot index or -1 if full
-    int addSubscriber(Callback callback) {
+    int addSubscriber(Callback callback) const {
         for (size_t i = 0; i < MaxSubscribers; ++i) {
             if (!callbacks_[i]) {
                 callbacks_[i] = std::move(callback);
@@ -277,7 +279,7 @@ private:
     }
 
     /// Remove subscriber by slot index
-    void removeSubscriber(int slot) {
+    void removeSubscriber(int slot) const {
         if (slot >= 0 && static_cast<size_t>(slot) < MaxSubscribers) {
             callbacks_[slot] = nullptr;
         }
@@ -391,7 +393,7 @@ private:
 
 // Implementation of Signal::subscribe (after Subscription is fully defined)
 template <typename T, size_t MaxSubscribers>
-Subscription Signal<T, MaxSubscribers>::subscribe(Callback callback) {
+Subscription Signal<T, MaxSubscribers>::subscribe(Callback callback) const {
     if (!callback) {
         return Subscription{};
     }
@@ -411,7 +413,7 @@ Subscription Signal<T, MaxSubscribers>::subscribe(Callback callback) {
 
     // Capture 'this' to call removeSubscriber when Subscription is destroyed
     return Subscription{
-        static_cast<void*>(this),
+        static_cast<void*>(const_cast<Signal*>(this)),
         [](void* owner, int s) {
             static_cast<Signal*>(owner)->removeSubscriber(s);
         },
