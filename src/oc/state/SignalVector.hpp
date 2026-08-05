@@ -285,7 +285,7 @@ public:
      * });
      * @endcode
      */
-    [[nodiscard]] Subscription subscribe(std::function<void()> callback) {
+    [[nodiscard]] Subscription subscribe(std::function<void()> callback) const {
         return revision_.subscribe([cb = std::move(callback)](uint8_t) {
             if (cb) cb();
         });
@@ -299,7 +299,9 @@ public:
      * @param callback Function called immediately and on future changes
      * @return Subscription RAII handle
      */
-    [[nodiscard]] Subscription subscribeAndInvoke(std::function<void()> callback) {
+    [[nodiscard]] Subscription subscribeAndInvoke(
+        std::function<void()> callback
+    ) const {
         if (callback) {
             callback();
         }

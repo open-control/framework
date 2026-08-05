@@ -179,7 +179,9 @@ public:
      * });
      * @endcode
      */
-    [[nodiscard]] Subscription subscribe(std::function<void(const char*)> callback) {
+    [[nodiscard]] Subscription subscribe(
+        std::function<void(const char*)> callback
+    ) const {
         return signal_.subscribe(std::move(callback));
     }
 
@@ -191,7 +193,9 @@ public:
      * @param callback Function called immediately and on future changes
      * @return Subscription RAII handle
      */
-    [[nodiscard]] Subscription subscribeAndInvoke(std::function<void(const char*)> callback) {
+    [[nodiscard]] Subscription subscribeAndInvoke(
+        std::function<void(const char*)> callback
+    ) const {
         if (callback) {
             callback(buf_);
         }
