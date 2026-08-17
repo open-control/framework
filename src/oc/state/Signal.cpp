@@ -14,7 +14,7 @@ FLASHMEM void reportSignalSubscriberOverflow(const char* signalLabel,
                                              size_t subscriberCount,
                                              size_t maxSubscribers,
                                              const void* signalAddress) {
-    const auto* context = currentSubscriptionDebugContext();
+    [[maybe_unused]] const auto* context = currentSubscriptionDebugContext();
     OC_LOG_ERROR(
         "[Signal] MaxSubscribers exceeded label={} subscribers={} max={} requester={} address={}",
         signalLabel ? signalLabel : "<unnamed>",
