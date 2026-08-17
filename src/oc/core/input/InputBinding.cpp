@@ -390,6 +390,8 @@ FLASHMEM void InputBinding::releasePressScopedGesture(
     oc::type::ButtonID id,
     uint32_t pressDuration
 ) {
+    if (id >= MAX_BUTTONS) return;
+
     auto& route = gesture_routes_.route(id);
     const auto latchOwner = latch_.owner(id);
 
