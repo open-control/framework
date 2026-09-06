@@ -61,6 +61,7 @@ public:
     /// Drain buffered transport output when supported by the backend.
     void serviceOutput();
     void serviceOutput(uint32_t budgetUs);
+    void setOutputRefill(interface::IMidi::OutputRefill callback, void* context);
 
     // ═══════════════════════════════════════════════════
     // Safety

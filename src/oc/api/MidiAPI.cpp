@@ -115,6 +115,10 @@ void MidiAPI::serviceOutput(uint32_t budgetUs) {
     transport_.serviceOutput(budgetUs);
 }
 
+void MidiAPI::setOutputRefill(interface::IMidi::OutputRefill callback, void* context) {
+    transport_.setOutputRefill(callback, context);
+}
+
 // ═══════════════════════════════════════════════════
 // Safety
 // ═══════════════════════════════════════════════════
