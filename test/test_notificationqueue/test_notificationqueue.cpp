@@ -1,16 +1,18 @@
 #include <unity.h>
 
 #include <oc/state/NotificationQueue.hpp>
+#include <oc/state/Signal.hpp>
+#include <array>
+#include <limits>
+#include <vector>
 #if OC_ENABLE_STATS
 #include <oc/diagnostics/Performance.hpp>
 #include <oc/log/Log.hpp>
 #include <oc/state/DerivedSignal.hpp>
-#include <oc/state/Signal.hpp>
 #include <oc/state/SignalString.hpp>
 #include <oc/state/SignalWatcher.hpp>
 #include <oc/state/StaticSignalWatcher.hpp>
 
-#include <array>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -264,6 +266,77 @@ void test_cancel_owner_suppresses_later_callbacks_in_active_wave() {
     TEST_ASSERT_EQUAL(1, context.count);
     TEST_ASSERT_EQUAL(0, later);
     TEST_ASSERT_FALSE(NotificationQueue::instance().hasPending());
+}
+
+void test_signal_fanout_packs_without_losing_final_values_or_slot_cancellation() {
+    std::array<Signal<int, 8>, 25> signals;
+    std::array<Subscription, 200> subscriptions;
+    int calls = 0;
+    for (size_t i = 0; i < subscriptions.size(); ++i) {
+        subscriptions[i] = signals[i / 8].subscribe([&](const int& value) {
+            TEST_ASSERT_EQUAL(2, value);
+            ++calls;
+        });
+    }
+    for (auto& signal : signals) { signal.set(1); signal.set(2); }
+    TEST_ASSERT_EQUAL(200, NotificationQueue::instance().pendingCount());
+    TEST_ASSERT_EQUAL(25, NotificationQueue::instance().pendingEntryCount());
+    subscriptions[3].reset();
+    int replacementCalls = 0;
+    subscriptions[3] = signals[0].subscribe([&](const int&) { ++replacementCalls; });
+    subscriptions[5].cancelPendingNotification();
+    TEST_ASSERT_EQUAL(198, NotificationQueue::instance().pendingCount());
+    NotificationQueue::instance().flush();
+    TEST_ASSERT_EQUAL(198, calls);
+    TEST_ASSERT_EQUAL(0, replacementCalls);
+    TEST_ASSERT_FALSE(NotificationQueue::instance().hasOverflowed());
+}
+
+void test_packing_preserves_order_boundaries_and_full_size_keys() {
+    auto& queue = NotificationQueue::instance();
+    std::vector<size_t> order;
+    auto record = [](void* context, size_t slot) {
+        static_cast<std::vector<size_t>*>(context)->push_back(slot);
+    };
+    int otherOwner = 0;
+    const std::array<size_t, 9> expected{
+        0, 2, 1, 99, 3, 34, 35, std::numeric_limits<size_t>::max() - 1,
+        std::numeric_limits<size_t>::max()};
+    for (auto slot : expected) {
+        queue.enqueue({slot == 99 ? static_cast<void*>(&otherOwner) : &order, slot}, &order, record);
+    }
+    // Deduplication still applies to individual slots inside packed entries.
+    queue.enqueue({&order, 2}, &order, record);
+    queue.flush();
+    TEST_ASSERT_EQUAL(expected.size(), order.size());
+    for (size_t i = 0; i < expected.size(); ++i) TEST_ASSERT_TRUE(expected[i] == order[i]);
+}
+
+void test_packed_siblings_cancel_and_reenqueue_in_following_wave() {
+    auto& queue = NotificationQueue::instance();
+    std::vector<size_t> order;
+    auto callback = [](void* context, size_t slot) {
+        auto& seen = *static_cast<std::vector<size_t>*>(context);
+        seen.push_back(slot);
+        auto& q = NotificationQueue::instance();
+        if (slot == 0) {
+            q.cancel({context, 1});
+            q.enqueue({context, 1}, context, [](void* ctx, size_t s) {
+                static_cast<std::vector<size_t>*>(ctx)->push_back(s);
+            });
+            q.flush(); // Reentrant flush must not run the next wave early.
+        } else if (slot == 2) {
+            q.cancelOwner(context); // Cancels packed slot 3 and pending slot 1.
+        }
+    };
+    for (size_t slot = 0; slot < 4; ++slot) queue.enqueue({&order, slot}, &order, callback);
+    TEST_ASSERT_EQUAL(4, queue.pendingCount());
+    TEST_ASSERT_EQUAL(1, queue.pendingEntryCount());
+    queue.flush();
+    TEST_ASSERT_EQUAL(2, order.size());
+    TEST_ASSERT_EQUAL(0, order[0]);
+    TEST_ASSERT_EQUAL(2, order[1]);
+    TEST_ASSERT_FALSE(queue.hasPending());
 }
 
 #if OC_ENABLE_STATS
@@ -576,6 +649,9 @@ int main() {
     RUN_TEST(test_overflow_is_bounded_and_counted);
     RUN_TEST(test_cancel_removes_only_matching_key);
     RUN_TEST(test_cancel_owner_suppresses_later_callbacks_in_active_wave);
+    RUN_TEST(test_signal_fanout_packs_without_losing_final_values_or_slot_cancellation);
+    RUN_TEST(test_packing_preserves_order_boundaries_and_full_size_keys);
+    RUN_TEST(test_packed_siblings_cancel_and_reenqueue_in_following_wave);
 #if OC_ENABLE_STATS
     RUN_TEST(test_overflow_diagnostics_correlate_current_and_rejected_signals);
     RUN_TEST(test_string_debug_labels_forward_to_queue_diagnostics);

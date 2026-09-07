@@ -4,9 +4,9 @@
  * @file NotificationQueue.hpp
  * @brief Deferred notification system with automatic coalescing
  *
- * Provides automatic batching and deduplication of Signal notifications.
- * When multiple signals change during a single tick, their subscribers
- * are called only once with the final value.
+ * Repeated publications coalesce by (owner, slot) within a pending wave.
+ * Consecutive ascending slots with the same dispatcher share storage without
+ * changing callback order. WatchGroups coalesce different signals separately.
  *
  * ## How it works
  *
@@ -25,16 +25,13 @@
  * - **Efficient**: Duplicate pending callbacks are coalesced within each wave
  *
  * @code
- * // Handler sets 5 signals
- * state_.device.name.set(...);      // Enqueues updateDeviceInfo
- * state_.device.type.set(...);      // Already queued → ignored
- * state_.device.enabled.set(...);   // Already queued → ignored
- * state_.device.pageName.set(...);  // Already queued → ignored
- * state_.device.hasChildren.set(...); // Already queued → ignored
+ * // A subscriber sees the final value of repeated publications.
+ * state_.device.name.set("First");
+ * state_.device.name.set("Final");  // Same pending subscriber keys: coalesced
  *
  * // Later in app.update()
  * NotificationQueue::instance().flush();
- * // → updateDeviceInfo() called once with final values
+ * // → name subscribers called once with "Final"
  * @endcode
  */
 
@@ -108,7 +105,10 @@ public:
     /**
      * @brief Get count of pending notifications (for debugging)
      */
-    [[nodiscard]] size_t pendingCount() const { return pendingCount_; }
+    [[nodiscard]] size_t pendingCount() const;
+
+    /// Occupied storage entries; a packed entry can hold several callbacks.
+    [[nodiscard]] size_t pendingEntryCount() const { return pendingCount_; }
 
     /**
      * @brief Enable/disable deferred mode
@@ -167,7 +167,7 @@ public:
     [[nodiscard]] BatchGuard batch() { return BatchGuard(*this); }
 
     /**
-     * @brief Get maximum allowed pending notifications
+     * @brief Get maximum occupied entries (each can hold up to 32 callbacks)
      */
     [[nodiscard]] static constexpr size_t maxPending() { return MAX_PENDING_NOTIFICATIONS; }
 
@@ -196,6 +196,15 @@ private:
 #if OC_ENABLE_STATS
         const char* debugLabel = nullptr;
 #endif
+        // Up to 32 ascending slots relative to key.second. Only adjacent
+        // enqueues with the same owner/context/function may share an entry.
+        uint32_t slots = 1U;
+
+        [[nodiscard]] uint32_t bitFor(Key candidate) const {
+            return candidate.first == key.first && candidate.second >= key.second &&
+                   candidate.second - key.second < 32U
+                ? uint32_t{1} << (candidate.second - key.second) : 0U;
+        }
     };
 
     bool containsKey_(const std::array<Entry, MAX_PENDING_NOTIFICATIONS>& entries,

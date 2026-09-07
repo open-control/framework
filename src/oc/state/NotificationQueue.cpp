@@ -46,7 +46,7 @@ bool NotificationQueue::containsKey_(
     size_t count,
     Key key) const {
     for (size_t i = 0; i < count; ++i) {
-        if (entries[i].key == key) {
+        if ((entries[i].slots & entries[i].bitFor(key)) != 0U) {
             return true;
         }
     }
@@ -74,6 +74,21 @@ void NotificationQueue::enqueue(Key key, void* context, NotifyFn fn
         // Already queued - ignore duplicate
         // The existing entry will use the final value at flush time
         return;
+    }
+
+    // Pack only the tail, and only ascending slots. This preserves enqueue
+    // order even when an owner publishes again after a different owner.
+    if (pendingCount_ != 0U) {
+        auto& tail = pending_[pendingCount_ - 1U];
+        const uint32_t bit = tail.bitFor(key);
+        if (bit > tail.slots && tail.context == context && tail.fn == fn
+#if OC_ENABLE_STATS
+            && tail.debugLabel == debugLabel
+#endif
+        ) {
+            tail.slots |= bit;
+            return;
+        }
     }
 
     // Check overflow before adding
@@ -110,6 +125,14 @@ void NotificationQueue::cancel(Key key) {
     cancelMatching_(key.first, key.second, true);
 }
 
+size_t NotificationQueue::pendingCount() const {
+    size_t count = 0U;
+    for (size_t i = 0; i < pendingCount_; ++i) {
+        for (auto bits = pending_[i].slots; bits != 0U; bits &= bits - 1U) ++count;
+    }
+    return count;
+}
+
 void NotificationQueue::cancelOwner(void* owner) {
     if (owner == nullptr) return;
     cancelMatching_(owner, 0, false);
@@ -118,10 +141,11 @@ void NotificationQueue::cancelOwner(void* owner) {
 void NotificationQueue::cancelMatching_(void* owner, size_t slot, bool matchSlot) {
     size_t write = 0;
     for (size_t read = 0; read < pendingCount_; ++read) {
-        const auto& entry = pending_[read];
-        const bool matches = entry.key.first == owner &&
-                             (!matchSlot || entry.key.second == slot);
-        if (!matches) {
+        auto& entry = pending_[read];
+        if (entry.key.first == owner) {
+            entry.slots &= matchSlot ? ~entry.bitFor({owner, slot}) : 0U;
+        }
+        if (entry.slots != 0U) {
             if (write != read) pending_[write] = entry;
             ++write;
         }
@@ -133,8 +157,9 @@ void NotificationQueue::cancelMatching_(void* owner, size_t slot, bool matchSlot
 
     for (size_t i = 0; i < processingCount_; ++i) {
         auto& entry = processing_[i];
-        if (entry.key.first == owner && (!matchSlot || entry.key.second == slot)) {
-            entry = {};
+        if (entry.key.first == owner) {
+            entry.slots &= matchSlot ? ~entry.bitFor({owner, slot}) : 0U;
+            if (entry.slots == 0U) entry = {};
         }
     }
 }
@@ -220,11 +245,18 @@ void NotificationQueue::flush() {
         // Execute all pending notifications
         for (size_t i = 0; i < processingCount_; ++i) {
             auto& entry = processing_[i];
-            if (entry.fn != nullptr) {
+            while (entry.fn != nullptr && entry.slots != 0U) {
+                unsigned offset = 0U;
+                while ((entry.slots & (uint32_t{1} << offset)) == 0U) ++offset;
+                Entry callback = entry;
+                callback.key.second += offset;
+                entry.slots &= ~(uint32_t{1} << offset);
+                // The callback may cancel siblings or destroy its owner.
+                // Keep the current invocation local; recheck the live entry.
 #if OC_ENABLE_STATS
-                invokeEntry_(entry);
+                invokeEntry_(callback);
 #else
-                entry.fn(entry.context, entry.key.second);
+                callback.fn(callback.context, callback.key.second);
 #endif
             }
         }
