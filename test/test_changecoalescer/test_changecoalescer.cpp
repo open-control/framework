@@ -394,8 +394,65 @@ void test_rebinding_cancels_retired_notifications_before_slot_reuse() {
     TEST_ASSERT_EQUAL(1, actionCount);
 }
 
+void test_partial_rebinding_retains_queued_stable_change_and_cancels_old_owner() {
+    NotificationQueue::instance().setDeferredMode(true);
+    Signal<float, 1> stable{0.0f};
+    Signal<float, 1> outgoing{0.0f};
+    Signal<float, 1> incoming{0.0f};
+    ChangeCoalescer<2> coalescer{[]() { ++actionCount; }, 1000};
+    TEST_ASSERT_TRUE(coalescer.watch(stable));
+    TEST_ASSERT_TRUE(coalescer.watch(outgoing));
+    stable.set(1.0f);
+    outgoing.set(1.0f);
+    coalescer.clearSubscriptions(1);
+    TEST_ASSERT_EQUAL(1, coalescer.subscriptionCount());
+    int replacementCount = 0;
+    auto replacement = outgoing.subscribe([&](const float&) { ++replacementCount; });
+    TEST_ASSERT_TRUE(replacement.isValid());
+    TEST_ASSERT_TRUE(coalescer.watch(incoming));
+    NotificationQueue::instance().flush();
+    TEST_ASSERT_EQUAL(0, replacementCount);
+    TEST_ASSERT_TRUE(coalescer.hasPendingChanges()); // Stable callback survived.
+    mockTime = 900;
+    coalescer.clearSubscriptions(1);
+    TEST_ASSERT_TRUE(coalescer.watch(incoming));
+    incoming.set(1.0f);
+    NotificationQueue::instance().flush();
+    mockTime = 1100;
+    coalescer.update();
+    TEST_ASSERT_EQUAL(1, actionCount); // Original window did not restart.
+    incoming.set(2.0f);
+    NotificationQueue::instance().flush();
+    coalescer.flush();
+    TEST_ASSERT_EQUAL(2, actionCount);
+    stable.set(2.0f);
+    incoming.set(3.0f);
+    coalescer.consumePendingChangesWithoutAction();
+    NotificationQueue::instance().flush();
+    coalescer.flush();
+    TEST_ASSERT_EQUAL(2, actionCount); // Consumption still covers both groups.
+}
+
+void test_truncate_beyond_size_retains_subscriptions_and_clear_releases_them() {
+    Signal<float, 1> watched{0.0f};
+    ChangeCoalescer<1> coalescer{[]() { ++actionCount; }, 1000};
+    TEST_ASSERT_TRUE(coalescer.watch(watched));
+    coalescer.clearSubscriptions(3);
+    TEST_ASSERT_EQUAL(1, coalescer.subscriptionCount());
+    watched.set(1.0f);
+    coalescer.flush();
+    TEST_ASSERT_EQUAL(1, actionCount);
+    coalescer.clearSubscriptions();
+    watched.set(2.0f);
+    coalescer.flush();
+    TEST_ASSERT_EQUAL(1, actionCount);
+    TEST_ASSERT_EQUAL(0, coalescer.subscriptionCount());
+}
+
 int main() {
     UNITY_BEGIN();
+    RUN_TEST(test_partial_rebinding_retains_queued_stable_change_and_cancels_old_owner);
+    RUN_TEST(test_truncate_beyond_size_retains_subscriptions_and_clear_releases_them);
     RUN_TEST(test_rebinding_preserves_original_window_and_detaches_old_owner);
     RUN_TEST(test_rebinding_cancels_retired_notifications_before_slot_reuse);
 

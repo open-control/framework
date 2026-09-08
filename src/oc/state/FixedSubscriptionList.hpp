@@ -42,10 +42,16 @@ public:
     }
 
     void clear() {
-        for (size_t i = 0; i < size_; ++i) {
+        truncate(0);
+    }
+
+    /** Retain the first count handles, cancelling callbacks of removed handles. */
+    void truncate(size_t count) {
+        if (count >= size_) return;
+        for (size_t i = count; i < size_; ++i) {
             subscriptions_[i].reset();
         }
-        size_ = 0;
+        size_ = count;
     }
 
     /** Cancel queued callbacks while retaining every subscription. */

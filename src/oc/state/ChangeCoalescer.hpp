@@ -59,9 +59,9 @@ public:
         firstChangeMs_ = oc::time::millis();
     }
 
-    /** Rebind watched owners without losing an already-open coalescing window. */
-    void clearSubscriptions() {
-        subscriptions_.clear();
+    /** Rebind owners, retaining a stable prefix and any open coalescing window. */
+    void clearSubscriptions(size_t retained = 0) {
+        subscriptions_.truncate(retained);
         valid_ = true;
     }
 
