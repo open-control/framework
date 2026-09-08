@@ -42,7 +42,7 @@ void GestureDetector::resetButton(oc::type::ButtonID buttonId) {
 }
 
 void GestureDetector::reset() {
-    button_states_.fill(false);
+    button_states_.reset();
     button_press_time_.fill(0);
     button_release_time_.fill(0);
     button_tap_count_.fill(0);

@@ -190,6 +190,7 @@ void InputBinding::processTick() {
     if (time_provider_) {
         current_time_ = time_provider_();
     }
+    if (!gesture_.hasPressedButtons()) return;
     for (size_t i = 0; i < MAX_BUTTONS; ++i) {
         if (gesture_.isPressed(static_cast<oc::type::ButtonID>(i))) {
             checkLongPress(static_cast<oc::type::ButtonID>(i), current_time_);
