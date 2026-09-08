@@ -350,8 +350,54 @@ void test_coalescer_destruction_cancels_before_slot_reuse() {
     TEST_ASSERT_EQUAL(0, replacementCount);
 }
 
+void test_rebinding_preserves_original_window_and_detaches_old_owner() {
+    Signal<float> outgoing{0.0f};
+    Signal<float> incoming{0.0f};
+    ChangeCoalescer<1> coalescer{[]() { ++actionCount; }, 1000};
+    TEST_ASSERT_TRUE(coalescer.watch(outgoing));
+    outgoing.set(1.0f);  // Opens at t=100.
+    mockTime = 900;
+    coalescer.clearSubscriptions();
+    TEST_ASSERT_TRUE(coalescer.valid());
+    TEST_ASSERT_EQUAL(0, coalescer.subscriptionCount());
+    TEST_ASSERT_TRUE(coalescer.hasPendingChanges());
+    TEST_ASSERT_TRUE(coalescer.watch(incoming));
+    incoming.set(1.0f);
+    mockTime = 1100;
+    coalescer.update();
+    TEST_ASSERT_EQUAL(1, actionCount);
+    outgoing.set(2.0f);
+    TEST_ASSERT_FALSE(coalescer.hasPendingChanges());
+    incoming.set(2.0f);
+    TEST_ASSERT_TRUE(coalescer.hasPendingChanges());
+    coalescer.flush();
+    TEST_ASSERT_EQUAL(2, actionCount);
+}
+
+void test_rebinding_cancels_retired_notifications_before_slot_reuse() {
+    NotificationQueue::instance().setDeferredMode(true);
+    Signal<float, 1> outgoing{0.0f};
+    Signal<float, 1> incoming{0.0f};
+    ChangeCoalescer<1> coalescer{[]() { ++actionCount; }, 1000};
+    TEST_ASSERT_TRUE(coalescer.watch(outgoing));
+    outgoing.set(1.0f);
+    coalescer.clearSubscriptions();
+    int replacementCount = 0;
+    auto replacement = outgoing.subscribe([&](const float&) { ++replacementCount; });
+    TEST_ASSERT_TRUE(coalescer.watch(incoming));
+    NotificationQueue::instance().flush();
+    TEST_ASSERT_EQUAL(0, replacementCount);
+    TEST_ASSERT_FALSE(coalescer.hasPendingChanges());
+    incoming.set(1.0f);
+    NotificationQueue::instance().flush();
+    coalescer.flush();
+    TEST_ASSERT_EQUAL(1, actionCount);
+}
+
 int main() {
     UNITY_BEGIN();
+    RUN_TEST(test_rebinding_preserves_original_window_and_detaches_old_owner);
+    RUN_TEST(test_rebinding_cancels_retired_notifications_before_slot_reuse);
 
     RUN_TEST(test_no_action_before_window_expires);
     RUN_TEST(test_action_runs_after_window_expires);
