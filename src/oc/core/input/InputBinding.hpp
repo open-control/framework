@@ -262,6 +262,7 @@ private:
     bool shouldActivateLatch(oc::type::ButtonID id, oc::type::ScopeID pressOwner, uint32_t pressDuration) const;
 
     // Subsystems
+    InputConfig config_;  ///< Owned before GestureDetector binds its reference.
     GestureDetector gesture_;
     LatchManager latch_;
     GestureRouteTracker gesture_routes_;
@@ -272,7 +273,6 @@ private:
     interface::SubscriptionID button_press_sub_;
     interface::SubscriptionID button_release_sub_;
 
-    InputConfig config_;
     bool bindings_enabled_ = true;
     InputBindingTraceCallback trace_callback_;
     InputBindingDiagnostics diagnostics_{};

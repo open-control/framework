@@ -11,6 +11,7 @@
  */
 
 #include <array>
+#include <bitset>
 
 #include <oc/Config.hpp>
 #include <oc/core/input/Binding.hpp>
@@ -102,6 +103,7 @@ public:
     // ═══════════════════════════════════════════════════
 
     bool isPressed(oc::type::ButtonID buttonId) const;
+    bool hasPressedButtons() const { return button_states_.any(); }
     uint32_t pressTime(oc::type::ButtonID buttonId) const;
     uint32_t releaseTime(oc::type::ButtonID buttonId) const;
     uint8_t tapCount(oc::type::ButtonID buttonId) const;
@@ -112,7 +114,7 @@ public:
 private:
     const InputConfig& config_;
 
-    std::array<bool, MAX_BUTTONS> button_states_{};
+    std::bitset<MAX_BUTTONS> button_states_{};
     std::array<uint32_t, MAX_BUTTONS> button_press_time_{};
     std::array<uint32_t, MAX_BUTTONS> button_release_time_{};
     std::array<uint8_t, MAX_BUTTONS> button_tap_count_{};

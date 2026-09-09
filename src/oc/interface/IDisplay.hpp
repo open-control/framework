@@ -33,6 +33,10 @@ public:
 
     virtual void flush(const void* buffer, const Rect& area) = 0;
 
+    /// Non-waiting admission check before rendering a whole frame. A false
+    /// result leaves invalidations pending; it must not discard dirty regions.
+    virtual bool canAcceptFrame() const { return true; }
+
     /**
      * @brief Flush a framebuffer-backed region.
      *

@@ -18,10 +18,10 @@ FLASHMEM InputBinding::InputBinding(interface::IEventBus& eventBus,
                                     const InputConfig& config)
     : button_registry_(MAX_BUTTON_BINDINGS, next_binding_id_),
       encoder_registry_(MAX_ENCODER_BINDINGS, next_binding_id_),
-      gesture_(config),
+      config_(config),
+      gesture_(config_),
       event_bus_(eventBus),
-      time_provider_(timeProvider),
-      config_(config) {
+      time_provider_(timeProvider) {
     if (!time_provider_) {
         OC_LOG_WARN("{}", "[InputBinding] No oc::type::TimeProvider - long press and double tap detection disabled");
     }
@@ -190,6 +190,7 @@ void InputBinding::processTick() {
     if (time_provider_) {
         current_time_ = time_provider_();
     }
+    if (!gesture_.hasPressedButtons()) return;
     for (size_t i = 0; i < MAX_BUTTONS; ++i) {
         if (gesture_.isPressed(static_cast<oc::type::ButtonID>(i))) {
             checkLongPress(static_cast<oc::type::ButtonID>(i), current_time_);

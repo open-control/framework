@@ -43,6 +43,13 @@ public:
         serviceOutput();
     }
 
+    // Optional bounded refill, called by an asynchronous output consumer when
+    // it frees space. No allocation/UI work; the caller serializes its source
+    // against producers. Return true only while more already-due work remains.
+    // Registration/removal is synchronous; remove before destroying the source.
+    using OutputRefill = bool (*)(void* context, uint32_t budgetUs);
+    virtual void setOutputRefill(OutputRefill, void*) {}
+
     // ═══════════════════════════════════════════════════
     // Output
     // ═══════════════════════════════════════════════════

@@ -59,6 +59,12 @@ public:
         firstChangeMs_ = oc::time::millis();
     }
 
+    /** Rebind owners, retaining a stable prefix and any open coalescing window. */
+    void clearSubscriptions(size_t retained = 0) {
+        subscriptions_.truncate(retained);
+        valid_ = true;
+    }
+
     void update() {
         if (!pending_) return;
 
