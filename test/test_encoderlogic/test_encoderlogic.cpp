@@ -559,6 +559,56 @@ void test_process_new_position_no_change() {
     TEST_ASSERT_FALSE(value.has_value());
 }
 
+// Exercise reconfiguration with input already published: changing sensitivity must
+// neither reset the value nor consume/drop the next event. Partial setters remain
+// supported for callers that intentionally retain part of their resolution.
+void test_complete_resolution_matches_partial_updates_with_pending_input() {
+    struct Resolution { uint8_t steps; uint16_t ticks; float turns; };
+    constexpr Resolution resolutions[] = {
+        {0, 2, 0}, {1, 8, .25f}, {2, 8, .25f}, {16, 4, .5f},
+        {64, 2, 4}, {128, 2, 0}, {255, 65535, 2}, {0, 0, -1}
+    };
+    const auto applyPartial = [](EncoderLogic& logic, Resolution r, bool stepsFirst) {
+        if (stepsFirst) logic.setDiscreteSteps(r.steps);
+        logic.setDiscreteTicksPerStep(r.ticks);
+        logic.setNormalizedTurns(r.turns);
+        if (!stepsFirst) logic.setDiscreteSteps(r.steps);
+    };
+    for (auto mode : {EncoderMode::NORMALIZED, EncoderMode::RAW, EncoderMode::RELATIVE})
+    for (const auto prior : resolutions)
+    for (const auto next : resolutions)
+    for (bool stepsFirst : {false, true})
+    for (float minimum : {0.0f, -1.0f, 10.0f})
+    for (float fraction : {0.0f, .137f, .5f, 1.0f})
+    for (int pending : {-17, -1, 0, 1, 19}) {
+        EncoderLogic partial(makeConfig()), complete(makeConfig());
+        for (auto* logic : {&partial, &complete}) {
+            applyPartial(*logic, prior, false);
+            logic->setMode(mode);
+            logic->setBounds(minimum, minimum + 2.0f);
+            logic->setPosition(minimum + fraction * 2.0f);
+            logic->publishDeltaFromISR(pending);
+        }
+        applyPartial(partial, next, stepsFirst);
+        complete.configureResolution(next.steps, next.ticks, next.turns);
+        TEST_ASSERT_EQUAL(mode, complete.getMode());
+        TEST_ASSERT_EQUAL(pending != 0, complete.hasPending());
+        TEST_ASSERT_EQUAL_INT32(partial.getPosition(), complete.getPosition());
+        TEST_ASSERT_EQUAL_FLOAT(partial.getLastValue(), complete.getLastValue());
+        for (int delta : {0, 1, -1, 4, 17, -41, 100, -99}) {
+            partial.publishDeltaFromISR(delta);
+            complete.publishDeltaFromISR(delta);
+            const auto expected = partial.consumePublishedDeltas();
+            const auto actual = complete.consumePublishedDeltas();
+            TEST_ASSERT_EQUAL(expected.has_value(), actual.has_value());
+            if (expected) TEST_ASSERT_EQUAL_FLOAT(*expected, *actual);
+            TEST_ASSERT_EQUAL_INT32(partial.getPosition(), complete.getPosition());
+            TEST_ASSERT_EQUAL_FLOAT(partial.getLastValue(), complete.getLastValue());
+            TEST_ASSERT_FALSE(complete.hasPending());
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     UNITY_BEGIN();
 
@@ -587,6 +637,8 @@ int main(int argc, char **argv) {
     // RAW mode
     RUN_TEST(test_raw_mode_returns_ticks);
     RUN_TEST(test_raw_mode_setposition_no_clamp);
+
+    RUN_TEST(test_complete_resolution_matches_partial_updates_with_pending_input);
 
     // Discrete steps
     RUN_TEST(test_discrete_steps_quantizes_output);
@@ -625,6 +677,5 @@ int main(int argc, char **argv) {
     RUN_TEST(test_process_new_position_basic);
     RUN_TEST(test_process_new_position_no_change);
 
-    UNITY_END();
-    return 0;
+    return UNITY_END();
 }

@@ -47,6 +47,10 @@ void EncoderAPI::setDelta(oc::type::EncoderID id, float delta) {
     hw_.setDelta(id, delta);
 }
 
+void EncoderAPI::configureResolution(oc::type::EncoderID id, uint8_t steps, uint16_t ticksPerStep, float turns) {
+    hw_.configureResolution(id, steps, ticksPerStep, turns);
+}
+
 void EncoderAPI::setDiscreteSteps(oc::type::EncoderID id, uint8_t steps) {
     hw_.setDiscreteSteps(id, steps);
 }

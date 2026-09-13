@@ -91,6 +91,13 @@ public:
     template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
     void setDelta(EnumT id, float delta) { setDelta(static_cast<oc::type::EncoderID>(id), delta); }
 
+    /// Apply all resolution settings with one backend lookup and range calculation.
+    void configureResolution(oc::type::EncoderID id, uint8_t steps, uint16_t ticksPerStep, float turns);
+    template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>
+    void configureResolution(EnumT id, uint8_t steps, uint16_t ticksPerStep, float turns) {
+        configureResolution(static_cast<oc::type::EncoderID>(id), steps, ticksPerStep, turns);
+    }
+
     /// Configure encoder for discrete steps
     void setDiscreteSteps(oc::type::EncoderID id, uint8_t steps);
     template <typename EnumT, typename = std::enable_if_t<oc::type::is_id_v<EnumT>>>

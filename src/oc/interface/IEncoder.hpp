@@ -93,6 +93,12 @@ public:
     virtual void setMode(oc::type::EncoderID id, EncoderMode mode) = 0;
     virtual void setBounds(oc::type::EncoderID id, float min, float max) = 0;
     virtual void setDelta(oc::type::EncoderID id, float delta) = 0;  ///< Set delta per detent (relative mode)
+    /// Apply a complete resolution in foreground, preserving mode, value and pending ticks.
+    /// Zero steps selects continuous output; zero turns selects hardware travel.
+    /// In RAW/RELATIVE modes only ticks/turns are stored, as with the partial setters.
+    virtual void configureResolution(oc::type::EncoderID id, uint8_t steps,
+                                     uint16_t ticksPerStep, float turns) = 0;
+
     virtual void setDiscreteSteps(oc::type::EncoderID id, uint8_t steps) = 0;
     virtual void setDiscreteTicksPerStep(oc::type::EncoderID id, uint16_t ticksPerStep) = 0;
     virtual void setNormalizedTurns(oc::type::EncoderID id, float turns) = 0;

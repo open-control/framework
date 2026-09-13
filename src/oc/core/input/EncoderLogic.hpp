@@ -132,6 +132,8 @@ public:
     void setMode(interface::EncoderMode mode);
     void setBounds(float min, float max);
     void setDelta(float delta);
+    /// Complete resolution update; foreground only, without discarding published ticks.
+    void configureResolution(uint8_t steps, uint16_t ticksPerStep, float turns);
     void setDiscreteSteps(uint8_t steps);
     void setDiscreteTicksPerStep(uint16_t ticksPerStep);
     void setNormalizedTurns(float turns);
