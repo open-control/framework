@@ -225,6 +225,15 @@ void EncoderLogic::setDelta(float delta) {
     delta_per_detent_ = delta;
 }
 
+void EncoderLogic::configureResolution(uint8_t steps, uint16_t ticksPerStep, float turns) {
+    discrete_ticks_per_step_ = std::max<uint16_t>(1, ticksPerStep);
+    normalized_turns_ = std::max(0.0f, turns);
+    if (mode_ != interface::EncoderMode::NORMALIZED) return;
+    discrete_steps_ = steps;
+    last_quantized_value_ = -1.0f;
+    recalculateVirtualRangeForDiscreteSteps();
+}
+
 void EncoderLogic::setDiscreteSteps(uint8_t steps) {
     if (mode_ != interface::EncoderMode::NORMALIZED) return;
 
